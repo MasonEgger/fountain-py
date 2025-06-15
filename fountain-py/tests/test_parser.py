@@ -342,3 +342,283 @@ Regular action without tabs."""
         
         assert elements[4].type == ElementType.ACTION
         assert elements[4].text == 'Regular action without tabs.'
+    
+    def test_dual_dialogue(self):
+        """Test dual dialogue parsing with ^ syntax."""
+        text = """JOHN
+I can't believe it!
+
+SARAH^
+Neither can I!"""
+        
+        document = self.parser.parse(text)
+        
+        # Should have one dual dialogue element
+        dual_elements = [el for el in document.elements if el.type == ElementType.DUAL_DIALOGUE]
+        assert len(dual_elements) == 1
+        
+        dual_element = dual_elements[0]
+        assert dual_element.metadata['left_character'].text == 'JOHN'
+        assert dual_element.metadata['right_character'].text == 'SARAH'
+        assert len(dual_element.metadata['left_dialogue']) == 1
+        assert len(dual_element.metadata['right_dialogue']) == 1
+        assert dual_element.metadata['left_dialogue'][0].text == "I can't believe it!"
+        assert dual_element.metadata['right_dialogue'][0].text == "Neither can I!"
+    
+    def test_forced_character_names(self):
+        """Test forced character names with @ syntax."""
+        text = """@McCULLY
+Hello there."""
+        
+        document = self.parser.parse(text)
+        
+        character_elements = [el for el in document.elements if el.type == ElementType.CHARACTER]
+        assert len(character_elements) == 1
+        assert character_elements[0].text == 'McCULLY'
+        assert character_elements[0].metadata.get('forced') is True
+    
+    def test_character_extensions(self):
+        """Test character extensions like (V.O.) and (O.S.)."""
+        text = """JOHN (V.O.)
+You can hear my voice.
+
+SARAH (O.S.)^
+I'm off screen too!"""
+        
+        document = self.parser.parse(text)
+        
+        # Should have dual dialogue since SARAH has ^
+        dual_elements = [el for el in document.elements if el.type == ElementType.DUAL_DIALOGUE]
+        assert len(dual_elements) == 1
+        
+        # Check extensions
+        dual = dual_elements[0]
+        left_char = dual.metadata['left_character']
+        right_char = dual.metadata['right_character']
+        
+        assert left_char.text == 'JOHN'
+        assert left_char.metadata.get('extension') == 'V.O.'
+        
+        assert right_char.text == 'SARAH'
+        assert right_char.metadata.get('extension') == 'O.S.'
+        assert right_char.metadata.get('dual_dialogue') is True
+    
+    def test_scene_numbers(self):
+        """Test scene number parsing with #1# syntax."""
+        text = """INT. HOUSE - DAY #1#
+
+Some action happens.
+
+EXT. GARDEN - NIGHT #2A#
+
+More action."""
+        
+        document = self.parser.parse(text)
+        
+        scene_elements = [el for el in document.elements if el.type == ElementType.SCENE_HEADING]
+        assert len(scene_elements) == 2
+        
+        assert scene_elements[0].text == 'INT. HOUSE - DAY'
+        assert scene_elements[0].metadata.get('scene_number') == '1'
+        
+        assert scene_elements[1].text == 'EXT. GARDEN - NIGHT'
+        assert scene_elements[1].metadata.get('scene_number') == '2A'
+    
+    def test_multi_line_boneyard(self):
+        """Test multi-line boneyard comments."""
+        text = """JOHN
+Hello there.
+
+/*
+This is a multi-line comment
+that should be completely ignored
+*/
+
+SARAH
+Hi back."""
+        
+        document = self.parser.parse(text)
+        
+        # Should only have character and dialogue elements, no boneyard
+        element_types = [el.type for el in document.elements]
+        assert ElementType.BONEYARD not in element_types
+        
+        characters = [el for el in document.elements if el.type == ElementType.CHARACTER]
+        assert len(characters) == 2
+        assert characters[0].text == 'JOHN'
+        assert characters[1].text == 'SARAH'
+    
+    def test_notes_parsing(self):
+        """Test parsing of [[note]] syntax."""
+        text = """[[This is a standalone note]]
+
+JOHN
+Hello there!"""
+        
+        document = self.parser.parse(text)
+        
+        note_elements = [el for el in document.elements if el.type == ElementType.NOTE]
+        assert len(note_elements) == 1
+        assert note_elements[0].text == '[[This is a standalone note]]'
+    
+    def test_bold_italic_combination(self):
+        """Test ***bold italic*** formatting."""
+        text = """JOHN
+This is ***bold and italic*** text."""
+        
+        document = self.parser.parse(text)
+        
+        dialogue_elements = [el for el in document.elements if el.type == ElementType.DIALOGUE]
+        assert len(dialogue_elements) == 1
+        
+        dialogue = dialogue_elements[0]
+        assert len(dialogue.formatting) == 1
+        assert dialogue.formatting[0].format_type == 'bold_italic'
+    
+    def test_page_breaks(self):
+        """Test page break parsing with === syntax."""
+        text = """JOHN
+Hello.
+
+===
+
+SARAH
+Hi there."""
+        
+        document = self.parser.parse(text)
+        
+        page_break_elements = [el for el in document.elements if el.type == ElementType.PAGE_BREAK]
+        assert len(page_break_elements) == 1
+        assert page_break_elements[0].text == '==='
+    
+    def test_forced_scene_heading_with_number(self):
+        """Test forced scene heading with scene number."""
+        text = """.my scene heading #5#"""
+        
+        document = self.parser.parse(text)
+        
+        scene_elements = [el for el in document.elements if el.type == ElementType.SCENE_HEADING]
+        assert len(scene_elements) == 1
+        assert scene_elements[0].text == 'my scene heading'
+        assert scene_elements[0].metadata.get('scene_number') == '5'
+    
+    def test_centered_text(self):
+        """Test centered text parsing with >text< syntax."""
+        text = """>This text should be centered<
+
+JOHN
+Hello."""
+        
+        document = self.parser.parse(text)
+        
+        centered_elements = [el for el in document.elements if el.type == ElementType.CENTERED]
+        assert len(centered_elements) == 1
+        assert centered_elements[0].text == 'This text should be centered'
+    
+    def test_enhanced_title_page(self):
+        """Test enhanced title page with more fields and multi-line support."""
+        text = """Title: My Great Script
+Author: John Doe
+Writers: John Doe and Jane Smith
+Producer: Big Studio Productions
+Director: Famous Director
+Copyright: © 2024 John Doe. All rights reserved.
+Notes: This is a note that spans
+    multiple lines with additional
+    information about the script.
+Contact: John Doe
+    123 Main Street
+    Hollywood, CA 90210
+    (555) 123-4567
+
+FADE IN:
+
+INT. HOUSE - DAY
+
+Some action."""
+        
+        document = self.parser.parse(text)
+        
+        # Check that all new fields are parsed
+        assert document.metadata.get('writers') == 'John Doe and Jane Smith'
+        assert document.metadata.get('producer') == 'Big Studio Productions'
+        assert document.metadata.get('director') == 'Famous Director'
+        assert document.metadata.get('copyright') == '© 2024 John Doe. All rights reserved.'
+        
+        # Check multi-line support
+        assert 'multiple lines' in document.metadata.get('notes', '')
+        assert 'Hollywood, CA' in document.metadata.get('contact', '')
+    
+    def test_element_precedence(self):
+        """Test that element precedence works correctly for ambiguous cases."""
+        text = """>FADE OUT<
+
+>CUT TO:
+
+.INT. HOUSE - DAY
+
+@character
+
+==="""
+        
+        document = self.parser.parse(text)
+        
+        element_types = [el.type for el in document.elements]
+        
+        # Should detect: CENTERED, TRANSITION, SCENE_HEADING, CHARACTER (fallback to action), PAGE_BREAK
+        assert ElementType.CENTERED in element_types
+        assert ElementType.TRANSITION in element_types
+        assert ElementType.SCENE_HEADING in element_types
+        assert ElementType.PAGE_BREAK in element_types
+    
+    def test_complex_formatting_combinations(self):
+        """Test complex formatting combinations."""
+        text = """JOHN
+This has ***bold italic***, **bold**, *italic*, and _underlined_ text all together."""
+        
+        document = self.parser.parse(text)
+        
+        dialogue_elements = [el for el in document.elements if el.type == ElementType.DIALOGUE]
+        assert len(dialogue_elements) == 1
+        
+        dialogue = dialogue_elements[0]
+        format_types = [span.format_type for span in dialogue.formatting]
+        
+        # Should have all different types
+        assert 'bold_italic' in format_types
+        assert 'bold' in format_types
+        assert 'italic' in format_types
+        assert 'underline' in format_types
+    
+    def test_dialogue_continuation_edge_cases(self):
+        """Test dialogue continuation with edge cases."""
+        text = """JOHN
+First line of dialogue
+Second line without break
+
+This should be action after blank line.
+
+SARAH
+Her dialogue
+Continued dialogue
+
+!This is forced action even after dialogue."""
+        
+        document = self.parser.parse(text)
+        
+        elements = [(el.type, el.text) for el in document.elements]
+        
+        # Should be: CHARACTER, DIALOGUE, DIALOGUE, ACTION, CHARACTER, DIALOGUE, DIALOGUE, ACTION
+        expected_types = [
+            ElementType.CHARACTER,  # JOHN
+            ElementType.DIALOGUE,   # First line
+            ElementType.DIALOGUE,   # Second line
+            ElementType.ACTION,     # This should be action
+            ElementType.CHARACTER,  # SARAH
+            ElementType.DIALOGUE,   # Her dialogue
+            ElementType.DIALOGUE,   # Continued dialogue
+            ElementType.ACTION      # Forced action
+        ]
+        
+        actual_types = [el.type for el in document.elements]
+        assert actual_types == expected_types

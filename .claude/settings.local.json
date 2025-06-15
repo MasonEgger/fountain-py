@@ -4,7 +4,13 @@
       "Bash(uv init:*)",
       "Bash(ls:*)",
       "Bash(rm:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(uv run black:*)",
+      "Bash(uv run:*)",
+      "Bash(python test:*)",
+      "Bash(grep:*)",
+      "Bash(python:*)"
     ],
     "deny": []
   }

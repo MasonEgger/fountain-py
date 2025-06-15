@@ -20,6 +20,9 @@ class ElementType(Enum):
     BONEYARD = "boneyard"
     SECTION = "section"
     SYNOPSIS = "synopsis"
+    DUAL_DIALOGUE = "dual_dialogue"
+    PAGE_BREAK = "page_break"
+    CENTERED = "centered"
 
 
 class FormatSpan(NamedTuple):
