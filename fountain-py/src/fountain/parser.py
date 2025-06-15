@@ -17,6 +17,7 @@ class FountainParser:
     CHARACTER_PATTERN = re.compile(r'^[A-Z][A-Z0-9\s]*(\^)?$')
     TRANSITION_PATTERN = re.compile(r'^[A-Z\s]+TO:$|^FADE IN:$|^FADE OUT\.$|^CUT TO:$')
     FORCED_TRANSITION_PATTERN = re.compile(r'^>')
+    FORCED_ACTION_PATTERN = re.compile(r'^!(.+)$')
     CENTERED_PATTERN = re.compile(r'^>[^<]*<$')
     NOTE_PATTERN = re.compile(r'\[\[[^\]]*\]\]')
     BONEYARD_PATTERN = re.compile(r'^/\*.*?\*/$', re.DOTALL)
@@ -43,17 +44,20 @@ class FountainParser:
         metadata = self._parse_title_page()
         
         # Second pass: parse body elements
+        previous_line_was_blank = False
         while self.current_line < len(self.lines):
             line = self.lines[self.current_line].rstrip()
             
             if not line:  # Empty line
+                previous_line_was_blank = True
                 self.current_line += 1
                 continue
                 
-            element = self._parse_line(line)
+            element = self._parse_line(line, previous_line_was_blank)
             if element:
                 self.elements.append(element)
             
+            previous_line_was_blank = False
             self.current_line += 1
         
         return FountainDocument(self.elements, metadata)
@@ -91,7 +95,7 @@ class FountainParser:
         
         return metadata
     
-    def _parse_line(self, line: str) -> Optional[FountainElement]:
+    def _parse_line(self, line: str, had_blank_line_before: bool = False) -> Optional[FountainElement]:
         """Parse a single line and return the appropriate FountainElement."""
         original_line = line
         line = line.strip()
@@ -105,6 +109,16 @@ class FountainParser:
                 type=ElementType.BONEYARD,
                 text=line,
                 formatting=[],
+                line_number=self.current_line + 1
+            )
+        
+        # Check for forced action (starts with !)
+        if self.FORCED_ACTION_PATTERN.match(line):
+            text = self.FORCED_ACTION_PATTERN.sub(r'\1', line).strip()
+            return FountainElement(
+                type=ElementType.ACTION,
+                text=text,
+                formatting=self._extract_formatting(text),
                 line_number=self.current_line + 1
             )
         
@@ -187,7 +201,7 @@ class FountainParser:
             )
         
         # Check if this is dialogue (follows character or parenthetical)
-        if self._is_dialogue_line():
+        if self._is_dialogue_line(had_blank_line_before):
             return FountainElement(
                 type=ElementType.DIALOGUE,
                 text=line,
@@ -198,7 +212,7 @@ class FountainParser:
         # Default to action
         return FountainElement(
             type=ElementType.ACTION,
-            text=line,
+            text=original_line.rstrip(),  # Preserve leading tabs/spaces, remove trailing whitespace
             formatting=self._extract_formatting(line),
             line_number=self.current_line + 1
         )
@@ -222,14 +236,22 @@ class FountainParser:
             next_line_idx += 1
         return False
     
-    def _is_dialogue_line(self) -> bool:
-        """Check if current line is dialogue based on previous elements."""
+    def _is_dialogue_line(self, had_blank_line_before: bool = False) -> bool:
+        """Check if current line is dialogue based on previous elements and blank line separation."""
         if not self.elements:
             return False
         
-        # Check if previous element was character or parenthetical
         prev_element = self.elements[-1]
-        return prev_element.type in (ElementType.CHARACTER, ElementType.PARENTHETICAL, ElementType.DIALOGUE)
+        
+        # Always dialogue after CHARACTER or PARENTHETICAL
+        if prev_element.type in (ElementType.CHARACTER, ElementType.PARENTHETICAL):
+            return True
+        
+        # Dialogue continuation: follows DIALOGUE with NO blank line separation
+        if prev_element.type == ElementType.DIALOGUE and not had_blank_line_before:
+            return True
+        
+        return False
     
     def _extract_formatting(self, text: str) -> List[FormatSpan]:
         """Extract formatting spans from text."""

@@ -103,3 +103,50 @@ class TestHTMLRenderer:
         assert '<p class="source">Based on true events</p>' in html
         assert '<p class="draft-date">June 2025</p>' in html
         assert '<p class="contact">writer@example.com</p>' in html
+    
+    def test_action_line_breaks_rendering(self):
+        """Test that line breaks in action elements are converted to <br> tags."""
+        # Create an action element with embedded newlines
+        action_text = "He stands up.\nHis coffee spills.\nEveryone stares."
+        elements = [
+            FountainElement(ElementType.ACTION, action_text, [], 1),
+        ]
+        
+        document = FountainDocument(elements, {})
+        html = self.renderer.render(document)
+        
+        # Check that newlines are converted to <br> tags
+        expected_html = 'He stands up.<br>His coffee spills.<br>Everyone stares.'
+        assert expected_html in html
+        assert '<div class="action">He stands up.<br>His coffee spills.<br>Everyone stares.</div>' in html
+    
+    def test_action_single_line_rendering(self):
+        """Test that single-line action elements render normally."""
+        elements = [
+            FountainElement(ElementType.ACTION, "She sits down.", [], 1),
+        ]
+        
+        document = FountainDocument(elements, {})
+        html = self.renderer.render(document)
+        
+        # Should not have any <br> tags
+        assert '<div class="action">She sits down.</div>' in html
+        assert '<br>' not in html
+    
+    def test_action_tab_rendering(self):
+        """Test that tabs in action elements are converted to HTML spaces."""
+        # Create action elements with tabs
+        action_text_single_tab = "\tIndented with one tab."
+        action_text_double_tab = "\t\tIndented with two tabs."
+        
+        elements = [
+            FountainElement(ElementType.ACTION, action_text_single_tab, [], 1),
+            FountainElement(ElementType.ACTION, action_text_double_tab, [], 2),
+        ]
+        
+        document = FountainDocument(elements, {})
+        html = self.renderer.render(document)
+        
+        # Check that tabs are converted to &nbsp; sequences
+        assert '<div class="action">&nbsp;&nbsp;&nbsp;&nbsp;Indented with one tab.</div>' in html
+        assert '<div class="action">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Indented with two tabs.</div>' in html

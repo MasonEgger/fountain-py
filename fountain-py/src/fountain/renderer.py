@@ -83,7 +83,10 @@ class HTMLRenderer:
         if element.type == ElementType.SCENE_HEADING:
             return f'<div class="scene-heading">{text}</div>'
         elif element.type == ElementType.ACTION:
-            return f'<div class="action">{text}</div>'
+            # Convert tabs to spaces and preserve leading whitespace
+            text_with_spacing = text.replace('\t', '&nbsp;&nbsp;&nbsp;&nbsp;')
+            text_with_br = text_with_spacing.replace('\n', '<br>')
+            return f'<div class="action">{text_with_br}</div>'
         elif element.type == ElementType.CHARACTER:
             return f'<div class="character">{text}</div>'
         elif element.type == ElementType.DIALOGUE:

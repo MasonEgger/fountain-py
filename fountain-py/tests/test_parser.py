@@ -147,3 +147,198 @@ Goodbye."""
         assert stats['scene_heading_count'] == 2
         assert stats['character_count'] == 3  # JOHN appears twice
         assert stats['dialogue_count'] == 3
+    
+    def test_action_after_dialogue(self):
+        """Test that action elements following dialogue are correctly classified."""
+        text = """JOHN
+Hello, Sarah!
+
+SARAH
+Hi there!
+
+They hug warmly.
+
+JOHN
+How are you?
+
+She smiles and sits down."""
+        
+        document = self.parser.parse(text)
+        elements = document.elements
+        
+        # Should have: CHARACTER, DIALOGUE, CHARACTER, DIALOGUE, ACTION, CHARACTER, DIALOGUE, ACTION
+        assert len(elements) == 8
+        
+        # Check sequence
+        assert elements[0].type == ElementType.CHARACTER
+        assert elements[0].text == 'JOHN'
+        
+        assert elements[1].type == ElementType.DIALOGUE  
+        assert elements[1].text == 'Hello, Sarah!'
+        
+        assert elements[2].type == ElementType.CHARACTER
+        assert elements[2].text == 'SARAH'
+        
+        assert elements[3].type == ElementType.DIALOGUE
+        assert elements[3].text == 'Hi there!'
+        
+        # This should be ACTION, not DIALOGUE
+        assert elements[4].type == ElementType.ACTION
+        assert elements[4].text == 'They hug warmly.'
+        
+        assert elements[5].type == ElementType.CHARACTER
+        assert elements[5].text == 'JOHN'
+        
+        assert elements[6].type == ElementType.DIALOGUE
+        assert elements[6].text == 'How are you?'
+        
+        # This should also be ACTION, not DIALOGUE  
+        assert elements[7].type == ElementType.ACTION
+        assert elements[7].text == 'She smiles and sits down.'
+    
+    def test_multiline_action_after_dialogue(self):
+        """Test that multi-line action elements are parsed correctly."""
+        text = """JOHN
+I have great news!
+
+He stands up excitedly.
+His coffee cup falls to the floor.
+The liquid splashes everywhere."""
+        
+        document = self.parser.parse(text)
+        elements = document.elements
+        
+        # Should have: CHARACTER, DIALOGUE, ACTION, ACTION, ACTION
+        assert len(elements) == 5
+        
+        assert elements[0].type == ElementType.CHARACTER
+        assert elements[1].type == ElementType.DIALOGUE
+        
+        # Each line should be a separate ACTION element
+        assert elements[2].type == ElementType.ACTION
+        assert elements[2].text == 'He stands up excitedly.'
+        
+        assert elements[3].type == ElementType.ACTION
+        assert elements[3].text == 'His coffee cup falls to the floor.'
+        
+        assert elements[4].type == ElementType.ACTION
+        assert elements[4].text == 'The liquid splashes everywhere.'
+    
+    def test_multiline_dialogue_without_breaks(self):
+        """Test that multi-line dialogue without line breaks is correctly classified."""
+        text = """JOHN
+Hello there, Sarah. How are you
+doing today? I hope everything
+is going well for you."""
+        
+        document = self.parser.parse(text)
+        elements = document.elements
+        
+        # Should have: CHARACTER, DIALOGUE, DIALOGUE, DIALOGUE
+        # All continuation lines should be DIALOGUE, not ACTION
+        assert len(elements) == 4
+        
+        assert elements[0].type == ElementType.CHARACTER
+        assert elements[0].text == 'JOHN'
+        
+        # These should all be DIALOGUE elements, not ACTION
+        assert elements[1].type == ElementType.DIALOGUE
+        assert elements[1].text == 'Hello there, Sarah. How are you'
+        
+        assert elements[2].type == ElementType.DIALOGUE  
+        assert elements[2].text == 'doing today? I hope everything'
+        
+        assert elements[3].type == ElementType.DIALOGUE
+        assert elements[3].text == 'is going well for you.'
+    
+    def test_dialogue_with_blank_line_separation(self):
+        """Test that action after dialogue with blank line separation is correctly classified."""
+        text = """JOHN
+Hello there!
+
+He walks away slowly.
+
+SARAH
+Wait up!"""
+        
+        document = self.parser.parse(text)
+        elements = document.elements
+        
+        # Should have: CHARACTER, DIALOGUE, ACTION, CHARACTER, DIALOGUE
+        assert len(elements) == 5
+        
+        assert elements[0].type == ElementType.CHARACTER
+        assert elements[0].text == 'JOHN'
+        
+        assert elements[1].type == ElementType.DIALOGUE
+        assert elements[1].text == 'Hello there!'
+        
+        # This should be ACTION because of blank line separation
+        assert elements[2].type == ElementType.ACTION
+        assert elements[2].text == 'He walks away slowly.'
+        
+        assert elements[3].type == ElementType.CHARACTER
+        assert elements[3].text == 'SARAH'
+        
+        assert elements[4].type == ElementType.DIALOGUE
+        assert elements[4].text == 'Wait up!'
+    
+    def test_forced_action_syntax(self):
+        """Test that forced action syntax with ! prefix works correctly."""
+        text = """JOHN
+Hello!
+
+!This is definitely action.
+
+SARAH
+Hi there!
+
+!Even after dialogue, this is forced action."""
+        
+        document = self.parser.parse(text)
+        elements = document.elements
+        
+        # Should have: CHARACTER, DIALOGUE, ACTION, CHARACTER, DIALOGUE, ACTION
+        assert len(elements) == 6
+        
+        assert elements[0].type == ElementType.CHARACTER
+        assert elements[1].type == ElementType.DIALOGUE
+        
+        # Forced action
+        assert elements[2].type == ElementType.ACTION
+        assert elements[2].text == 'This is definitely action.'
+        
+        assert elements[3].type == ElementType.CHARACTER
+        assert elements[4].type == ElementType.DIALOGUE
+        
+        # Another forced action
+        assert elements[5].type == ElementType.ACTION
+        assert elements[5].text == 'Even after dialogue, this is forced action.'
+    
+    def test_action_tab_preservation(self):
+        """Test that leading tabs in action text are preserved."""
+        text = """JOHN
+Hello!
+
+\tThis action is indented with a tab.
+\t\tThis action is indented with two tabs.
+Regular action without tabs."""
+        
+        document = self.parser.parse(text)
+        elements = document.elements
+        
+        # Should have: CHARACTER, DIALOGUE, ACTION, ACTION, ACTION
+        assert len(elements) == 5
+        
+        assert elements[0].type == ElementType.CHARACTER
+        assert elements[1].type == ElementType.DIALOGUE
+        
+        # Check tab preservation
+        assert elements[2].type == ElementType.ACTION
+        assert elements[2].text == '\tThis action is indented with a tab.'
+        
+        assert elements[3].type == ElementType.ACTION  
+        assert elements[3].text == '\t\tThis action is indented with two tabs.'
+        
+        assert elements[4].type == ElementType.ACTION
+        assert elements[4].text == 'Regular action without tabs.'
