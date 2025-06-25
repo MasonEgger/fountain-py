@@ -1,2 +1,0 @@
-- When instructed to write out your plans, write them out to scratchpad.md. If the file already exists, ask if the file should be overwritten.
-- Use `uv` for all Python package and project management.
