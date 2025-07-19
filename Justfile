@@ -38,6 +38,26 @@ type-check:
 docs:
     uv run mkdocs serve
 
+# Build documentation
+docs-build:
+    uv run mkdocs build
+
+# Run doctests only
+doctest:
+    uv run pytest src/ --doctest-modules -v
+
+# Run doctests with coverage
+doctest-cov:
+    uv run pytest src/ --doctest-modules --cov=fountain --cov-report=term -v
+
+# Deploy documentation to GitHub Pages
+docs-deploy:
+    uv run mkdocs gh-deploy
+
+# Clean documentation build artifacts
+docs-clean:
+    rm -rf site/
+
 # Clean up temporary files
 clean:
     find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
@@ -49,8 +69,8 @@ clean:
 check:
     uv run ruff format --check src/ tests/
 
-# Run all quality checks (tests, coverage, lint, type check, fix, format check)
-test: unit-test-cov lint type-check fix check
+# Run all quality checks (tests, coverage, lint, type check, fix, format check, doctests)
+test: unit-test-cov doctest lint type-check fix check
 
 # Install pre-commit hooks
 pre-commit-install:

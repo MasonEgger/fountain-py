@@ -50,6 +50,9 @@ docs = [
     "mkdocs>=1.4.0",
     "mkdocs-material>=9.0.0",
     "mkdocstrings[python]>=0.20.0",
+    "mkdocs-gen-files>=0.5.0",
+    "mkdocs-literate-nav>=0.6.0",
+    "pytest-doctest-mkdocstrings>=0.1.1",
 ]
 
 [tool.ruff]
@@ -86,8 +89,9 @@ strict_equality = true
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q --strict-markers"
-testpaths = ["tests"]
+addopts = "-ra -q --strict-markers --doctest-modules"
+testpaths = ["tests", "src"]
+python_files = ["test_*.py", "*_test.py", "*.py"]
 filterwarnings = [
     "error",
     "ignore::UserWarning",
