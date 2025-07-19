@@ -45,77 +45,49 @@ class HTMLRenderer:
 
         # Primary title information
         if "title" in metadata:
-            html_parts.append(
-                f'<h1 class="title">{self._escape_html(metadata["title"])}</h1>'
-            )
+            html_parts.append(f'<h1 class="title">{self._escape_html(metadata["title"])}</h1>')
 
         # Author information (handle both 'author' and 'authors')
         if "author" in metadata:
-            html_parts.append(
-                f'<p class="author">by {self._escape_html(metadata["author"])}</p>'
-            )
+            html_parts.append(f'<p class="author">by {self._escape_html(metadata["author"])}</p>')
         elif "authors" in metadata:
-            html_parts.append(
-                f'<p class="author">by {self._escape_html(metadata["authors"])}</p>'
-            )
+            html_parts.append(f'<p class="author">by {self._escape_html(metadata["authors"])}</p>')
 
         # Credit and attribution
         if "credit" in metadata:
-            html_parts.append(
-                f'<p class="credit">{self._escape_html(metadata["credit"])}</p>'
-            )
+            html_parts.append(f'<p class="credit">{self._escape_html(metadata["credit"])}</p>')
 
         if "source" in metadata:
-            html_parts.append(
-                f'<p class="source">{self._escape_html(metadata["source"])}</p>'
-            )
+            html_parts.append(f'<p class="source">{self._escape_html(metadata["source"])}</p>')
 
         # Production information
         if "writers" in metadata:
-            html_parts.append(
-                f'<p class="writers">Writers: {self._escape_html(metadata["writers"])}</p>'
-            )
+            html_parts.append(f'<p class="writers">Writers: {self._escape_html(metadata["writers"])}</p>')
 
         if "producer" in metadata:
-            html_parts.append(
-                f'<p class="producer">Producer: {self._escape_html(metadata["producer"])}</p>'
-            )
+            html_parts.append(f'<p class="producer">Producer: {self._escape_html(metadata["producer"])}</p>')
 
         if "director" in metadata:
-            html_parts.append(
-                f'<p class="director">Director: {self._escape_html(metadata["director"])}</p>'
-            )
+            html_parts.append(f'<p class="director">Director: {self._escape_html(metadata["director"])}</p>')
 
         # Version and date information
         if "draft date" in metadata:
-            html_parts.append(
-                f'<p class="draft-date">{self._escape_html(metadata["draft date"])}</p>'
-            )
+            html_parts.append(f'<p class="draft-date">{self._escape_html(metadata["draft date"])}</p>')
 
         if "date" in metadata:
-            html_parts.append(
-                f'<p class="date">{self._escape_html(metadata["date"])}</p>'
-            )
+            html_parts.append(f'<p class="date">{self._escape_html(metadata["date"])}</p>')
 
         if "revised" in metadata:
-            html_parts.append(
-                f'<p class="revised">Revised: {self._escape_html(metadata["revised"])}</p>'
-            )
+            html_parts.append(f'<p class="revised">Revised: {self._escape_html(metadata["revised"])}</p>')
 
         if "version" in metadata:
-            html_parts.append(
-                f'<p class="version">Version: {self._escape_html(metadata["version"])}</p>'
-            )
+            html_parts.append(f'<p class="version">Version: {self._escape_html(metadata["version"])}</p>')
 
         if "format" in metadata:
-            html_parts.append(
-                f'<p class="format">Format: {self._escape_html(metadata["format"])}</p>'
-            )
+            html_parts.append(f'<p class="format">Format: {self._escape_html(metadata["format"])}</p>')
 
         if "created" in metadata:
-            html_parts.append(
-                f'<p class="created">Created: {self._escape_html(metadata["created"])}</p>'
-            )
+            html_parts.append(f'<p class="created">Created: {self._escape_html(metadata["created"])}</p>')
 
         # Contact and legal information
         if "contact" in metadata:
@@ -124,9 +96,7 @@ class HTMLRenderer:
             html_parts.append(f'<p class="contact">{contact_html}</p>')
 
         if "copyright" in metadata:
-            html_parts.append(
-                f'<p class="copyright">{self._escape_html(metadata["copyright"])}</p>'
-            )
+            html_parts.append(f'<p class="copyright">{self._escape_html(metadata["copyright"])}</p>')
 
         if "notes" in metadata:
             # Handle multi-line notes

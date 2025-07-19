@@ -77,3 +77,9 @@ Raw Fountain Text → Parser (regex classification) → FountainDocument (struct
 - `tests/` - Pytest test suite with fixtures
 - `tests/fixtures/` - Sample Fountain files for testing
 - Root level contains sample conversion scripts and Fountain files
+
+## Contributor Workflow
+
+### Testing
+- Use the commands in the @Justfile to test the code
+- Always mimic the contributor journey when testing

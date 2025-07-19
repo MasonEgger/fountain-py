@@ -11,9 +11,7 @@ from fountain.elements import ElementType, FountainElement
 class FountainDocument:
     """Represents a complete Fountain document."""
 
-    def __init__(
-        self, elements: list[FountainElement], metadata: Optional[dict[str, str]] = None
-    ):
+    def __init__(self, elements: list[FountainElement], metadata: Optional[dict[str, str]] = None):
         self.elements = elements
         self.metadata = metadata or {}
 

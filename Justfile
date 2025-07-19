@@ -11,16 +11,20 @@ dev:
     uv sync --dev
 
 # Run tests
-test:
+unit-test:
     uv run pytest
 
 # Run tests with coverage report
-test-cov:
+unit-test-cov:
     uv run pytest --cov=fountain --cov-report=html --cov-report=term
 
 # Run linting checks
 lint:
     uv run ruff check src/ tests/
+
+# Fix linting issues automatically
+fix:
+    uv run ruff check src/ tests/ --fix
 
 # Format code
 format:
@@ -41,9 +45,12 @@ clean:
     rm -rf .coverage htmlcov/ .pytest_cache/ .mypy_cache/ .ruff_cache/
     rm -rf build/ dist/ *.egg-info/
 
-# Run all quality checks (lint, format check, type check)
-check: lint type-check
+# Run ruff format check only
+check:
     uv run ruff format --check src/ tests/
+
+# Run all quality checks (tests, coverage, lint, type check, fix, format check)
+test: test-cov lint type-check fix check
 
 # Install pre-commit hooks
 pre-commit-install:

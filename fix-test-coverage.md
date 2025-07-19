@@ -1,50 +1,51 @@
-# Fountain-Py Test Coverage Gap Analysis and Fix Plan
+# Fountain-Py Test Coverage Gap Analysis and Fix Plan (Updated)
 
 ## Executive Summary
-Current test coverage stands at 94% with 29 uncovered lines across 4 modules. This plan identifies all missing test cases, edge cases, and provides a comprehensive strategy to achieve 100% coverage while ensuring robust testing of all functionality.
+Current test coverage stands at 94% with 29 uncovered lines across 4 modules. This updated plan identifies all missing test cases based on the latest codebase and provides a comprehensive strategy to achieve 100% coverage.
 
-## Current Coverage Analysis
+## Current Coverage Analysis (Updated)
 
 ### Module-by-Module Coverage
-- `__init__.py`: 100% (7/7 statements)
-- `elements.py`: 97% (33/34 statements)
+- `__init__.py`: 100% (4/4 statements)
+- `elements.py`: 100% (32/32 statements) ✅ **COMPLETE**
 - `parser.py`: 95% (227/239 statements)
-- `renderer.py`: 92% (138/150 statements)
+- `renderer.py`: 91% (139/152 statements)
 - `document.py`: 89% (32/36 statements)
 
 ### Uncovered Lines by Module
 
-#### src/fountain/document.py (Missing: 52, 81-83)
-- **Line 52**: The `name[:-1].strip()` path for characters ending with '^'
-- **Lines 81-83**: The `to_html()` method entirely
+#### src/fountain/document.py (Missing: 55, 84-87)
+- **Line 55**: The `name[:-1].strip()` path for characters ending with '^'
+- **Lines 84-87**: The `to_html()` method entirely
 
-#### src/fountain/elements.py (Missing: 46)
-- **Line 46**: The null check path in `__post_init__` for `formatting`
+#### src/fountain/elements.py ✅ **COMPLETE**
+- All lines now covered
 
-#### src/fountain/parser.py (Missing: 102-103, 108, 147, 166, 181, 220-221, 230-231, 409, 477)
-- **Lines 102-103**: Empty line continuation in title page parsing
-- **Line 108**: While loop continuation for finding next non-empty line
-- **Line 147**: Setting metadata value for first time (when it's empty)
-- **Line 166**: Return None for empty lines in `_parse_line`
-- **Line 181**: Single-line boneyard element creation
-- **Lines 220-221**: Section element creation and formatting
-- **Lines 230-231**: Synopsis element creation and formatting
-- **Line 409**: Return False in `_is_dialogue_line` when no elements exist
-- **Line 477**: Break condition in dual dialogue processing
+#### src/fountain/parser.py (Missing: 121-122, 130, 173, 194, 209, 252-253, 262-263, 441, 516)
+- **Lines 121-122**: Empty line continuation in title page parsing
+- **Line 130**: While loop continuation for finding next non-empty line
+- **Line 173**: Setting metadata value when current key exists but is empty
+- **Line 194**: Return None for empty lines in `_parse_line`
+- **Line 209**: Single-line boneyard element creation
+- **Lines 252-253**: Section element creation and formatting
+- **Lines 262-263**: Synopsis element creation and formatting
+- **Line 441**: Return False in `_is_dialogue_line` when no elements exist
+- **Line 516**: Break condition in dual dialogue processing
 
-#### src/fountain/renderer.py (Missing: 57, 84, 95, 100, 105, 110, 115, 173, 175, 177, 185, 434)
-- **Line 57**: Rendering 'authors' when no 'author' field exists
-- **Line 84**: Director field rendering
-- **Line 95**: Date field rendering
-- **Line 100**: Revised field rendering
-- **Line 105**: Version field rendering
-- **Line 110**: Format field rendering
-- **Line 115**: Created field rendering
-- **Line 173**: Boneyard element rendering
-- **Line 175**: Section element rendering
-- **Line 177**: Synopsis element rendering
-- **Line 185**: Fallback rendering for unknown element types
-- **Line 434**: Fallback CSS method call
+#### src/fountain/renderer.py (Missing: 58, 85, 96, 101, 106, 111, 116, 170, 172, 174, 182, 234, 433)
+- **Line 58**: Rendering 'authors' when no 'author' field exists
+- **Line 85**: Director field rendering
+- **Line 96**: Date field rendering
+- **Line 101**: Revised field rendering
+- **Line 106**: Version field rendering
+- **Line 111**: Format field rendering
+- **Line 116**: Created field rendering
+- **Line 170**: Boneyard element rendering
+- **Line 172**: Section element rendering
+- **Line 174**: Synopsis element rendering
+- **Line 182**: Fallback rendering for unknown element types
+- **Line 234**: Empty dual dialogue metadata check
+- **Line 433**: Fallback CSS method call
 
 ## Missing Test Cases
 
@@ -129,10 +130,13 @@ Current test coverage stands at 94% with 29 uncovered lines across 4 modules. Th
 ## Implementation Plan
 
 ### Phase 1: Line Coverage (Priority: High)
+
+**SKIP elements.py tests** - ✅ Now at 100% coverage
+
 1. **test_parser.py additions**:
    ```python
    def test_section_parsing(self):
-       """Test section headers with # syntax."""
+       """Test section headers with # syntax (lines 252-253)."""
        text = """# ACT ONE
        
        ## Scene 1
@@ -140,27 +144,27 @@ Current test coverage stands at 94% with 29 uncovered lines across 4 modules. Th
        Some action happens."""
        
    def test_synopsis_parsing(self):
-       """Test synopsis with = syntax."""
+       """Test synopsis with = syntax (lines 262-263)."""
        text = """= This is what happens in this scene
        
        INT. HOUSE - DAY"""
        
    def test_single_line_boneyard(self):
-       """Test single-line boneyard comments."""
+       """Test single-line boneyard comments (line 209)."""
        text = """/* This is a comment */
        
        JOHN
        Hello there."""
        
    def test_empty_elements_list(self):
-       """Test dialogue detection with no prior elements."""
+       """Test dialogue detection with no prior elements (line 441)."""
        parser = FountainParser()
        parser.elements = []  # Explicitly empty
        result = parser._is_dialogue_line()
        assert result is False
        
-   def test_title_page_multiline_edge_cases(self):
-       """Test title page with complex multi-line values."""
+   def test_title_page_empty_lines(self):
+       """Test title page with empty lines (lines 121-122, 130, 173)."""
        text = """Title: My Script
        Notes:
            Line 1
@@ -169,12 +173,22 @@ Current test coverage stands at 94% with 29 uncovered lines across 4 modules. Th
        Contact: John Doe
        
        INT. HOUSE - DAY"""
+       
+   def test_empty_line_parsing(self):
+       """Test parsing empty lines (line 194)."""
+       parser = FountainParser()
+       result = parser._parse_line("   ")  # whitespace-only line
+       assert result is None
+       
+   def test_dual_dialogue_break(self):
+       """Test dual dialogue processing break condition (line 516)."""
+       # Test scenario where dual dialogue pairing fails
    ```
 
 2. **test_document.py additions**:
    ```python
    def test_character_with_dual_marker(self):
-       """Test character names ending with ^."""
+       """Test character names ending with ^ (line 55)."""
        elements = [
            FountainElement(ElementType.CHARACTER, "JOHN^", [], 1),
            FountainElement(ElementType.CHARACTER, "SARAH^", [], 2),
@@ -186,7 +200,7 @@ Current test coverage stands at 94% with 29 uncovered lines across 4 modules. Th
        assert "JOHN^" not in characters
        
    def test_to_html_method(self):
-       """Test direct to_html method."""
+       """Test direct to_html method (lines 84-87)."""
        elements = [
            FountainElement(ElementType.ACTION, "Some action", [], 1)
        ]
@@ -195,7 +209,7 @@ Current test coverage stands at 94% with 29 uncovered lines across 4 modules. Th
        assert '<div class="action">' in html
        
    def test_to_html_with_theme(self):
-       """Test to_html with custom theme."""
+       """Test to_html with custom theme (lines 84-87)."""
        document = FountainDocument([])
        html = document.to_html(theme="custom")
        assert '<style>' in html
@@ -204,51 +218,42 @@ Current test coverage stands at 94% with 29 uncovered lines across 4 modules. Th
 3. **test_renderer.py additions**:
    ```python
    def test_extended_title_page_fields(self):
-       """Test all extended title page fields."""
+       """Test all extended title page fields (lines 58, 85, 96, 101, 106, 111, 116)."""
        metadata = {
            'title': 'Test Script',
-           'authors': 'John & Jane Doe',  # not 'author'
-           'director': 'Famous Director',
-           'date': '2024-01-01',
-           'revised': '2024-01-15',
-           'version': '1.0',
-           'format': 'Screenplay',
-           'created': '2023-12-01'
+           'authors': 'John & Jane Doe',  # line 58: not 'author'
+           'director': 'Famous Director',  # line 85
+           'date': '2024-01-01',  # line 96
+           'revised': '2024-01-15',  # line 101
+           'version': '1.0',  # line 106
+           'format': 'Screenplay',  # line 111
+           'created': '2023-12-01'  # line 116
        }
        
    def test_special_elements_rendering(self):
-       """Test rendering of special element types."""
+       """Test rendering of special element types (lines 170, 172, 174)."""
        elements = [
-           FountainElement(ElementType.BONEYARD, "/* comment */", [], 1),
-           FountainElement(ElementType.SECTION, "ACT ONE", [], 2),
-           FountainElement(ElementType.SYNOPSIS, "What happens", [], 3),
+           FountainElement(ElementType.BONEYARD, "/* comment */", [], 1),  # line 170
+           FountainElement(ElementType.SECTION, "ACT ONE", [], 2),  # line 172
+           FountainElement(ElementType.SYNOPSIS, "What happens", [], 3),  # line 174
        ]
        
    def test_unknown_element_type(self):
-       """Test fallback rendering for unknown types."""
+       """Test fallback rendering for unknown types (line 182)."""
        # Create a mock unknown element type
        element = FountainElement(ElementType.ACTION, "text", [], 1)
        element.type = "unknown_type"  # Simulate future element
        
    def test_theme_fallback(self):
-       """Test theme system fallback."""
+       """Test theme system fallback (line 433)."""
        renderer = HTMLRenderer(theme="nonexistent")
        document = FountainDocument([])
        html = renderer.render(document)
        assert '<style>' in html
-   ```
-
-4. **test_elements.py (new file)**:
-   ```python
-   def test_fountain_element_none_formatting(self):
-       """Test FountainElement with None formatting."""
-       element = FountainElement(
-           type=ElementType.ACTION,
-           text="Action text",
-           formatting=None,
-           line_number=1
-       )
-       assert element.formatting == []
+       
+   def test_dual_dialogue_metadata_none(self):
+       """Test dual dialogue with None metadata (line 234)."""
+       # Test case where dual dialogue metadata is None
    ```
 
 ### Phase 2: Edge Cases (Priority: Medium)
@@ -384,12 +389,12 @@ Current test coverage stands at 94% with 29 uncovered lines across 4 modules. Th
 4. **Performance**: Parse 500-page script in <1 second
 5. **Reliability**: Zero crashes on malformed input
 
-## Timeline
+## Updated Timeline (2025)
 
-- **Week 1**: Implement Phase 1 (line coverage) - Critical gaps
-- **Week 2**: Implement Phase 2 (edge cases) and Phase 4 (behavioral)
-- **Week 3**: Implement Phase 3 (integration) and performance testing
-- **Week 4**: Review, refactor, and add any missing scenarios
+- **Immediate (Days 1-2)**: Implement Phase 1 tests to achieve 100% line coverage
+- **Short-term (Week 1)**: Add Phase 2 edge cases and error handling  
+- **Medium-term (Week 2-3)**: Implement Phase 3 integration tests and performance benchmarks
+- **Long-term (Month 1)**: Add comprehensive Fountain spec compliance tests
 
 ## Conclusion
 
