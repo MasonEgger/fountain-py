@@ -24,6 +24,7 @@ class ElementType(Enum):
     DUAL_DIALOGUE = "dual_dialogue"
     PAGE_BREAK = "page_break"
     CENTERED = "centered"
+    LYRICS = "lyrics"
 
 
 class FormatSpan(NamedTuple):

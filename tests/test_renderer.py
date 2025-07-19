@@ -4,7 +4,7 @@ Tests for the HTML renderer.
 
 from fountain.document import FountainDocument
 from fountain.elements import ElementType, FormatSpan, FountainElement
-from fountain.renderer import HTMLRenderer
+from fountain.renderer import FountainRenderer, HTMLRenderer
 
 
 class TestHTMLRenderer:
@@ -275,19 +275,19 @@ class TestHTMLRenderer:
     def test_extended_title_page_fields(self):
         """Test all extended title page fields (lines 58, 85, 96, 101, 106, 111, 116)."""
         metadata = {
-            'title': 'Test Script',
-            'authors': 'John & Jane Doe',  # line 58: not 'author'
-            'director': 'Famous Director',  # line 85
-            'date': '2024-01-01',  # line 96
-            'revised': '2024-01-15',  # line 101
-            'version': '1.0',  # line 106
-            'format': 'Screenplay',  # line 111
-            'created': '2023-12-01'  # line 116
+            "title": "Test Script",
+            "authors": "John & Jane Doe",  # line 58: not 'author'
+            "director": "Famous Director",  # line 85
+            "date": "2024-01-01",  # line 96
+            "revised": "2024-01-15",  # line 101
+            "version": "1.0",  # line 106
+            "format": "Screenplay",  # line 111
+            "created": "2023-12-01",  # line 116
         }
-        
+
         document = FountainDocument([], metadata)
         html = self.renderer.render(document)
-        
+
         assert '<p class="author">by John &amp; Jane Doe</p>' in html
         assert '<p class="director">Director: Famous Director</p>' in html
         assert '<p class="date">2024-01-01</p>' in html
@@ -303,10 +303,10 @@ class TestHTMLRenderer:
             FountainElement(ElementType.SECTION, "ACT ONE", [], 2),  # line 172
             FountainElement(ElementType.SYNOPSIS, "What happens", [], 3),  # line 174
         ]
-        
+
         document = FountainDocument(elements)
         html = self.renderer.render(document)
-        
+
         assert '<div class="boneyard">/* comment */</div>' in html
         assert '<div class="section">ACT ONE</div>' in html
         assert '<div class="synopsis">What happens</div>' in html
@@ -315,14 +315,16 @@ class TestHTMLRenderer:
         """Test fallback rendering for unknown types (line 182)."""
         # Create an element with an unknown type by modifying after creation
         element = FountainElement(ElementType.ACTION, "unknown text", [], 1)
+
         # Simulate an unknown element type by creating a mock enum value
         class MockElementType:
             value = "unknown_type"
+
         element.type = MockElementType()
-        
+
         document = FountainDocument([element])
         html = self.renderer.render(document)
-        
+
         # Should use fallback rendering with the element type as CSS class
         assert '<div class="unknown-type">unknown text</div>' in html
 
@@ -331,16 +333,402 @@ class TestHTMLRenderer:
         renderer = HTMLRenderer(theme="nonexistent")
         document = FountainDocument([])
         html = renderer.render(document)
-        assert '<style>' in html
+        assert "<style>" in html
 
     def test_dual_dialogue_metadata_none(self):
         """Test dual dialogue with None metadata (line 234)."""
-        # Create a dual dialogue element with no metadata 
+        # Create a dual dialogue element with no metadata
         dual_element = FountainElement(ElementType.DUAL_DIALOGUE, "", [], 1, metadata=None)
-        
+
         document = FountainDocument([dual_element])
         html = self.renderer.render(document)
-        
+
         # Should handle None metadata gracefully and return empty string for dual dialogue content
         # The dual dialogue div should not appear since metadata is None
         assert '<div class="dual-dialogue">' not in html
+
+    def test_lyrics_rendering(self):
+        """Test that lyrics are rendered correctly with proper styling."""
+        lyrics_element = FountainElement(ElementType.LYRICS, "Oh what a beautiful morning", [], 1)
+
+        document = FountainDocument([lyrics_element], {})
+        html = self.renderer.render(document)
+
+        assert '<div class="lyrics">Oh what a beautiful morning</div>' in html
+        # Check that lyrics CSS is included
+        assert ".lyrics {" in html
+        assert "text-align: center;" in html
+        assert "font-style: italic;" in html
+
+    def test_lyrics_with_formatting_rendering(self):
+        """Test that lyrics with formatting render correctly."""
+        formatting = [FormatSpan(8, 12, "bold"), FormatSpan(17, 23, "italic")]
+        lyrics_element = FountainElement(ElementType.LYRICS, "This is **bold** *italic* lyrics", formatting, 1)
+
+        document = FountainDocument([lyrics_element], {})
+        html = self.renderer.render(document)
+
+        assert '<div class="lyrics">' in html
+        assert "<strong>" in html
+        assert "<em>" in html
+
+    def test_lyrics_empty_rendering(self):
+        """Test that lyrics with minimal content render correctly."""
+        lyrics_element = FountainElement(ElementType.LYRICS, "a", [], 1)
+
+        document = FountainDocument([lyrics_element], {})
+        html = self.renderer.render(document)
+
+        assert '<div class="lyrics">a</div>' in html
+
+    def test_lyrics_multiple_rendering(self):
+        """Test rendering multiple lyrics elements."""
+        lyrics1 = FountainElement(ElementType.LYRICS, "First line of song", [], 1)
+        lyrics2 = FountainElement(ElementType.LYRICS, "Second line of song", [], 2)
+
+        document = FountainDocument([lyrics1, lyrics2], {})
+        html = self.renderer.render(document)
+
+        assert '<div class="lyrics">First line of song</div>' in html
+        assert '<div class="lyrics">Second line of song</div>' in html
+
+    def test_lyrics_in_complete_scene_rendering(self):
+        """Test lyrics rendering in a complete scene context."""
+        elements = [
+            FountainElement(ElementType.SCENE_HEADING, "INT. THEATER - NIGHT", [], 1),
+            FountainElement(ElementType.CHARACTER, "SARAH", [], 2),
+            FountainElement(ElementType.PARENTHETICAL, "(singing)", [], 3),
+            FountainElement(ElementType.LYRICS, "Oh what a beautiful morning", [], 4),
+            FountainElement(ElementType.LYRICS, "Oh what a beautiful day", [], 5),
+            FountainElement(ElementType.ACTION, "The audience applauds.", [], 6),
+        ]
+
+        document = FountainDocument(elements, {"title": "Musical Test"})
+        html = self.renderer.render(document)
+
+        # Check all elements are present
+        assert '<div class="scene-heading">INT. THEATER - NIGHT</div>' in html
+        assert '<div class="character">SARAH</div>' in html
+        assert '<div class="parenthetical">(singing)</div>' in html
+        assert '<div class="lyrics">Oh what a beautiful morning</div>' in html
+        assert '<div class="lyrics">Oh what a beautiful day</div>' in html
+        assert '<div class="action">The audience applauds.</div>' in html
+
+    def test_character_continuation_html_rendering(self):
+        """Test that character continuation is rendered correctly in HTML."""
+        char_element = FountainElement(ElementType.CHARACTER, "JOHN", [], 1, metadata={"continuation": True})
+
+        document = FountainDocument([char_element], {})
+        html = self.renderer.render(document)
+
+        assert '<div class="character">JOHN <span class="character-continuation">(CONT\'D)</span></div>' in html
+
+    def test_character_continuation_vs_extension_html(self):
+        """Test that explicit extensions take precedence over auto-continuation."""
+        char_with_extension = FountainElement(
+            ElementType.CHARACTER, "JOHN", [], 1, metadata={"extension": "V.O.", "continuation": True}
+        )
+
+        document = FountainDocument([char_with_extension], {})
+        html = self.renderer.render(document)
+
+        # Extension should take precedence
+        assert '<span class="character-extension">(V.O.)</span>' in html
+        assert '<span class="character-continuation">' not in html
+
+
+class TestFountainRenderer:
+    def setup_method(self):
+        self.renderer = FountainRenderer()
+
+    def test_render_simple_document(self):
+        """Test basic Fountain rendering."""
+        elements = [
+            FountainElement(ElementType.SCENE_HEADING, "INT. HOUSE - DAY", [], 1),
+            FountainElement(ElementType.CHARACTER, "JOHN", [], 2),
+            FountainElement(ElementType.DIALOGUE, "Hello, world!", [], 3),
+        ]
+        metadata = {"title": "Test Script", "author": "Test Author"}
+
+        document = FountainDocument(elements, metadata)
+        fountain = self.renderer.render(document)
+
+        lines = fountain.split("\n")
+        assert "Title: Test Script" in lines
+        assert "Author: Test Author" in lines
+        assert "INT. HOUSE - DAY" in lines
+        assert "JOHN" in lines
+        assert "Hello, world!" in lines
+
+    def test_render_title_page(self):
+        """Test title page rendering."""
+        metadata = {
+            "title": "My Great Script",
+            "author": "Famous Writer",
+            "credit": "Written by",
+            "source": "Based on true events",
+            "draft date": "June 2025",
+            "contact": "writer@example.com",
+        }
+
+        document = FountainDocument([], metadata)
+        fountain = self.renderer.render(document)
+
+        assert "Title: My Great Script" in fountain
+        assert "Author: Famous Writer" in fountain
+        assert "Credit: Written by" in fountain
+        assert "Source: Based on true events" in fountain
+        assert "Draft Date: June 2025" in fountain
+        assert "Contact: writer@example.com" in fountain
+
+    def test_render_forced_elements(self):
+        """Test forced elements render with proper syntax."""
+        elements = [
+            FountainElement(ElementType.SCENE_HEADING, "FORCED SCENE", [], 1, metadata={"forced": True}),
+            FountainElement(ElementType.ACTION, "forced action", [], 2, metadata={"forced": True}),
+            FountainElement(ElementType.CHARACTER, "McCULLY", [], 3, metadata={"forced": True}),
+            FountainElement(ElementType.TRANSITION, "FORCED TRANSITION", [], 4, metadata={"forced": True}),
+        ]
+
+        document = FountainDocument(elements)
+        fountain = self.renderer.render(document)
+
+        assert ".FORCED SCENE" in fountain
+        assert "!forced action" in fountain
+        assert "@McCULLY" in fountain
+        assert ">FORCED TRANSITION" in fountain
+
+    def test_render_character_extensions(self):
+        """Test character extensions render correctly."""
+        char_element = FountainElement(ElementType.CHARACTER, "JOHN", [], 1, metadata={"extension": "V.O."})
+
+        document = FountainDocument([char_element])
+        fountain = self.renderer.render(document)
+
+        assert "JOHN (V.O.)" in fountain
+
+    def test_render_dual_dialogue_character(self):
+        """Test dual dialogue character marker."""
+        char_element = FountainElement(ElementType.CHARACTER, "SARAH", [], 1, metadata={"dual_dialogue": True})
+
+        document = FountainDocument([char_element])
+        fountain = self.renderer.render(document)
+
+        assert "SARAH^" in fountain
+
+    def test_render_scene_numbers(self):
+        """Test scene numbers render correctly."""
+        scene_element = FountainElement(
+            ElementType.SCENE_HEADING, "INT. HOUSE - DAY", [], 1, metadata={"scene_number": "1"}
+        )
+
+        document = FountainDocument([scene_element])
+        fountain = self.renderer.render(document)
+
+        assert "INT. HOUSE - DAY #1#" in fountain
+
+    def test_render_all_element_types(self):
+        """Test all element types render correctly."""
+        elements = [
+            FountainElement(ElementType.SCENE_HEADING, "INT. HOUSE - DAY", [], 1),
+            FountainElement(ElementType.ACTION, "John enters the room.", [], 2),
+            FountainElement(ElementType.CHARACTER, "JOHN", [], 3),
+            FountainElement(ElementType.DIALOGUE, "Hello there!", [], 4),
+            FountainElement(ElementType.PARENTHETICAL, "(excited)", [], 5),
+            FountainElement(ElementType.TRANSITION, "CUT TO:", [], 6),
+            FountainElement(ElementType.NOTE, "[[This is a note]]", [], 7),
+            FountainElement(ElementType.BONEYARD, "/* comment */", [], 8),
+            FountainElement(ElementType.SECTION, "ACT ONE", [], 9),
+            FountainElement(ElementType.SYNOPSIS, "What happens here", [], 10),
+            FountainElement(ElementType.PAGE_BREAK, "===", [], 11),
+            FountainElement(ElementType.CENTERED, "Centered text", [], 12),
+            FountainElement(ElementType.LYRICS, "Oh what a beautiful morning", [], 13),
+        ]
+
+        document = FountainDocument(elements)
+        fountain = self.renderer.render(document)
+
+        lines = fountain.split("\n")
+        assert "INT. HOUSE - DAY" in lines
+        assert "John enters the room." in lines
+        assert "JOHN" in lines
+        assert "Hello there!" in lines
+        assert "(excited)" in lines
+        assert "CUT TO:" in lines
+        assert "[[This is a note]]" in lines
+        assert "/* comment */" in lines
+        assert "# ACT ONE" in lines
+        assert "= What happens here" in lines
+        assert "===" in lines
+        assert ">Centered text<" in lines
+        assert "~Oh what a beautiful morning~" in lines
+
+    def test_render_formatting(self):
+        """Test that text with formatting is preserved."""
+        formatting = [
+            FormatSpan(5, 9, "bold"),
+            FormatSpan(14, 20, "italic"),
+            FormatSpan(25, 35, "underline"),
+            FormatSpan(40, 51, "bold_italic"),
+        ]
+        dialogue_element = FountainElement(
+            ElementType.DIALOGUE, "This **bold** *italic* _underline_ ***bold italic***", formatting, 1
+        )
+
+        document = FountainDocument([dialogue_element])
+        fountain = self.renderer.render(document)
+
+        # The text should be preserved even if formatting marks aren't perfectly reconstructed
+        assert "This **bold** *italic* _underline_ ***bold italic***" in fountain
+
+    def test_render_dual_dialogue_element(self):
+        """Test dual dialogue elements are skipped in rendering."""
+        dual_element = FountainElement(ElementType.DUAL_DIALOGUE, "", [], 1)
+
+        document = FountainDocument([dual_element])
+        fountain = self.renderer.render(document)
+
+        # Dual dialogue elements should not produce output
+        lines = [line for line in fountain.split("\n") if line.strip()]
+        assert len(lines) == 0
+
+    def test_render_unknown_element_type(self):
+        """Test unknown element types fall back to text rendering."""
+        # Create an element with an unknown type by modifying after creation
+        element = FountainElement(ElementType.ACTION, "unknown text", [], 1)
+
+        # Simulate an unknown element type by creating a mock enum value
+        class MockElementType:
+            value = "unknown_type"
+
+        element.type = MockElementType()
+
+        document = FountainDocument([element])
+        fountain = self.renderer.render(document)
+
+        assert "unknown text" in fountain
+
+    def test_render_complex_character(self):
+        """Test character with both extension and dual dialogue."""
+        char_element = FountainElement(
+            ElementType.CHARACTER,
+            "SARAH",
+            [],
+            1,
+            metadata={"extension": "O.S.", "dual_dialogue": True},
+        )
+
+        document = FountainDocument([char_element])
+        fountain = self.renderer.render(document)
+
+        assert "SARAH (O.S.)^" in fountain
+
+    def test_render_forced_character_with_extension(self):
+        """Test forced character with extension."""
+        char_element = FountainElement(
+            ElementType.CHARACTER,
+            "McCULLY",
+            [],
+            1,
+            metadata={"forced": True, "extension": "V.O."},
+        )
+
+        document = FountainDocument([char_element])
+        fountain = self.renderer.render(document)
+
+        assert "@McCULLY (V.O.)" in fountain
+
+    def test_section_with_level(self):
+        """Test section rendering with level metadata."""
+        section_element = FountainElement(ElementType.SECTION, "Scene 1", [], 1, metadata={"level": 2})
+
+        document = FountainDocument([section_element])
+        fountain = self.renderer.render(document)
+
+        assert "## Scene 1" in fountain
+
+    def test_round_trip_simple(self):
+        """Test that simple round-trip parsing preserves content."""
+        from fountain.parser import FountainParser
+
+        original_text = """Title: Test Script
+Author: Test Author
+
+FADE IN:
+
+INT. HOUSE - DAY
+
+JOHN sits at a table.
+
+JOHN
+Hello, world!
+
+FADE OUT."""
+
+        parser = FountainParser()
+        document = parser.parse(original_text)
+        rendered = self.renderer.render(document)
+
+        # Check key elements are preserved
+        assert "Title: Test Script" in rendered
+        assert "Author: Test Author" in rendered
+        assert "FADE IN:" in rendered
+        assert "INT. HOUSE - DAY" in rendered
+        assert "JOHN sits at a table." in rendered
+        assert "JOHN" in rendered
+        assert "Hello, world!" in rendered
+        assert "FADE OUT." in rendered
+
+    def test_round_trip_with_lyrics(self):
+        """Test that lyrics round-trip correctly."""
+        from fountain.parser import FountainParser
+
+        original_text = """SARAH
+(singing)
+~Oh what a beautiful morning~
+~Oh what a beautiful day~
+
+That was lovely!"""
+
+        parser = FountainParser()
+        document = parser.parse(original_text)
+        rendered = self.renderer.render(document)
+
+        assert "SARAH" in rendered
+        assert "(singing)" in rendered
+        assert "~Oh what a beautiful morning~" in rendered
+        assert "~Oh what a beautiful day~" in rendered
+        assert "That was lovely!" in rendered
+
+    def test_empty_document(self):
+        """Test rendering an empty document."""
+        document = FountainDocument([])
+        fountain = self.renderer.render(document)
+
+        # Should be empty or just newlines
+        assert fountain.strip() == ""
+
+    def test_metadata_only_document(self):
+        """Test rendering a document with only metadata."""
+        metadata = {"title": "Just a Title"}
+        document = FountainDocument([], metadata)
+        fountain = self.renderer.render(document)
+
+        assert "Title: Just a Title" in fountain
+
+    def test_no_formatting(self):
+        """Test element with no formatting."""
+        element = FountainElement(ElementType.DIALOGUE, "Simple text", [], 1)
+        document = FountainDocument([element])
+        fountain = self.renderer.render(document)
+
+        assert "Simple text" in fountain
+
+    def test_render_character_continuation(self):
+        """Test character continuation rendering."""
+        char_element = FountainElement(ElementType.CHARACTER, "JOHN", [], 1, metadata={"continuation": True})
+
+        document = FountainDocument([char_element])
+        fountain = self.renderer.render(document)
+
+        assert "JOHN (CONT'D)" in fountain

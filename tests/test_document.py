@@ -121,9 +121,7 @@ class TestFountainDocument:
 
     def test_to_html_method(self):
         """Test direct to_html method (lines 84-87)."""
-        elements = [
-            FountainElement(ElementType.ACTION, "Some action", [], 1)
-        ]
+        elements = [FountainElement(ElementType.ACTION, "Some action", [], 1)]
         document = FountainDocument(elements)
         html = document.to_html()
         assert '<div class="action">' in html
@@ -132,4 +130,43 @@ class TestFountainDocument:
         """Test to_html with custom theme (lines 84-87)."""
         document = FountainDocument([])
         html = document.to_html(theme="custom")
-        assert '<style>' in html
+        assert "<style>" in html
+
+    def test_lyrics_in_statistics(self):
+        """Test that lyrics are included in document statistics."""
+        elements = [
+            FountainElement(ElementType.SCENE_HEADING, "INT. THEATER - NIGHT", [], 1),
+            FountainElement(ElementType.CHARACTER, "SARAH", [], 2),
+            FountainElement(ElementType.PARENTHETICAL, "(singing)", [], 3),
+            FountainElement(ElementType.LYRICS, "Oh what a beautiful morning", [], 4),
+            FountainElement(ElementType.LYRICS, "Oh what a beautiful day", [], 5),
+            FountainElement(ElementType.ACTION, "The audience applauds.", [], 6),
+        ]
+
+        document = FountainDocument(elements)
+        stats = document.get_statistics()
+
+        assert stats["total_elements"] == 6
+        assert stats["characters"] == 1
+        assert stats["scenes"] == 1
+        assert stats["lyrics_count"] == 2
+        assert stats["scene_heading_count"] == 1
+        assert stats["character_count"] == 1
+        assert stats["parenthetical_count"] == 1
+        assert stats["action_count"] == 1
+
+    def test_lyrics_document_to_dict(self):
+        """Test that lyrics serialize correctly in to_dict."""
+        elements = [
+            FountainElement(ElementType.LYRICS, "First line", [], 1),
+            FountainElement(ElementType.LYRICS, "Second line", [], 2),
+        ]
+
+        document = FountainDocument(elements)
+        doc_dict = document.to_dict()
+
+        assert len(doc_dict["elements"]) == 2
+        assert doc_dict["elements"][0]["type"] == "lyrics"
+        assert doc_dict["elements"][0]["text"] == "First line"
+        assert doc_dict["elements"][1]["type"] == "lyrics"
+        assert doc_dict["elements"][1]["text"] == "Second line"

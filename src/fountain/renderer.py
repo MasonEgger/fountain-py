@@ -1,5 +1,5 @@
 """
-HTML renderer for Fountain documents.
+Renderers for Fountain documents.
 """
 
 from typing import Optional
@@ -126,6 +126,8 @@ class HTMLRenderer:
             char_html = f'<div class="character">{text}'
             if element.metadata and "extension" in element.metadata:
                 char_html += f' <span class="character-extension">({element.metadata["extension"]})</span>'
+            elif element.metadata and element.metadata.get("continuation"):
+                char_html += ' <span class="character-continuation">(CONT\'D)</span>'
             char_html += "</div>"
             return char_html
         elif element.type == ElementType.DIALOGUE:
@@ -148,6 +150,8 @@ class HTMLRenderer:
             return '<div class="page-break"></div>'
         elif element.type == ElementType.CENTERED:
             return f'<div class="centered">{text}</div>'
+        elif element.type == ElementType.LYRICS:
+            return f'<div class="lyrics">{text}</div>'
         else:
             return f'<div class="{css_class}">{text}</div>'
 
@@ -366,7 +370,8 @@ class HTMLRenderer:
     font-size: 10pt;
 }
 
-.character-extension {
+.character-extension,
+.character-continuation {
     font-weight: normal;
     font-size: 10pt;
 }
@@ -397,6 +402,13 @@ class HTMLRenderer:
     text-align: center;
     margin: 1em 0;
 }
+
+.lyrics {
+    text-align: center;
+    font-style: italic;
+    margin: 0.5em auto;
+    color: #444;
+}
 </style>
 """
         else:
@@ -406,3 +418,159 @@ class HTMLRenderer:
             css = self._get_css()
             self.theme = old_theme
             return css
+
+
+class FountainRenderer:
+    """Renders FountainDocument back to Fountain markup format."""
+
+    def render(self, document: FountainDocument) -> str:
+        """Render a FountainDocument as Fountain markup."""
+        fountain_parts = []
+
+        # Render title page metadata if exists
+        if document.metadata:
+            fountain_parts.append(self._render_title_page(document.metadata))
+
+        # Render script body elements
+        for element in document.elements:
+            rendered = self._render_element(element)
+            if rendered:
+                fountain_parts.append(rendered)
+
+        return "\n".join(fountain_parts)
+
+    def _render_title_page(self, metadata: dict[str, str]) -> str:
+        """Render title page metadata as Fountain markup."""
+        title_parts = []
+
+        # Render supported title page fields in a logical order
+        title_order = [
+            "title",
+            "author",
+            "authors",
+            "credit",
+            "source",
+            "writers",
+            "producer",
+            "director",
+            "copyright",
+            "notes",
+            "contact",
+            "draft date",
+            "date",
+            "revised",
+            "version",
+            "format",
+            "created",
+        ]
+
+        for field in title_order:
+            if field in metadata:
+                value = metadata[field]
+                # Capitalize first letter of field for display
+                field_name = field.replace("_", " ").title()
+                title_parts.append(f"{field_name}: {value}")
+
+        # Add empty line after title page
+        if title_parts:
+            title_parts.append("")
+
+        return "\n".join(title_parts)
+
+    def _render_element(self, element: FountainElement) -> str:
+        """Render a single FountainElement as Fountain markup."""
+        text = self._apply_formatting_removal(element.text, element.formatting)
+
+        if element.type == ElementType.SCENE_HEADING:
+            # Check if this was a forced scene heading
+            if element.metadata and element.metadata.get("forced"):
+                scene_text = f".{text}"
+            else:
+                scene_text = text
+
+            # Add scene number if present
+            if element.metadata and "scene_number" in element.metadata:
+                scene_text += f" #{element.metadata['scene_number']}#"
+
+            return scene_text
+
+        elif element.type == ElementType.ACTION:
+            # Check if this was forced action
+            if element.metadata and element.metadata.get("forced"):
+                return f"!{text}"
+            return text
+
+        elif element.type == ElementType.CHARACTER:
+            char_text = text
+
+            # Add extension if present
+            if element.metadata and "extension" in element.metadata:
+                char_text += f" ({element.metadata['extension']})"
+            elif element.metadata and element.metadata.get("continuation"):
+                char_text += " (CONT'D)"
+
+            # Check if forced character
+            if element.metadata and element.metadata.get("forced"):
+                char_text = f"@{char_text}"
+
+            # Check if dual dialogue
+            if element.metadata and element.metadata.get("dual_dialogue"):
+                char_text += "^"
+
+            return char_text
+
+        elif element.type == ElementType.DIALOGUE:
+            return text
+
+        elif element.type == ElementType.PARENTHETICAL:
+            return text
+
+        elif element.type == ElementType.TRANSITION:
+            # Check if this was a forced transition
+            if element.metadata and element.metadata.get("forced"):
+                return f">{text}"
+            return text
+
+        elif element.type == ElementType.NOTE:
+            return text
+
+        elif element.type == ElementType.BONEYARD:
+            return text
+
+        elif element.type == ElementType.SECTION:
+            # Count the level based on metadata or default to single #
+            level = element.metadata.get("level", 1) if element.metadata else 1
+            return f"{'#' * level} {text}"
+
+        elif element.type == ElementType.SYNOPSIS:
+            return f"= {text}"
+
+        elif element.type == ElementType.DUAL_DIALOGUE:
+            # Dual dialogue is handled by rendering the individual character elements
+            # with dual_dialogue metadata, so we return empty here
+            return ""
+
+        elif element.type == ElementType.PAGE_BREAK:
+            return "==="
+
+        elif element.type == ElementType.CENTERED:
+            return f">{text}<"
+
+        elif element.type == ElementType.LYRICS:
+            return f"~{text}~"
+
+        else:
+            # Fallback for unknown element types
+            return text
+
+    def _apply_formatting_removal(self, text: str, formatting: list[FormatSpan]) -> str:
+        """Remove HTML formatting and restore Fountain markup formatting."""
+        if not formatting:
+            return text
+
+        # For simplicity in the export renderer, we'll just return the original text
+        # The formatting spans indicate where formatting was detected, but for
+        # a true round-trip we'd need to store the original markup positions
+        # This is a limitation of the current approach - we lose the exact
+        # original formatting markup positions during parsing
+        return text

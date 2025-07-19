@@ -3,7 +3,7 @@ Fountain markup parser.
 """
 
 import re
-from typing import Optional
+from typing import Any, Optional
 
 from fountain.document import FountainDocument
 from fountain.elements import ElementType, FormatSpan, FountainElement
@@ -31,6 +31,7 @@ class FountainParser:
     SECTION_PATTERN = re.compile(r"^#+\s*")
     SYNOPSIS_PATTERN = re.compile(r"^=\s*")
     PAGE_BREAK_PATTERN = re.compile(r"^===+$")
+    LYRICS_PATTERN = re.compile(r"^~([^~]+)~$")
 
     # Formatting patterns
     BOLD_ITALIC_PATTERN = re.compile(r"\*\*\*([^*]+)\*\*\*")
@@ -252,10 +253,21 @@ class FountainParser:
                 line_number=self.current_line + 1,
             )
 
+        # Check for lyrics
+        lyrics_match = self.LYRICS_PATTERN.match(line)
+        if lyrics_match:
+            text = lyrics_match.group(1).strip()
+            return FountainElement(
+                type=ElementType.LYRICS,
+                text=text,
+                formatting=self._extract_formatting(text),
+                line_number=self.current_line + 1,
+            )
+
         # Check for forced scene heading (must come before natural scene heading)
         if self.FORCED_SCENE_HEADING_PATTERN.match(line):
             text = line[1:].strip()  # Remove the '.'
-            metadata = {}
+            metadata: dict[str, Any] = {"forced": True}
             # Check for scene number
             scene_num_match = self.SCENE_NUMBER_PATTERN.search(text)
             if scene_num_match:
@@ -291,19 +303,19 @@ class FountainParser:
 
         # Check for scene heading
         if self.SCENE_HEADING_PATTERN.match(line):
-            metadata = {}
+            scene_metadata: dict[str, Any] = {}
             text = line
             # Check for scene number
             scene_num_match = self.SCENE_NUMBER_PATTERN.search(text)
             if scene_num_match:
-                metadata["scene_number"] = scene_num_match.group(1).strip()
+                scene_metadata["scene_number"] = scene_num_match.group(1).strip()
                 text = self.SCENE_NUMBER_PATTERN.sub("", text).strip()
             return FountainElement(
                 type=ElementType.SCENE_HEADING,
                 text=text,
                 formatting=self._extract_formatting(text),
                 line_number=self.current_line + 1,
-                metadata=metadata,
+                metadata=scene_metadata,
             )
 
         # Check for transition
@@ -346,26 +358,33 @@ class FountainParser:
             extension = char_ext_match.group(2).strip()
             is_dual = char_ext_match.group(3) is not None
             if self._is_dialogue_following():
-                metadata = {"extension": extension}
+                char_metadata: dict[str, Any] = {"extension": extension}
                 if is_dual:
-                    metadata["dual_dialogue"] = True
+                    char_metadata["dual_dialogue"] = True
                 return FountainElement(
                     type=ElementType.CHARACTER,
                     text=character_name,
                     formatting=[],
                     line_number=self.current_line + 1,
-                    metadata=metadata,
+                    metadata=char_metadata,
                 )
 
         # Check for regular character (must be all caps)
         if self.CHARACTER_PATTERN.match(line):
             # Look ahead to see if next line is dialogue or parenthetical
             if self._is_dialogue_following():
+                metadata = {}
+
+                # Check if this character is continuing from a previous appearance
+                if self._is_character_continuation(line):
+                    metadata["continuation"] = True
+
                 return FountainElement(
                     type=ElementType.CHARACTER,
                     text=line,
                     formatting=[],
                     line_number=self.current_line + 1,
+                    metadata=metadata if metadata else None,
                 )
 
         # Check for parenthetical
@@ -436,6 +455,47 @@ class FountainParser:
             return True
 
         return False
+
+    def _is_character_continuation(self, character_name: str) -> bool:
+        """Check if this character is continuing from a previous appearance."""
+        if not self.elements or len(self.elements) < 2:
+            return False
+
+        # Look backwards for the last character appearance
+        last_character_idx = None
+        for i in range(len(self.elements) - 1, -1, -1):
+            if self.elements[i].type == ElementType.CHARACTER:
+                last_character_idx = i
+                break
+
+        if last_character_idx is None:
+            return False
+
+        last_character = self.elements[last_character_idx]
+
+        # Check if it's the same character
+        if last_character.text.strip() != character_name.strip():
+            return False
+
+        # Check if there's been action between the last character appearance and now
+        # AND no scene headings between them (which would indicate a scene break)
+        has_action = False
+        has_scene_break = False
+
+        for i in range(last_character_idx + 1, len(self.elements)):
+            element = self.elements[i]
+            # If we find another character, stop looking
+            if element.type == ElementType.CHARACTER:
+                break
+            # If we find a scene heading, it's a scene break
+            elif element.type == ElementType.SCENE_HEADING:
+                has_scene_break = True
+            # If we find action (and it's not just dialogue/parentheticals), mark it
+            elif element.type == ElementType.ACTION:
+                has_action = True
+
+        # Only return True if there's action AND no scene break
+        return has_action and not has_scene_break
 
     def _extract_formatting(self, text: str) -> list[FormatSpan]:
         """Extract formatting spans from text."""
