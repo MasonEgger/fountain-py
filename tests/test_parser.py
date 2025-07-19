@@ -619,3 +619,149 @@ Continued dialogue
 
         actual_types = [el.type for el in document.elements]
         assert actual_types == expected_types
+
+    def test_section_parsing(self):
+        """Test section headers with # syntax (lines 252-253)."""
+        text = """# ACT ONE
+
+## Scene 1
+
+Some action happens.
+
+JOHN
+Hello there."""
+
+        document = self.parser.parse(text)
+
+        section_elements = [el for el in document.elements if el.type == ElementType.SECTION]
+        assert len(section_elements) == 2
+        assert section_elements[0].text == "ACT ONE"
+        assert section_elements[1].text == "Scene 1"
+
+    def test_synopsis_parsing(self):
+        """Test synopsis with = syntax (lines 262-263)."""
+        text = """= This is what happens in this scene
+
+INT. HOUSE - DAY
+
+Some action."""
+
+        document = self.parser.parse(text)
+
+        synopsis_elements = [el for el in document.elements if el.type == ElementType.SYNOPSIS]
+        assert len(synopsis_elements) == 1
+        assert synopsis_elements[0].text == "This is what happens in this scene"
+
+    def test_single_line_boneyard(self):
+        """Test single-line boneyard comments (line 209)."""
+        text = """/* This is a comment */
+
+JOHN
+Hello there."""
+
+        document = self.parser.parse(text)
+
+        boneyard_elements = [el for el in document.elements if el.type == ElementType.BONEYARD]
+        assert len(boneyard_elements) == 1
+        assert boneyard_elements[0].text == "/* This is a comment */"
+
+    def test_empty_elements_list(self):
+        """Test dialogue detection with no prior elements (line 441)."""
+        parser = FountainParser()
+        parser.elements = []  # Explicitly empty
+        result = parser._is_dialogue_line()
+        assert result is False
+
+    def test_title_page_empty_lines(self):
+        """Test title page with empty lines (lines 121-122, 130, 173)."""
+        text = """Title: My Script
+Notes:
+    Line 1
+    
+    Line 2 after empty line
+Contact: John Doe
+
+INT. HOUSE - DAY"""
+
+        document = self.parser.parse(text)
+        
+        # The current implementation may not continue multi-line values across empty lines
+        # The empty line in the Notes field causes title page parsing to stop early
+        # This test verifies that the empty line handling code paths are hit
+        assert "notes" in document.metadata
+        assert document.metadata.get("title") == "My Script"
+        assert document.metadata.get("notes") == "Line 1"  # Line 2 is not included due to empty line
+
+    def test_empty_line_parsing(self):
+        """Test parsing empty lines (line 194)."""
+        parser = FountainParser()
+        result = parser._parse_line("   ")  # whitespace-only line
+        assert result is None
+
+    def test_dual_dialogue_break(self):
+        """Test dual dialogue processing break condition (line 516)."""
+        text = """JOHN^
+Hello there!"""
+        
+        document = self.parser.parse(text)
+        
+        # Should not create dual dialogue since there's no previous character
+        dual_elements = [el for el in document.elements if el.type == ElementType.DUAL_DIALOGUE]
+        assert len(dual_elements) == 0
+        
+        # Should have regular character and dialogue instead
+        characters = [el for el in document.elements if el.type == ElementType.CHARACTER]
+        assert len(characters) == 1
+        assert characters[0].text == "JOHN"
+
+    def test_title_page_empty_line_no_current_key(self):
+        """Test title page empty line handling when no current key (lines 117-118)."""
+        # Test with empty line at the beginning of the document  
+        text = """
+Title: My Script
+
+INT. HOUSE - DAY"""
+
+        document = self.parser.parse(text)
+        
+        # Should parse title despite empty line at beginning
+        assert document.metadata.get("title") == "My Script"
+
+    def test_title_page_multiple_empty_lines(self):
+        """Test title page with multiple consecutive empty lines (line 123)."""
+        text = """Title: My Script
+
+
+
+Author: Test Author
+
+INT. HOUSE - DAY"""
+
+        document = self.parser.parse(text)
+        
+        # Should parse both fields despite multiple empty lines
+        assert document.metadata.get("title") == "My Script"
+        assert document.metadata.get("author") == "Test Author"
+
+    def test_dual_dialogue_too_far_back(self):
+        """Test dual dialogue break when searching too far back (line 495)."""
+        text = """JOHN
+Hello.
+
+Some action happens.
+
+SARAH^
+Hi there!"""
+        
+        document = self.parser.parse(text)
+        
+        
+        # Should not create dual dialogue since there's an ACTION between JOHN and SARAH^
+        dual_elements = [el for el in document.elements if el.type == ElementType.DUAL_DIALOGUE]
+        assert len(dual_elements) == 0
+        
+        # Should have regular character elements instead
+        characters = [el for el in document.elements if el.type == ElementType.CHARACTER]
+        assert len(characters) == 2
+        assert characters[0].text == "JOHN"
+        assert characters[1].text == "SARAH"

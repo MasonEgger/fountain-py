@@ -400,4 +400,9 @@ class HTMLRenderer:
 </style>
 """
         else:
-            return self._get_css()  # Fallback to default
+            # Fallback to default theme
+            old_theme = self.theme
+            self.theme = "default"
+            css = self._get_css()
+            self.theme = old_theme
+            return css

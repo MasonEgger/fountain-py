@@ -271,3 +271,76 @@ class TestHTMLRenderer:
         assert "<strong>" in html  # bold
         assert "<em>" in html  # italic
         assert "<u>" in html  # underline
+
+    def test_extended_title_page_fields(self):
+        """Test all extended title page fields (lines 58, 85, 96, 101, 106, 111, 116)."""
+        metadata = {
+            'title': 'Test Script',
+            'authors': 'John & Jane Doe',  # line 58: not 'author'
+            'director': 'Famous Director',  # line 85
+            'date': '2024-01-01',  # line 96
+            'revised': '2024-01-15',  # line 101
+            'version': '1.0',  # line 106
+            'format': 'Screenplay',  # line 111
+            'created': '2023-12-01'  # line 116
+        }
+        
+        document = FountainDocument([], metadata)
+        html = self.renderer.render(document)
+        
+        assert '<p class="author">by John &amp; Jane Doe</p>' in html
+        assert '<p class="director">Director: Famous Director</p>' in html
+        assert '<p class="date">2024-01-01</p>' in html
+        assert '<p class="revised">Revised: 2024-01-15</p>' in html
+        assert '<p class="version">Version: 1.0</p>' in html
+        assert '<p class="format">Format: Screenplay</p>' in html
+        assert '<p class="created">Created: 2023-12-01</p>' in html
+
+    def test_special_elements_rendering(self):
+        """Test rendering of special element types (lines 170, 172, 174)."""
+        elements = [
+            FountainElement(ElementType.BONEYARD, "/* comment */", [], 1),  # line 170
+            FountainElement(ElementType.SECTION, "ACT ONE", [], 2),  # line 172
+            FountainElement(ElementType.SYNOPSIS, "What happens", [], 3),  # line 174
+        ]
+        
+        document = FountainDocument(elements)
+        html = self.renderer.render(document)
+        
+        assert '<div class="boneyard">/* comment */</div>' in html
+        assert '<div class="section">ACT ONE</div>' in html
+        assert '<div class="synopsis">What happens</div>' in html
+
+    def test_unknown_element_type(self):
+        """Test fallback rendering for unknown types (line 182)."""
+        # Create an element with an unknown type by modifying after creation
+        element = FountainElement(ElementType.ACTION, "unknown text", [], 1)
+        # Simulate an unknown element type by creating a mock enum value
+        class MockElementType:
+            value = "unknown_type"
+        element.type = MockElementType()
+        
+        document = FountainDocument([element])
+        html = self.renderer.render(document)
+        
+        # Should use fallback rendering with the element type as CSS class
+        assert '<div class="unknown-type">unknown text</div>' in html
+
+    def test_theme_fallback(self):
+        """Test theme system fallback (line 433)."""
+        renderer = HTMLRenderer(theme="nonexistent")
+        document = FountainDocument([])
+        html = renderer.render(document)
+        assert '<style>' in html
+
+    def test_dual_dialogue_metadata_none(self):
+        """Test dual dialogue with None metadata (line 234)."""
+        # Create a dual dialogue element with no metadata 
+        dual_element = FountainElement(ElementType.DUAL_DIALOGUE, "", [], 1, metadata=None)
+        
+        document = FountainDocument([dual_element])
+        html = self.renderer.render(document)
+        
+        # Should handle None metadata gracefully and return empty string for dual dialogue content
+        # The dual dialogue div should not appear since metadata is None
+        assert '<div class="dual-dialogue">' not in html

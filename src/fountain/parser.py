@@ -188,12 +188,7 @@ class FountainParser:
                 self.in_boneyard = False
             return None  # Skip all lines inside boneyard
 
-        if self.MULTILINE_BONEYARD_START.match(line):
-            if not self.MULTILINE_BONEYARD_END.search(line):
-                self.in_boneyard = True
-            return None  # Skip boneyard start line
-
-        # Check for single-line boneyard (block comments)
+        # Check for single-line boneyard (block comments) - handle before multiline start
         if self.BONEYARD_PATTERN.match(line):
             return FountainElement(
                 type=ElementType.BONEYARD,
@@ -201,6 +196,11 @@ class FountainParser:
                 formatting=[],
                 line_number=self.current_line + 1,
             )
+
+        if self.MULTILINE_BONEYARD_START.match(line):
+            if not self.MULTILINE_BONEYARD_END.search(line):
+                self.in_boneyard = True
+            return None  # Skip boneyard start line
 
         # Check for page breaks
         if self.PAGE_BREAK_PATTERN.match(line):

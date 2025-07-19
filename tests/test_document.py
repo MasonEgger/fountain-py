@@ -106,3 +106,30 @@ class TestFountainDocument:
         assert stats["character_count"] == 2
         assert stats["dialogue_count"] == 2
         assert stats["action_count"] == 1
+
+    def test_character_with_dual_marker(self):
+        """Test character names ending with ^ (line 55)."""
+        elements = [
+            FountainElement(ElementType.CHARACTER, "JOHN^", [], 1),
+            FountainElement(ElementType.CHARACTER, "SARAH^", [], 2),
+        ]
+        document = FountainDocument(elements)
+        characters = document.get_characters()
+        assert "JOHN" in characters
+        assert "SARAH" in characters
+        assert "JOHN^" not in characters
+
+    def test_to_html_method(self):
+        """Test direct to_html method (lines 84-87)."""
+        elements = [
+            FountainElement(ElementType.ACTION, "Some action", [], 1)
+        ]
+        document = FountainDocument(elements)
+        html = document.to_html()
+        assert '<div class="action">' in html
+
+    def test_to_html_with_theme(self):
+        """Test to_html with custom theme (lines 84-87)."""
+        document = FountainDocument([])
+        html = document.to_html(theme="custom")
+        assert '<style>' in html
