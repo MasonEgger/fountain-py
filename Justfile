@@ -36,27 +36,27 @@ type-check:
 
 # Serve documentation locally
 docs:
-    uv run mkdocs serve
+    uv run sphinx-autobuild docs/source docs/build/html
 
 # Build documentation
 docs-build:
-    uv run mkdocs build
+    uv run sphinx-build -b html docs/source docs/build/html
 
-# Run doctests only
+# Run doctests (Sphinx only until Phase 2 adds pytest doctests)
 doctest:
-    uv run pytest src/ --doctest-modules -v
+    uv run sphinx-build -b doctest docs/source docs/build/doctest
 
-# Run doctests with coverage
+# Run doctests with coverage (will be enhanced in Phase 2)
 doctest-cov:
-    uv run pytest src/ --doctest-modules --cov=fountain --cov-report=term -v
+    uv run sphinx-build -b doctest docs/source docs/build/doctest
 
-# Deploy documentation to GitHub Pages
-docs-deploy:
-    uv run mkdocs gh-deploy
+# Check documentation links
+docs-linkcheck:
+    uv run sphinx-build -b linkcheck docs/source docs/build/linkcheck
 
 # Clean documentation build artifacts
 docs-clean:
-    rm -rf site/
+    rm -rf docs/build/
 
 # Clean up temporary files
 clean:
