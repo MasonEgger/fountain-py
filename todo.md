@@ -1,196 +1,229 @@
-# Documentation Implementation Todo
+# Documentation Implementation Todo - Sphinx Edition
 
-## Phase 1: Foundation Setup ⏳
+## Phase 1: Foundation Migration to Sphinx ⚡
 
-### Step 1.1: Enhanced Documentation Dependencies ✅
-- [x] Add mkdocs-gen-files to pyproject.toml dependencies
-- [x] Add mkdocs-literate-nav to pyproject.toml dependencies  
-- [x] Add pytest-doctest-mkdocstrings for doctest integration
-- [x] Configure pytest to run doctests in pyproject.toml
-- [x] Update Justfile with documentation commands
-- [x] Test basic documentation toolchain
+### Step 1.1: Remove MkDocs Dependencies and Add Sphinx ✅
+- [x] Enhanced pytest configuration for doctests (--doctest-modules)
+- [x] Justfile enhanced with documentation commands (will need updating for Sphinx)
+- [x] Basic doctest pytest configuration
+- [x] Documentation dependencies framework established (will be migrated to Sphinx)
+- [x] Remove MkDocs-specific dependencies from pyproject.toml
+- [x] Add comprehensive Sphinx dependencies with theme and extensions
+- [x] Remove mkdocs.yml configuration file
+- [x] Clean up any MkDocs build artifacts
 
-### Step 1.2: Advanced MkDocs Configuration
-- [ ] Create scripts/gen_ref_pages.py for API reference generation
-- [ ] Configure mkdocs.yml for gen-files plugin
-- [ ] Configure mkdocs.yml for literate-nav plugin
-- [ ] Set up doctest integration with pytest configuration
-- [ ] Configure Material theme with advanced features
-- [ ] Test automated API documentation generation
+### Step 1.2: Sphinx Project Initialization 🏗️
+- [ ] Initialize Sphinx project in docs/ directory
+- [ ] Create docs/source/conf.py with professional configuration
+- [ ] Set up Furo theme with professional styling
+- [ ] Configure autodoc for automatic API discovery from src/fountain/
+- [ ] Configure Napoleon for Google-style docstrings
+- [ ] Create complete directory structure with index.rst files
+- [ ] Test basic Sphinx build functionality
 
-## Phase 2: API Documentation Enhancement ⏳
+### Step 1.3: Build System Integration 🔧
+- [ ] Update Justfile with Sphinx-specific commands
+- [ ] Create Makefile in docs/ directory for cross-platform builds
+- [ ] Configure doctest integration with Sphinx
+- [ ] Set up development workflow commands
+- [ ] Test all documentation build commands
+- [ ] Verify doctest integration works with both pytest and sphinx-build
+
+## Phase 2: API Documentation Enhancement 📚
 
 ### Step 2.1: Core Module Docstring Enhancement
-- [ ] Enhance elements.py with comprehensive docstrings
-  - [ ] Document ElementType enum values with examples
-  - [ ] Add FormatSpan documentation with usage examples
-  - [ ] Document FountainElement with parameter details
-  - [ ] Add doctest examples to method docstrings
+- [ ] Enhance elements.py with comprehensive Google-style docstrings
+  - [ ] Document ElementType enum with detailed descriptions and examples
+  - [ ] Add comprehensive FormatSpan class documentation
+  - [ ] Document FountainElement class with parameter details
+  - [ ] Include doctest examples in method docstrings
 - [ ] Enhance document.py with full documentation
   - [ ] Document FountainDocument class thoroughly
-  - [ ] Add examples to to_dict() and to_json() methods
+  - [ ] Add detailed examples to to_dict() and to_json() methods
   - [ ] Document analysis methods (get_characters, get_statistics)
-  - [ ] Add doctest examples for common usage patterns
-- [ ] Verify all doctest examples execute correctly
+  - [ ] Include practical usage examples as doctests
+- [ ] Verify all doctest examples execute correctly with Sphinx
 
-### Step 2.2: Parser Documentation
-- [ ] Document all regex patterns with explanations
+### Step 2.2: Parser Documentation 🔍
+- [ ] Document all regex patterns with detailed explanations
   - [ ] SCENE_HEADING_PATTERN and variations
   - [ ] CHARACTER_PATTERN and forced characters
   - [ ] TRANSITION_PATTERN variations
-  - [ ] Formatting patterns (bold, italic, etc.)
+  - [ ] Formatting patterns (bold, italic, underline)
   - [ ] Special element patterns (notes, boneyard, etc.)
-- [ ] Add detailed docstrings to parsing methods
-  - [ ] _parse_line method with examples
-  - [ ] _parse_title_page with supported fields
-  - [ ] _process_dual_dialogue with complex examples
-  - [ ] _extract_formatting with formatting examples
-- [ ] Document two-pass parsing approach
+- [ ] Add detailed Google-style docstrings to parsing methods
+  - [ ] _parse_line method with parsing examples
+  - [ ] _parse_title_page with supported field examples
+  - [ ] _process_dual_dialogue with complex formatting examples
+  - [ ] _extract_formatting with inline formatting examples
+- [ ] Document two-pass parsing approach architecture
 - [ ] Add doctest examples for complex parsing scenarios
 
-### Step 2.3: Renderer Documentation
+### Step 2.3: Renderer Documentation 🎨
 - [ ] Document HTMLRenderer thoroughly
   - [ ] CSS class explanations and styling guide
-  - [ ] Theme system documentation
+  - [ ] Theme system documentation and customization options
   - [ ] Output format specification
 - [ ] Document FountainRenderer
   - [ ] Round-trip capabilities and limitations
   - [ ] Format preservation guarantees
 - [ ] Add custom renderer creation examples
-- [ ] Include doctest examples for rendering scenarios
+- [ ] Include practical examples of creating custom renderers
+- [ ] Add doctest examples for rendering scenarios
 
-## Phase 3: User Documentation 📝
+## Phase 3: User Documentation 📖
 
-### Step 3.1: Landing Page and Installation
-- [ ] Create compelling docs/index.md
-  - [ ] Feature highlights and benefits
-  - [ ] Quick overview of capabilities
-  - [ ] Links to key sections
-  - [ ] Installation teaser
-- [ ] Write comprehensive docs/installation.md
+### Step 3.1: Landing Page and Installation 🚀
+- [ ] Create compelling docs/source/index.rst
+  - [ ] Clear project description and value proposition
+  - [ ] Feature highlights with examples
+  - [ ] Quick navigation to key sections
+  - [ ] Installation teaser with links
+- [ ] Write comprehensive docs/source/installation.rst
   - [ ] pip installation instructions
   - [ ] Development installation with uv
-  - [ ] Platform-specific notes
-  - [ ] Troubleshooting common issues
+  - [ ] Platform-specific notes (Windows, macOS, Linux)
+  - [ ] Virtual environment best practices
   - [ ] Installation verification examples
+  - [ ] Troubleshooting common issues
 
-### Step 3.2: Quick Start Tutorial
-- [ ] Create step-by-step docs/quickstart.md
-  - [ ] Basic parsing example
-  - [ ] Element access examples
-  - [ ] Rendering examples
-  - [ ] Common use cases
-- [ ] Create sample Fountain files for tutorial
-- [ ] Add downloadable example files
+### Step 3.2: Quick Start Tutorial ⚡
+- [ ] Create step-by-step docs/source/quickstart.rst
+  - [ ] Basic parsing example with simple Fountain script
+  - [ ] Accessing different element types and properties
+  - [ ] Rendering to HTML with styling options
+  - [ ] Common use cases (character extraction, scene analysis)
+  - [ ] Error handling basics
+- [ ] Include practical, runnable examples using existing sample files
+- [ ] Add tips and best practices throughout
 - [ ] Verify all quickstart examples work
 
-### Step 3.3: Comprehensive User Guide
-- [ ] Write docs/user-guide/parsing.md
+### Step 3.3: Comprehensive User Guide 📖
+- [ ] Write docs/source/user-guide/parsing.rst
   - [ ] File parsing vs string parsing
   - [ ] Error handling and validation
-  - [ ] Performance considerations
-  - [ ] Memory usage optimization
-- [ ] Create docs/user-guide/elements.md
-  - [ ] Detailed explanation of each element type
-  - [ ] Element relationships and hierarchy
-  - [ ] Working with metadata
-  - [ ] Formatting and styling
-- [ ] Develop docs/user-guide/rendering.md
-  - [ ] HTML rendering options
-  - [ ] Custom CSS integration
-  - [ ] Fountain format round-trip
-  - [ ] Export and integration options
-- [ ] Add docs/user-guide/advanced.md
-  - [ ] Custom parsing workflows
-  - [ ] Performance optimization
-  - [ ] Integration with other tools
+  - [ ] Performance considerations and memory usage
   - [ ] Batch processing patterns
+- [ ] Create docs/source/user-guide/elements.rst
+  - [ ] Detailed explanation of each ElementType
+  - [ ] Element relationships and hierarchy
+  - [ ] Working with metadata and formatting
+  - [ ] Element manipulation and analysis
+- [ ] Develop docs/source/user-guide/rendering.rst
+  - [ ] HTML rendering options and customization
+  - [ ] CSS integration and theming
+  - [ ] Fountain format round-trip capabilities
+  - [ ] Export options and integration with other tools
+- [ ] Add docs/source/user-guide/advanced.rst
+  - [ ] Custom parsing workflows
+  - [ ] Performance optimization techniques
+  - [ ] Integration with other libraries and tools
+  - [ ] Advanced batch processing and automation
 
-## Phase 4: Examples and Tutorials 📚
+## Phase 4: Examples and Tutorials 📝
 
 ### Step 4.1: Basic Examples
-- [ ] Create docs/examples/basic-usage.md
-  - [ ] Simple parsing workflow
-  - [ ] Accessing different element types
-  - [ ] Basic statistics and analysis
-  - [ ] HTML export example
-- [ ] Add docs/examples/script-analysis.md
-  - [ ] Character analysis
-  - [ ] Scene statistics
-  - [ ] Dialogue patterns
-  - [ ] Script structure analysis
-- [ ] Include error handling examples
+- [ ] Create docs/source/examples/basic-usage.rst
+  - [ ] Simple parsing workflow with real scripts
+  - [ ] Accessing and working with different element types
+  - [ ] Basic statistics and analysis operations
+  - [ ] HTML export with custom styling
+  - [ ] Common data extraction patterns
+- [ ] Add docs/source/examples/script-analysis.rst
+  - [ ] Character analysis and dialogue statistics
+  - [ ] Scene structure and pacing analysis
+  - [ ] Dialogue pattern recognition
+  - [ ] Script length and timing calculations
+  - [ ] Generating reports and summaries
+- [ ] Include complete, runnable examples with explanations
 - [ ] Add performance optimization examples
 
-### Step 4.2: Advanced Examples
-- [ ] Create docs/examples/custom-renderer.md
-  - [ ] Step-by-step renderer implementation
-  - [ ] Custom output formats
-  - [ ] Advanced styling options
-  - [ ] Integration with web frameworks
-- [ ] Add docs/examples/real-world.md
-  - [ ] Script conversion tools
+### Step 4.2: Advanced Examples 🚀
+- [ ] Create docs/source/examples/custom-renderer.rst
+  - [ ] Step-by-step custom renderer implementation
+  - [ ] Creating specialized output formats (PDF, JSON, etc.)
+  - [ ] Advanced styling and theming techniques
+  - [ ] Integration with web frameworks and applications
+- [ ] Add docs/source/examples/real-world.rst
+  - [ ] Script conversion and migration tools
   - [ ] Automated analysis pipelines
-  - [ ] Integration with IDEs
-  - [ ] Batch processing workflows
-- [ ] Include integration examples with other tools
-- [ ] Add automation and tooling examples
+  - [ ] Integration with IDEs and editors
+  - [ ] Batch processing workflows for multiple scripts
+  - [ ] Performance monitoring and optimization
+- [ ] Include complete implementations with explanations
+- [ ] Add extensibility guidelines and best practices
 
-## Phase 5: Documentation Infrastructure 🔧
+## Phase 5: Documentation Infrastructure 🤖
 
 ### Step 5.1: Automated API Reference
-- [ ] Implement complete scripts/gen_ref_pages.py
-  - [ ] Auto-generate API reference pages
-  - [ ] Create navigation structure
-  - [ ] Handle module organization
-  - [ ] Add cross-references
-- [ ] Configure automatic navigation generation
-- [ ] Set up cross-references between manual and API docs
-- [ ] Add search optimization and meta tags
+- [ ] Configure comprehensive Sphinx autodoc for all modules
+- [ ] Update docs/source/conf.py for automatic API discovery
+- [ ] Create docs/source/api/ structure with index and module pages
+- [ ] Set up automatic cross-references between manual and API docs
+- [ ] Configure search indexing and optimization
+- [ ] Add individual module pages with autodoc directives
+- [ ] Ensure seamless integration between manual docs and API docs
 
-### Step 5.2: Documentation Testing and CI
-- [ ] Configure comprehensive doctest execution
-  - [ ] Run doctests in CI pipeline
-  - [ ] Verify all examples work
-  - [ ] Test against multiple Python versions
-- [ ] Add documentation build verification to CI
-- [ ] Set up link checking and validation
-- [ ] Create documentation update workflow
+### Step 5.2: Documentation Testing and CI 🧪
+- [ ] Configure comprehensive Sphinx doctest builder
+  - [ ] Run all doctests in documentation and docstrings
+  - [ ] Integrate with pytest for unified testing
+  - [ ] Add doctest verification to CI pipeline
+  - [ ] Handle test isolation and cleanup
+- [ ] Add documentation validation
+  - [ ] Sphinx build verification (no warnings/errors)
+  - [ ] Link checking for external references
+  - [ ] Spell checking and grammar validation
+  - [ ] Accessibility compliance testing
+- [ ] Create CI workflow for documentation
+  - [ ] Documentation build testing
+  - [ ] Doctest execution and verification
+  - [ ] Link validation
+  - [ ] Deployment to documentation hosting
 
-## Phase 6: Polish and Deployment 🚀
+## Phase 6: Polish and Deployment 🎯
 
-### Step 6.1: Contributing Documentation
-- [ ] Create docs/contributing/development.md
-  - [ ] Development environment setup
-  - [ ] Code style guidelines
-  - [ ] Git workflow and branching
-  - [ ] Release process
-- [ ] Add docs/contributing/testing.md
-  - [ ] Test writing guidelines
-  - [ ] Coverage requirements
-  - [ ] Testing best practices
+### Step 6.1: Contributing Documentation 🤝
+- [ ] Create docs/source/contributing/development.rst
+  - [ ] Development environment setup with uv
+  - [ ] Code style guidelines and tooling
+  - [ ] Git workflow and branching strategy
+  - [ ] Release process and versioning
+- [ ] Add docs/source/contributing/testing.rst
+  - [ ] Test writing guidelines and patterns
+  - [ ] Coverage requirements and reporting
+  - [ ] Testing best practices and TDD workflow
   - [ ] CI/CD pipeline explanation
-- [ ] Write docs/contributing/documentation.md
-  - [ ] Documentation writing guidelines
-  - [ ] Style guide and tone
-  - [ ] Review process
-  - [ ] Maintenance responsibilities
+- [ ] Write docs/source/contributing/documentation.rst
+  - [ ] Documentation writing guidelines and style
+  - [ ] Sphinx and reStructuredText best practices
+  - [ ] Review process and approval workflow
+  - [ ] Maintenance responsibilities and updates
 
 ### Step 6.2: Final Polish and Launch
-- [ ] Review all documentation for consistency
-- [ ] Check spelling and grammar throughout
-- [ ] Optimize for SEO and accessibility
-- [ ] Add analytics and feedback mechanisms
-- [ ] Deploy to documentation hosting
-- [ ] Create documentation maintenance plan
+- [ ] Review all documentation for consistency and accuracy
+- [ ] Spell check and grammar review throughout
+- [ ] Ensure all code examples work and are up-to-date
+- [ ] Verify cross-references and links
+- [ ] Configure SEO metadata and descriptions
+- [ ] Ensure WCAG 2.1 AA accessibility compliance
+- [ ] Set up analytics and user feedback systems
+- [ ] Deploy to Read the Docs or GitHub Pages
+- [ ] Create documentation maintenance and update plan
 
-## Current Status: Not Started
+## Current Status: Foundation Migration Required
 
-**Next Action**: Begin Phase 1.1 - Enhanced Documentation Dependencies
+**Next Action**: Begin Phase 1.1 - Remove MkDocs Dependencies and Add Sphinx
 
-## Notes
-- All code examples must include doctest integration
-- Maintain focus on practical, real-world usage
-- Ensure mobile-friendly responsive design
-- Plan for ongoing maintenance and updates
-- Consider internationalization for future expansion
+## Migration Notes
+- **Completed Foundation Work**: Pytest doctest configuration and basic Justfile commands are ready to be adapted for Sphinx
+- **Key Migration**: Replace MkDocs toolchain with professional Sphinx documentation system
+- **Benefit**: Sphinx provides superior autodoc capabilities and professional documentation standards
+- **Timeline**: Foundation migration should complete quickly, then proceed with enhanced API documentation
+
+## Success Criteria for Sphinx Migration
+- **Professional Appearance**: Clean, modern Furo theme
+- **Automated API Docs**: Complete autodoc integration with Google-style docstrings
+- **Testing Integration**: Comprehensive doctest integration with both pytest and Sphinx
+- **Developer Experience**: Intuitive commands and workflow for documentation development
+- **Production Ready**: Deployment to professional documentation hosting
