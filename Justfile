@@ -50,7 +50,7 @@ check:
     uv run ruff format --check src/ tests/
 
 # Run all quality checks (tests, coverage, lint, type check, fix, format check)
-test: test-cov lint type-check fix check
+test: unit-test-cov lint type-check fix check
 
 # Install pre-commit hooks
 pre-commit-install:
