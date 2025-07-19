@@ -42,12 +42,14 @@ docs:
 docs-build:
     uv run sphinx-build -b html docs/source docs/build/html
 
-# Run doctests (Sphinx only until Phase 2 adds pytest doctests)
+# Run doctests (both pytest doctest modules and Sphinx doctests)
 doctest:
+    uv run pytest --doctest-modules src/
     uv run sphinx-build -b doctest docs/source docs/build/doctest
 
-# Run doctests with coverage (will be enhanced in Phase 2)
+# Run doctests with coverage 
 doctest-cov:
+    uv run pytest --doctest-modules src/ --cov=fountain --cov-report=html --cov-report=term
     uv run sphinx-build -b doctest docs/source docs/build/doctest
 
 # Check documentation links

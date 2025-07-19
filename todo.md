@@ -31,19 +31,19 @@
 
 ## Phase 2: API Documentation Enhancement 📚
 
-### Step 2.1: Core Module Docstring Enhancement
-- [ ] Enhance elements.py with comprehensive Google-style docstrings
-  - [ ] Document ElementType enum with detailed descriptions and examples
-  - [ ] Add comprehensive FormatSpan class documentation
-  - [ ] Document FountainElement class with parameter details
-  - [ ] Include doctest examples in method docstrings
-- [ ] Enhance document.py with full documentation
-  - [ ] Document FountainDocument class thoroughly
-  - [ ] Add detailed examples to to_dict() and to_json() methods
-  - [ ] Document analysis methods (get_characters, get_statistics)
-  - [ ] Include practical usage examples as doctests
-- [ ] Verify all doctest examples execute correctly with Sphinx
-- [ ] Update Justfile doctest commands to include pytest doctests once examples are added
+### Step 2.1: Core Module Docstring Enhancement ✅
+- [x] Enhance elements.py with comprehensive Google-style docstrings
+  - [x] Document ElementType enum with detailed descriptions and examples
+  - [x] Add comprehensive FormatSpan class documentation
+  - [x] Document FountainElement class with parameter details
+  - [x] Include doctest examples in method docstrings
+- [x] Enhance document.py with full documentation
+  - [x] Document FountainDocument class thoroughly
+  - [x] Add detailed examples to to_dict() and to_json() methods
+  - [x] Document analysis methods (get_characters, get_statistics)
+  - [x] Include practical usage examples as doctests
+- [x] Verify all doctest examples execute correctly with Sphinx
+- [x] Update Justfile doctest commands to include pytest doctests
 
 ### Step 2.2: Parser Documentation 🔍
 - [ ] Document all regex patterns with detailed explanations
