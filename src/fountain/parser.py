@@ -13,13 +13,15 @@ class FountainParser:
     """Parser for Fountain markup."""
 
     # Regex patterns for Fountain elements
-    SCENE_HEADING_PATTERN = re.compile(r"^(INT\.|EXT\.|EST\.|I/E\.|int\.|ext\.|est\.|i/e\.)", re.IGNORECASE)
+    SCENE_HEADING_PATTERN = re.compile(
+        r"^(INT\s*\.|EXT\s*\.|EST\s*\.|I/E\s*\.|INTERIOR\s*\.|EXTERIOR\s*\.|INT/EXT\s*\.|INT\./EXT\s*\.)", re.IGNORECASE
+    )
     SCENE_NUMBER_PATTERN = re.compile(r"\s*#([^#]+)#\s*$")
     FORCED_SCENE_HEADING_PATTERN = re.compile(r"^\.")
-    CHARACTER_PATTERN = re.compile(r"^[A-Z][A-Z0-9\s]*$")
-    DUAL_CHARACTER_PATTERN = re.compile(r"^[A-Z][A-Z0-9\s]*\^\s*$")
+    CHARACTER_PATTERN = re.compile(r"^[A-Z][A-Z0-9\s_]*$")
+    DUAL_CHARACTER_PATTERN = re.compile(r"^[A-Z][A-Z0-9\s_]*\^\s*$")
     FORCED_CHARACTER_PATTERN = re.compile(r"^@(.+)$")
-    CHARACTER_EXTENSION_PATTERN = re.compile(r"^([A-Z][A-Z0-9\s]*)\s*\(([^)]+)\)\s*(\^)?\s*$")
+    CHARACTER_EXTENSION_PATTERN = re.compile(r"^([A-Z][A-Z0-9\s_]*)\s*\(([^)]+)\)\s*(\^)?\s*$")
     TRANSITION_PATTERN = re.compile(r"^[A-Z\s]+TO:$|^FADE IN:$|^FADE OUT\.$|^CUT TO:$")
     FORCED_TRANSITION_PATTERN = re.compile(r"^>")
     FORCED_ACTION_PATTERN = re.compile(r"^!(.+)$")
@@ -31,12 +33,12 @@ class FountainParser:
     SECTION_PATTERN = re.compile(r"^#+\s*")
     SYNOPSIS_PATTERN = re.compile(r"^=\s*")
     PAGE_BREAK_PATTERN = re.compile(r"^===+$")
-    LYRICS_PATTERN = re.compile(r"^~([^~]+)~$")
+    LYRICS_PATTERN = re.compile(r"^~(.+)$")
 
     # Formatting patterns
     BOLD_ITALIC_PATTERN = re.compile(r"\*\*\*([^*]+)\*\*\*")
     BOLD_PATTERN = re.compile(r"\*\*([^*]+)\*\*")
-    ITALIC_PATTERN = re.compile(r"(?<!\*)\*([^*\s][^*]*[^*\s])\*(?!\*)")
+    ITALIC_PATTERN = re.compile(r"(?<!\*)\*([^*\s](?:[^*]*[^*\s])?)\*(?!\*)")
     UNDERLINE_PATTERN = re.compile(r"_([^_]+)_")
 
     def __init__(self) -> None:
@@ -387,17 +389,18 @@ class FountainParser:
                     metadata=metadata if metadata else None,
                 )
 
-        # Check for parenthetical
-        if line.startswith("(") and line.endswith(")"):
-            return FountainElement(
-                type=ElementType.PARENTHETICAL,
-                text=line,
-                formatting=self._extract_formatting(line),
-                line_number=self.current_line + 1,
-            )
-
         # Check if this is dialogue (follows character or parenthetical)
+        # BUT check for parenthetical first since it has higher precedence
         if self._is_dialogue_line(had_blank_line_before):
+            # Check for parenthetical within dialogue context
+            if line.startswith("(") and line.endswith(")"):
+                return FountainElement(
+                    type=ElementType.PARENTHETICAL,
+                    text=line,
+                    formatting=self._extract_formatting(line),
+                    line_number=self.current_line + 1,
+                )
+            # Otherwise it's regular dialogue
             return FountainElement(
                 type=ElementType.DIALOGUE,
                 text=line,
@@ -545,7 +548,9 @@ class FountainParser:
                 prev_char_idx = None
                 for j in range(i - 1, -1, -1):
                     if self.elements[j].type == ElementType.CHARACTER:
-                        prev_char_idx = j
+                        # Check if this character is immediately adjacent (no other characters in between)
+                        if prev_char_idx is None:
+                            prev_char_idx = j
                         break
                     elif self.elements[j].type in (
                         ElementType.SCENE_HEADING,

@@ -766,11 +766,11 @@ Hi there!"""
         assert characters[1].text == "SARAH"
 
     def test_lyrics_parsing(self):
-        """Test lyrics parsing with ~lyrics~ syntax."""
+        """Test lyrics parsing with ~lyrics syntax according to Fountain spec."""
         text = """JOHN
 (singing)
-~Oh what a beautiful morning~
-~Oh what a beautiful day~
+~Oh what a beautiful morning
+~Oh what a beautiful day
 
 SARAH
 That was lovely!"""
@@ -797,7 +797,7 @@ That was lovely!"""
 
     def test_lyrics_with_formatting(self):
         """Test that lyrics support formatting marks."""
-        text = """~This is **bold** and *italic* lyrics~"""
+        text = """~This is **bold** and *italic* lyrics"""
 
         document = self.parser.parse(text)
 
@@ -812,44 +812,42 @@ That was lovely!"""
         assert "italic" in format_types
 
     def test_lyrics_empty_content(self):
-        """Test that empty lyrics (~~) are not parsed as lyrics."""
-        text = """~~"""
+        """Test that empty lyrics (~) are not parsed as lyrics."""
+        text = """~"""
 
         document = self.parser.parse(text)
 
         lyrics_elements = [el for el in document.elements if el.type == ElementType.LYRICS]
-        # Should be 0 - empty tildes should not create lyrics
+        # Should be 0 - empty tilde should not create lyrics
         assert len(lyrics_elements) == 0
 
         # Should be parsed as action instead
         action_elements = [el for el in document.elements if el.type == ElementType.ACTION]
         assert len(action_elements) == 1
-        assert action_elements[0].text == "~~"
+        assert action_elements[0].text == "~"
 
     def test_lyrics_whitespace_handling(self):
         """Test lyrics with whitespace."""
-        text = """~  Lyrics with spaces  ~"""
+        text = """~  Lyrics with spaces  """
 
         document = self.parser.parse(text)
 
         lyrics_elements = [el for el in document.elements if el.type == ElementType.LYRICS]
         assert len(lyrics_elements) == 1
-        assert lyrics_elements[0].text == "Lyrics with spaces"
+        assert lyrics_elements[0].text.strip() == "Lyrics with spaces"
 
     def test_lyrics_not_matching_incomplete(self):
-        """Test that incomplete lyrics syntax is not parsed as lyrics."""
-        text = """~This is not lyrics because it doesn't close
-~This is also not lyrics~but it has extra text"""
+        """Test lyrics parsing according to Fountain spec - any line starting with ~ is lyrics."""
+        text = """~This is lyrics according to spec
+~This is also lyrics with extra text"""
 
         document = self.parser.parse(text)
 
         lyrics_elements = [el for el in document.elements if el.type == ElementType.LYRICS]
-        # Should be empty - none of these should match the lyrics pattern
-        assert len(lyrics_elements) == 0
-
-        # Should be parsed as action instead
-        action_elements = [el for el in document.elements if el.type == ElementType.ACTION]
-        assert len(action_elements) == 2
+        # Should be 2 - both lines start with ~ so they're lyrics
+        assert len(lyrics_elements) == 2
+        assert lyrics_elements[0].text == "This is lyrics according to spec"
+        assert lyrics_elements[1].text == "This is also lyrics with extra text"
 
     def test_lyrics_in_context(self):
         """Test lyrics in a realistic script context."""
@@ -861,8 +859,8 @@ SARAH stands center stage.
 
 SARAH
 (singing)
-~The lights are bright tonight~
-~On this magical stage~
+~The lights are bright tonight
+~On this magical stage
 
 The audience applauds.
 
@@ -1139,16 +1137,16 @@ Now John speaks again."""
 
         assert len(characters) == 3
         assert characters[0].text == "JOHN"
-        assert characters[1].text == "SARAH"  
+        assert characters[1].text == "SARAH"
         assert characters[2].text == "JOHN"
-        
+
         # When the parser checks if the second JOHN is a continuation of the first JOHN,
         # it finds SARAH (another character) between them, triggering the break at line 489
         # This should prevent the second JOHN from being marked as continuation
         assert characters[2].metadata is None or not characters[2].metadata.get("continuation", False)
-        
+
         # Additionally verify that if the break statement wasn't there, this would fail
-        # by ensuring we have action before the intervening character  
+        # by ensuring we have action before the intervening character
         action_elements = [el for el in document.elements if el.type == ElementType.ACTION]
         assert len(action_elements) >= 1  # Confirm there IS action that would trigger continuation logic
 
@@ -1172,18 +1170,19 @@ ALICE
 Alice continues after Bob interrupted."""
 
         document = self.parser.parse(text)
-        
-        # This should parse as: CHARACTER(ALICE), DIALOGUE, ACTION, ACTION, CHARACTER(BOB), DIALOGUE, ACTION, CHARACTER(ALICE), DIALOGUE
+
+        # This should parse as: CHARACTER(ALICE), DIALOGUE, ACTION, ACTION, CHARACTER(BOB),
+        # DIALOGUE, ACTION, CHARACTER(ALICE), DIALOGUE
         elements = document.elements
-        
+
         # Find all ALICE characters
         alice_chars = [i for i, el in enumerate(elements) if el.type == ElementType.CHARACTER and el.text == "ALICE"]
         assert len(alice_chars) == 2  # Two ALICE appearances
-        
+
         # The second ALICE should NOT be continuation because BOB appears between them
         # When checking continuation for second ALICE, the loop will:
         # 1. Start from after first ALICE (index 1)
-        # 2. Find ACTION elements (would set has_action = True)  
+        # 2. Find ACTION elements (would set has_action = True)
         # 3. Encounter BOB character (triggers break at line 489)
         # 4. Return False because break prevented checking remaining elements
         second_alice = elements[alice_chars[1]]
@@ -1204,19 +1203,19 @@ ALICE
 Original character returns."""
 
         document = self.parser.parse(text)
-        
+
         # Parse the elements to verify our scenario
         chars = [el for el in document.elements if el.type == ElementType.CHARACTER]
         assert len(chars) == 3
         assert chars[0].text == "ALICE"
         assert chars[1].text == "BOB"
         assert chars[2].text == "ALICE"
-        
+
         # The third character (second ALICE) should NOT be marked as continuation
         # because BOB appears between the two ALICE instances
         # This specifically exercises the break statement at line 489
         assert chars[2].metadata is None or not chars[2].metadata.get("continuation", False)
-        
+
         # Verify there was action before the interrupting character (this would trigger continuation check)
         actions = [el for el in document.elements if el.type == ElementType.ACTION]
         assert len(actions) >= 1
