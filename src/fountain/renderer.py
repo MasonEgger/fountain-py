@@ -2,9 +2,10 @@
 HTML renderer for Fountain documents.
 """
 
-from typing import Dict
-from .document import FountainDocument
-from .elements import ElementType, FountainElement
+from typing import Optional
+
+from fountain.document import FountainDocument
+from fountain.elements import ElementType, FormatSpan, FountainElement
 
 
 class HTMLRenderer:
@@ -38,7 +39,7 @@ class HTMLRenderer:
 
         return "\n".join(html_parts)
 
-    def _render_title_page(self, metadata: Dict[str, str]) -> str:
+    def _render_title_page(self, metadata: dict[str, str]) -> str:
         """Render the title page metadata."""
         html_parts = ['<div class="title-page">']
 
@@ -119,10 +120,8 @@ class HTMLRenderer:
         # Contact and legal information
         if "contact" in metadata:
             # Handle multi-line contact information
-            contact_html = self._escape_html(metadata["contact"]).replace('\n', '<br>')
-            html_parts.append(
-                f'<p class="contact">{contact_html}</p>'
-            )
+            contact_html = self._escape_html(metadata["contact"]).replace("\n", "<br>")
+            html_parts.append(f'<p class="contact">{contact_html}</p>')
 
         if "copyright" in metadata:
             html_parts.append(
@@ -131,10 +130,8 @@ class HTMLRenderer:
 
         if "notes" in metadata:
             # Handle multi-line notes
-            notes_html = self._escape_html(metadata["notes"]).replace('\n', '<br>')
-            html_parts.append(
-                f'<p class="notes">{notes_html}</p>'
-            )
+            notes_html = self._escape_html(metadata["notes"]).replace("\n", "<br>")
+            html_parts.append(f'<p class="notes">{notes_html}</p>')
 
         html_parts.append("</div>")
         return "\n".join(html_parts)
@@ -146,20 +143,20 @@ class HTMLRenderer:
 
         if element.type == ElementType.SCENE_HEADING:
             scene_html = f'<div class="scene-heading">{text}'
-            if element.metadata and 'scene_number' in element.metadata:
+            if element.metadata and "scene_number" in element.metadata:
                 scene_html += f' <span class="scene-number">#{element.metadata["scene_number"]}#</span>'
-            scene_html += '</div>'
+            scene_html += "</div>"
             return scene_html
         elif element.type == ElementType.ACTION:
             # Convert tabs to spaces and preserve leading whitespace
-            text_with_spacing = text.replace('\t', '&nbsp;&nbsp;&nbsp;&nbsp;')
-            text_with_br = text_with_spacing.replace('\n', '<br>')
+            text_with_spacing = text.replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
+            text_with_br = text_with_spacing.replace("\n", "<br>")
             return f'<div class="action">{text_with_br}</div>'
         elif element.type == ElementType.CHARACTER:
             char_html = f'<div class="character">{text}'
-            if element.metadata and 'extension' in element.metadata:
+            if element.metadata and "extension" in element.metadata:
                 char_html += f' <span class="character-extension">({element.metadata["extension"]})</span>'
-            char_html += '</div>'
+            char_html += "</div>"
             return char_html
         elif element.type == ElementType.DIALOGUE:
             return f'<div class="dialogue">{text}</div>'
@@ -184,7 +181,7 @@ class HTMLRenderer:
         else:
             return f'<div class="{css_class}">{text}</div>'
 
-    def _apply_formatting(self, text: str, formatting) -> str:
+    def _apply_formatting(self, text: str, formatting: list[FormatSpan]) -> str:
         """Apply formatting spans to text."""
         if not formatting:
             return self._escape_html(text)
@@ -193,30 +190,30 @@ class HTMLRenderer:
         sorted_formatting = sorted(formatting, key=lambda x: x.start, reverse=True)
 
         # Build list of text segments with their formatting
-        segments = []
+        segments: list[tuple[str, Optional[str]]] = []
         last_end = len(text)
-        
+
         for span in sorted_formatting:
             # Add text after this span (if any)
             if last_end > span.end:
-                segments.append((text[span.end:last_end], None))
-            
+                segments.append((text[span.end : last_end], None))
+
             # Add the formatted span
-            segments.append((text[span.start:span.end], span.format_type))
+            segments.append((text[span.start : span.end], span.format_type))
             last_end = span.start
-            
+
         # Add any remaining text at the beginning
         if last_end > 0:
             segments.append((text[:last_end], None))
-            
+
         # Reverse to get correct order
         segments.reverse()
-        
+
         # Build final HTML
         result_parts = []
         for segment_text, format_type in segments:
             escaped_text = self._escape_html(segment_text)
-            
+
             if format_type == "bold":
                 result_parts.append(f"<strong>{escaped_text}</strong>")
             elif format_type == "italic":
@@ -227,37 +224,39 @@ class HTMLRenderer:
                 result_parts.append(f"<strong><em>{escaped_text}</em></strong>")
             else:
                 result_parts.append(escaped_text)
-                
-        return ''.join(result_parts)
+
+        return "".join(result_parts)
 
     def _render_dual_dialogue(self, element: FountainElement) -> str:
         """Render dual dialogue as side-by-side columns."""
         metadata = element.metadata
-        
-        left_char = metadata['left_character']
-        left_dialogue = metadata['left_dialogue']
-        right_char = metadata['right_character']
-        right_dialogue = metadata['right_dialogue']
-        
+        if not metadata:
+            return ""
+
+        left_char = metadata["left_character"]
+        left_dialogue = metadata["left_dialogue"]
+        right_char = metadata["right_character"]
+        right_dialogue = metadata["right_dialogue"]
+
         html_parts = ['<div class="dual-dialogue">']
-        
+
         # Left column
         html_parts.append('<div class="dual-dialogue-left">')
         html_parts.append(self._render_element(left_char))
         for dialogue_element in left_dialogue:
             html_parts.append(self._render_element(dialogue_element))
-        html_parts.append('</div>')
-        
+        html_parts.append("</div>")
+
         # Right column
         html_parts.append('<div class="dual-dialogue-right">')
         html_parts.append(self._render_element(right_char))
         for dialogue_element in right_dialogue:
             html_parts.append(self._render_element(dialogue_element))
-        html_parts.append('</div>')
-        
-        html_parts.append('</div>')
-        
-        return '\n'.join(html_parts)
+        html_parts.append("</div>")
+
+        html_parts.append("</div>")
+
+        return "\n".join(html_parts)
 
     def _escape_html(self, text: str) -> str:
         """Escape HTML characters in text."""

@@ -1,0 +1,70 @@
+site_name: Fountain-Py Documentation
+site_description: A Python library for parsing Fountain markup
+site_author: Mason Egger
+site_url: https://fountain-py.readthedocs.io
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.expand
+    - toc.integrate
+    - search.suggest
+    - search.highlight
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Quick Start: quickstart.md
+  - Examples:
+    - Basic Usage: examples/basic_usage.md
+    - Advanced Usage: examples/advanced_usage.md
+    - Custom Renderer: examples/custom_renderer.md
+  - API Reference:
+    - Parser: api/parser.md
+    - Document: api/document.md
+    - Renderer: api/renderer.md
+    - Elements: api/elements.md
+  - Contributing: contributing.md
+  - Changelog: changelog.md
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_source: true
+            show_root_heading: true
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - admonition
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/MasonEgger/fountain-py
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/fountain-py/
