@@ -9,34 +9,34 @@ import sys
 # -- Path setup --------------------------------------------------------------
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here.
-sys.path.insert(0, os.path.abspath('../../src'))
+sys.path.insert(0, os.path.abspath("../../src"))
 
 # -- Project information -----------------------------------------------------
-project = 'fountain-py'
-copyright = '2024, Mason Egger'
-author = 'Mason Egger'
-release = '0.1.0'
-version = '0.1.0'
+project = "fountain-py"
+copyright = "2025, Mason Egger"
+author = "Mason Egger"
+release = "0.1.0"
+version = "0.1.0"
 
 # -- General configuration ---------------------------------------------------
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.napoleon',
-    'sphinx.ext.viewcode',
-    'sphinx.ext.doctest',
-    'sphinx.ext.intersphinx',
-    'sphinx.ext.coverage',
-    'sphinx_copybutton',
-    'myst_parser',
+    "sphinx.ext.autodoc",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.doctest",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.coverage",
+    "sphinx_copybutton",
+    "myst_parser",
 ]
 
-templates_path = ['_templates']
+templates_path = ["_templates"]
 exclude_patterns = []
 
 # -- Options for HTML output -------------------------------------------------
-html_theme = 'furo'
+html_theme = "furo"
 html_title = f"{project} {version}"
-html_static_path = ['_static']
+html_static_path = ["_static"]
 
 # Furo theme options
 html_theme_options = {
@@ -74,18 +74,18 @@ napoleon_attr_annotations = True
 
 # Autodoc settings
 autodoc_default_options = {
-    'members': True,
-    'member-order': 'bysource',
-    'special-members': '__init__',
-    'undoc-members': True,
-    'exclude-members': '__weakref__'
+    "members": True,
+    "member-order": "bysource",
+    "special-members": "__init__",
+    "undoc-members": False,
+    "exclude-members": "__weakref__",
 }
-autodoc_typehints = 'description'
-autodoc_typehints_description_target = 'documented'
+autodoc_typehints = "description"
+autodoc_typehints_description_target = "documented"
 
 # Intersphinx mapping
 intersphinx_mapping = {
-    'python': ('https://docs.python.org/3', None),
+    "python": ("https://docs.python.org/3", None),
 }
 
 # Copy button configuration
@@ -94,10 +94,10 @@ copybutton_prompt_is_regexp = True
 
 # Doctest settings
 doctest_default_flags = 0
-doctest_global_setup = '''
+doctest_global_setup = """
 import fountain
 from fountain import FountainParser, FountainDocument, ElementType
-'''
+"""
 
 # MyST parser settings
 myst_enable_extensions = [
@@ -105,3 +105,13 @@ myst_enable_extensions = [
     "tasklist",
     "colon_fence",
 ]
+
+# Skip regex pattern constants from documentation
+def autodoc_skip_member(app, what, name, obj, skip, options):
+    # Skip all uppercase constants (regex patterns and other constants)
+    if name.isupper() and '_' in name:
+        return True
+    return skip
+
+def setup(app):
+    app.connect('autodoc-skip-member', autodoc_skip_member)

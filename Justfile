@@ -66,6 +66,7 @@ clean:
     find . -type f -name "*.pyc" -delete
     rm -rf .coverage htmlcov/ .pytest_cache/ .mypy_cache/ .ruff_cache/
     rm -rf build/ dist/ *.egg-info/
+    rm -rf docs/build/
 
 # Run ruff format check only
 check:

@@ -68,7 +68,8 @@ class FountainParser:
     # Case-insensitive matching allows for "int." or "Int." variations
     # Examples: "INT. COFFEE SHOP - DAY", "EXT. PARK - NIGHT", "I/E. CAR - CONTINUOUS"
     SCENE_HEADING_PATTERN = re.compile(
-        r"^(INT\s*\.|EXT\s*\.|EST\s*\.|I/E\s*\.|INTERIOR\s*\.|EXTERIOR\s*\.|INT/EXT\s*\.|INT\./EXT\s*\.)", re.IGNORECASE
+        r"^(INT\s*\.|EXT\s*\.|EST\s*\.|I/E\s*\.|INTERIOR\s*\.|EXTERIOR\s*\.|INT/EXT\s*\.|INT\./EXT\s*\.)",
+        re.IGNORECASE,
     )
 
     # Matches scene numbers in format #SCENE_NUMBER# at end of scene headings
@@ -99,7 +100,9 @@ class FountainParser:
     # Character with extensions: CHARACTER_NAME (extension) with optional dual dialogue caret
     # Captures character name, extension (V.O., O.S., CONT'D, etc.), and dual dialogue marker
     # Examples: "JOHN (V.O.)", "MARY (O.S.)^", "NARRATOR (CONT'D)"
-    CHARACTER_EXTENSION_PATTERN = re.compile(r"^([A-Z][A-Z0-9\s_]*)\s*\(([^)]+)\)\s*(\^)?\s*$")
+    CHARACTER_EXTENSION_PATTERN = re.compile(
+        r"^([A-Z][A-Z0-9\s_]*)\s*\(([^)]+)\)\s*(\^)?\s*$"
+    )
     # Transition Patterns
     # Standard transitions: ALL CAPS ending with colon, or specific fade patterns
     # Matches common screenplay transitions like "CUT TO:", "FADE IN:", "FADE OUT."
@@ -205,8 +208,8 @@ class FountainParser:
         Returns:
             FountainDocument containing parsed elements and metadata
 
-        Examples:
-            Basic parsing with title page and dialogue:
+        Basic parsing with title page and dialogue:
+
             >>> parser = FountainParser()
             >>> script = "Title: My Script\\n\\nINT. HOUSE - DAY\\n\\nJOHN\\nHello there."
             >>> doc = parser.parse(script)
@@ -217,7 +220,7 @@ class FountainParser:
             >>> doc.elements[0].type.value
             'scene_heading'
 
-            Complex parsing with forced elements and formatting:
+        Complex parsing with forced elements and formatting:
             >>> complex_script = '''Title: Complex Script
             ... Author: Test Author
             ...
@@ -239,7 +242,7 @@ class FountainParser:
             >>> doc.elements[3].type.value
             'centered'
 
-            Complex dual dialogue with extensions and formatting:
+        Complex dual dialogue with extensions and formatting:
             >>> dual_script = '''Title: Dual Dialogue Test
             ...
             ... INT. RESTAURANT - NIGHT
@@ -265,7 +268,7 @@ class FountainParser:
             >>> doc.elements[2].type.value  # Centered text
             'centered'
 
-            Boneyard comments and special elements:
+        Boneyard comments and special elements:
             >>> boneyard_script = '''/* This is a comment */
             ... INT. HOUSE - DAY
             ...
@@ -419,7 +422,10 @@ class FountainParser:
                 else:
                     # Check if next non-empty line is title page or body
                     next_line_idx = self.current_line + 1
-                    while next_line_idx < len(self.lines) and not self.lines[next_line_idx].strip():
+                    while (
+                        next_line_idx < len(self.lines)
+                        and not self.lines[next_line_idx].strip()
+                    ):
                         next_line_idx += 1
 
                     if next_line_idx < len(self.lines):
@@ -456,7 +462,9 @@ class FountainParser:
                     break
 
             # Check if this is a continuation of multi-line value
-            elif current_key and not line.startswith(("INT.", "EXT.", "EST.", "I/E.", ".")):
+            elif current_key and not line.startswith(
+                ("INT.", "EXT.", "EST.", "I/E.", ".")
+            ):
                 # This is a continuation line for the current key
                 if metadata[current_key]:
                     metadata[current_key] += " " + line
@@ -474,7 +482,9 @@ class FountainParser:
 
         return metadata
 
-    def _parse_line(self, line: str, had_blank_line_before: bool = False) -> Optional[FountainElement]:
+    def _parse_line(
+        self, line: str, had_blank_line_before: bool = False
+    ) -> Optional[FountainElement]:
         """Parse a single line and return the appropriate FountainElement.
 
         Classifies a single line of Fountain text into the appropriate element type using
@@ -577,7 +587,11 @@ class FountainParser:
 
         # Check for notes [[note]]
         note_matches = list(self.NOTE_PATTERN.finditer(line))
-        if note_matches and line.strip().startswith("[[") and line.strip().endswith("]]"):
+        if (
+            note_matches
+            and line.strip().startswith("[[")
+            and line.strip().endswith("]]")
+        ):
             # Line is entirely a note
             return FountainElement(
                 type=ElementType.NOTE,
@@ -1016,7 +1030,8 @@ class FountainParser:
         for match in self.BOLD_PATTERN.finditer(text):
             # Skip if already covered by bold-italic
             overlap = any(
-                span.start <= match.start() < span.end or span.start < match.end() <= span.end
+                span.start <= match.start() < span.end
+                or span.start < match.end() <= span.end
                 for span in formatting
                 if span.format_type == "bold_italic"
             )
@@ -1027,7 +1042,8 @@ class FountainParser:
         for match in self.ITALIC_PATTERN.finditer(text):
             # Skip if already covered by bold-italic
             overlap = any(
-                span.start <= match.start() < span.end or span.start < match.end() <= span.end
+                span.start <= match.start() < span.end
+                or span.start < match.end() <= span.end
                 for span in formatting
                 if span.format_type in ("bold_italic", "bold")
             )
@@ -1076,7 +1092,11 @@ class FountainParser:
             element = self.elements[i]
 
             # Look for characters marked as dual dialogue
-            if element.type == ElementType.CHARACTER and element.metadata and element.metadata.get("dual_dialogue"):
+            if (
+                element.type == ElementType.CHARACTER
+                and element.metadata
+                and element.metadata.get("dual_dialogue")
+            ):
                 # Find the previous character and its dialogue block
                 prev_char_idx = None
                 for j in range(i - 1, -1, -1):
