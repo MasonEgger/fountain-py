@@ -119,7 +119,11 @@ Include complete examples showing how to render scripts and customize the output
 
 The minimal viable documentation will be considered complete when:
 
-1. **User Journey is Complete**: A new user can go from installation to productive usage following the documentation
-2. **Core Features are Documented**: All major functionality (parsing, elements, rendering) has working examples  
-3. **Examples Work**: All code examples in documentation are tested and functional
-4. **Placeholder Content is Replaced**: No more "will be completed in Phase X.X" placeholders in user-facing docs
+1. **✅ User Journey is Complete**: A new user can go from installation to productive usage following the documentation
+2. **✅ Core Features are Documented**: All major functionality (parsing, elements, rendering) has working examples  
+3. **✅ Examples Work**: All code examples in documentation are tested and functional
+4. **✅ Placeholder Content is Replaced**: No more "will be completed in Phase X.X" placeholders in user-facing docs
+
+## Note on Additional Documentation
+
+The advanced user guide and contributor documentation sections are placeholders that are not currently prioritized for completion. They can remain as minimal stubs until there is a specific need for more detailed content in those areas.
