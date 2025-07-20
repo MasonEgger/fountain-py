@@ -45,20 +45,20 @@
 - [x] Verify all doctest examples execute correctly with Sphinx
 - [x] Update Justfile doctest commands to include pytest doctests
 
-### Step 2.2: Parser Documentation 🔍
-- [ ] Document all regex patterns with detailed explanations
-  - [ ] SCENE_HEADING_PATTERN and variations
-  - [ ] CHARACTER_PATTERN and forced characters
-  - [ ] TRANSITION_PATTERN variations
-  - [ ] Formatting patterns (bold, italic, underline)
-  - [ ] Special element patterns (notes, boneyard, etc.)
-- [ ] Add detailed Google-style docstrings to parsing methods
-  - [ ] _parse_line method with parsing examples
-  - [ ] _parse_title_page with supported field examples
-  - [ ] _process_dual_dialogue with complex formatting examples
-  - [ ] _extract_formatting with inline formatting examples
-- [ ] Document two-pass parsing approach architecture
-- [ ] Add doctest examples for complex parsing scenarios
+### Step 2.2: Parser Documentation 🔍 ✅
+- [x] Document all regex patterns with detailed explanations
+  - [x] SCENE_HEADING_PATTERN and variations
+  - [x] CHARACTER_PATTERN and forced characters
+  - [x] TRANSITION_PATTERN variations
+  - [x] Formatting patterns (bold, italic, underline)
+  - [x] Special element patterns (notes, boneyard, etc.)
+- [x] Add detailed Google-style docstrings to parsing methods
+  - [x] _parse_line method with parsing examples
+  - [x] _parse_title_page with supported field examples
+  - [x] _process_dual_dialogue with complex formatting examples
+  - [x] _extract_formatting with inline formatting examples
+- [x] Document two-pass parsing approach architecture
+- [x] Add doctest examples for complex parsing scenarios
 
 ### Step 2.3: Renderer Documentation 🎨
 - [ ] Document HTMLRenderer thoroughly

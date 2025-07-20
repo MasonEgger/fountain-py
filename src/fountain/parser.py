@@ -1,5 +1,34 @@
 """ABOUTME: Fountain markup parser for converting Fountain screenwriting format to structured elements.
 ABOUTME: Implements a two-pass parsing strategy with comprehensive regex-based element classification.
+
+The parser architecture follows a structured two-pass approach designed to handle
+Fountain's unique title page format followed by screenplay body content:
+
+**Pass 1: Title Page Metadata Extraction**
+- Parses key-value pairs from document header (Title:, Author:, etc.)
+- Handles multi-line values and continuation lines
+- Stops when encountering the first body element (scene heading, action, etc.)
+- Supports all standard Fountain title page fields
+
+**Pass 2: Body Element Classification**
+- Line-by-line parsing using regex pattern matching
+- Precedence-based classification (forced elements > natural patterns > context-dependent)
+- Context-aware dialogue detection using lookahead and element history
+- Dual dialogue post-processing to pair simultaneous character speech
+
+**Regex Classification Hierarchy:**
+1. Forced elements (!, @, >, .) - highest precedence override
+2. Special markers (boneyard, page breaks, notes)
+3. Natural structural patterns (scene headings, transitions)
+4. Character name detection with dialogue lookahead
+5. Context-dependent elements (dialogue, parentheticals)
+6. Default fallback to action text
+
+**Key Design Principles:**
+- Immutable element creation - elements are created once and never modified
+- Minimal memory footprint - streaming line-by-line processing
+- Robust error handling - invalid patterns fall back to action text
+- Extensible pattern system - regex patterns are class constants for easy customization
 """
 
 import re
@@ -209,6 +238,58 @@ class FountainParser:
             2
             >>> doc.elements[3].type.value
             'centered'
+
+            Complex dual dialogue with extensions and formatting:
+            >>> dual_script = '''Title: Dual Dialogue Test
+            ...
+            ... INT. RESTAURANT - NIGHT
+            ...
+            ... JOHN (V.O.)
+            ... This is my **inner voice**.
+            ...
+            ... MARY (PHONE)^
+            ... I can hear you from _here_.
+            ...
+            ... >THE END<'''
+            >>> doc = parser.parse(dual_script)
+            >>> doc.elements[0].type.value  # Scene heading
+            'scene_heading'
+            >>> doc.elements[1].type.value  # Dual dialogue element (characters combined)
+            'dual_dialogue'
+            >>> doc.elements[1].metadata['left_character'].metadata['extension']
+            'V.O.'
+            >>> doc.elements[1].metadata['right_character'].metadata['extension']
+            'PHONE'
+            >>> len(doc.elements[1].metadata['left_dialogue'])  # Bold formatting preserved
+            1
+            >>> doc.elements[2].type.value  # Centered text
+            'centered'
+
+            Boneyard comments and special elements:
+            >>> boneyard_script = '''/* This is a comment */
+            ... INT. HOUSE - DAY
+            ...
+            ... [[This is a note]]
+            ...
+            ... JOHN
+            ... Hello /* inline comment */ world.
+            ...
+            ... ===
+            ...
+            ... # Act Two
+            ...
+            ... = Synopsis of next scene'''
+            >>> doc = parser.parse(boneyard_script)
+            >>> doc.elements[0].type.value
+            'boneyard'
+            >>> doc.elements[2].type.value
+            'note'
+            >>> doc.elements[5].type.value
+            'page_break'
+            >>> doc.elements[6].type.value
+            'section'
+            >>> doc.elements[7].type.value
+            'synopsis'
         """
         self.lines = text.split("\n")
         self.current_line = 0
@@ -241,7 +322,36 @@ class FountainParser:
         return FountainDocument(self.elements, metadata)
 
     def parse_file(self, filepath: str) -> FountainDocument:
-        """Parse a Fountain file and return a FountainDocument."""
+        """Parse a Fountain file and return a FountainDocument.
+
+        Convenience method that reads a Fountain file from disk and parses it into
+        a structured FountainDocument. Handles file encoding as UTF-8 and properly
+        closes file handles.
+
+        Args:
+            filepath: Path to the Fountain file to parse. Can be absolute or relative.
+
+        Returns:
+            FountainDocument containing the parsed screenplay elements and metadata
+
+        Raises:
+            FileNotFoundError: If the specified file does not exist
+            IOError: If the file cannot be read
+            UnicodeDecodeError: If the file is not valid UTF-8
+
+        Examples:
+            >>> parser = FountainParser()
+            >>> doc = parser.parse_file("screenplay.fountain")  # doctest: +SKIP
+            >>> print(f"Title: {doc.metadata.get('title', 'Untitled')}")  # doctest: +SKIP
+            Title: My Great Screenplay
+            >>> len(doc.elements)  # doctest: +SKIP
+            42
+
+        Note:
+            This method assumes UTF-8 encoding, which is standard for Fountain files.
+            If you need to handle other encodings, read the file manually and use
+            the parse() method instead.
+        """
         with open(filepath, encoding="utf-8") as f:
             text = f.read()
         return self.parse(text)
@@ -668,7 +778,37 @@ class FountainParser:
         )
 
     def _is_dialogue_following(self) -> bool:
-        """Check if the next non-empty line is dialogue."""
+        """Check if the next non-empty line is dialogue.
+
+        Lookahead method that examines subsequent lines to determine if the current line
+        should be classified as a character name. This prevents false positive character
+        detection when ALL CAPS text appears in action lines.
+
+        The method skips empty lines and checks if the next non-empty line matches any
+        structural element patterns. If no structural patterns match, the line is
+        considered potential dialogue, confirming the current line as a character.
+
+        Returns:
+            bool: True if the next non-empty line appears to be dialogue, parenthetical,
+                  or other non-structural text. False if it matches scene headings,
+                  transitions, or other structural elements.
+
+        Examples:
+            >>> parser = FountainParser()
+            >>> parser.lines = ["JOHN", "Hello there", "How are you?"]
+            >>> parser.current_line = 0
+            >>> parser._is_dialogue_following()
+            True
+
+            >>> parser.lines = ["FADE IN", "INT. HOUSE - DAY"]
+            >>> parser.current_line = 0
+            >>> parser._is_dialogue_following()
+            False
+
+        Note:
+            This method is critical for distinguishing between character names and
+            action text that happens to be in ALL CAPS (like "FADE IN" or "THE END").
+        """
         next_line_idx = self.current_line + 1
         while next_line_idx < len(self.lines):
             next_line = self.lines[next_line_idx].strip()
@@ -694,7 +834,42 @@ class FountainParser:
         return False
 
     def _is_dialogue_line(self, had_blank_line_before: bool = False) -> bool:
-        """Check if current line is dialogue based on previous elements."""
+        """Check if current line is dialogue based on previous elements.
+
+        Determines if the current line should be classified as dialogue by examining
+        the context provided by previously parsed elements. Uses Fountain's dialogue
+        rules: dialogue always follows character names or parentheticals, and can
+        continue across multiple lines without blank line separation.
+
+        Args:
+            had_blank_line_before: Whether there was a blank line before this line.
+                                   Used to determine dialogue continuation vs new element.
+
+        Returns:
+            bool: True if this line should be classified as dialogue
+
+        Examples:
+            >>> parser = FountainParser()
+            >>> parser.elements = [FountainElement(ElementType.CHARACTER, "JOHN", [], 1)]
+            >>> parser._is_dialogue_line()
+            True
+
+            >>> parser.elements = [FountainElement(ElementType.ACTION, "John walks", [], 1)]
+            >>> parser._is_dialogue_line()
+            False
+
+            Dialogue continuation example:
+            >>> dialogue1 = FountainElement(ElementType.DIALOGUE, "Hello there.", [], 1)
+            >>> parser.elements = [FountainElement(ElementType.CHARACTER, "JOHN", [], 1), dialogue1]
+            >>> parser._is_dialogue_line(had_blank_line_before=False)  # Continuation
+            True
+            >>> parser._is_dialogue_line(had_blank_line_before=True)   # New element
+            False
+
+        Note:
+            This method implements Fountain's dialogue continuation rules where dialogue
+            can span multiple lines as long as there are no blank lines between them.
+        """
         if not self.elements:
             return False
 
@@ -711,7 +886,49 @@ class FountainParser:
         return False
 
     def _is_character_continuation(self, character_name: str) -> bool:
-        """Check if this character is continuing from a previous appearance."""
+        """Check if this character is continuing from a previous appearance.
+
+        Determines if a character's dialogue is a continuation from an earlier scene
+        within the same sequence. This is used to detect when a character returns
+        to speaking after action lines, which may warrant a (CONT'D) extension in
+        some screenplay formats.
+
+        The method searches backwards for the most recent appearance of the same
+        character, then checks if there has been intervening action without scene
+        breaks. Scene headings reset the continuation context.
+
+        Args:
+            character_name: The character name to check for continuation
+
+        Returns:
+            bool: True if this character spoke earlier in the same scene with
+                  intervening action, False otherwise
+
+        Examples:
+            >>> parser = FountainParser()
+            >>> char1 = FountainElement(ElementType.CHARACTER, "JOHN", [], 1)
+            >>> dialogue1 = FountainElement(ElementType.DIALOGUE, "Hello.", [], 2)
+            >>> action = FountainElement(ElementType.ACTION, "John stands up.", [], 3)
+            >>> parser.elements = [char1, dialogue1, action]
+            >>> parser._is_character_continuation("JOHN")
+            True
+
+            >>> # With scene break - no continuation
+            >>> scene = FountainElement(ElementType.SCENE_HEADING, "INT. KITCHEN - DAY", [], 4)
+            >>> parser.elements = [char1, dialogue1, action, scene]
+            >>> parser._is_character_continuation("JOHN")
+            False
+
+            >>> # Different character - no continuation
+            >>> parser.elements = [char1, dialogue1, action]
+            >>> parser._is_character_continuation("MARY")
+            False
+
+        Note:
+            This method helps identify when screenwriting software might automatically
+            add (CONT'D) extensions to character names, though fountain-py doesn't
+            automatically add these extensions.
+        """
         if not self.elements or len(self.elements) < 2:
             return False
 
