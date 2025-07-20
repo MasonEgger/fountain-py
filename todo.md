@@ -60,17 +60,17 @@
 - [x] Document two-pass parsing approach architecture
 - [x] Add doctest examples for complex parsing scenarios
 
-### Step 2.3: Renderer Documentation 🎨
-- [ ] Document HTMLRenderer thoroughly
-  - [ ] CSS class explanations and styling guide
-  - [ ] Theme system documentation and customization options
-  - [ ] Output format specification
-- [ ] Document FountainRenderer
-  - [ ] Round-trip capabilities and limitations
-  - [ ] Format preservation guarantees
-- [ ] Add custom renderer creation examples
-- [ ] Include practical examples of creating custom renderers
-- [ ] Add doctest examples for rendering scenarios
+### Step 2.3: Renderer Documentation 🎨 ✅
+- [x] Document HTMLRenderer thoroughly
+  - [x] CSS class explanations and styling guide
+  - [x] Theme system documentation and customization options
+  - [x] Output format specification
+- [x] Document FountainRenderer
+  - [x] Round-trip capabilities and limitations
+  - [x] Format preservation guarantees
+- [x] Add custom renderer creation examples
+- [x] Include practical examples of creating custom renderers
+- [x] Add doctest examples for rendering scenarios
 
 ## Phase 3: User Documentation 📖
 
