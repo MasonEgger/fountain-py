@@ -1,5 +1,5 @@
-"""
-Fountain markup parser.
+"""ABOUTME: Fountain markup parser for converting Fountain screenwriting format to structured elements.
+ABOUTME: Implements a two-pass parsing strategy with comprehensive regex-based element classification.
 """
 
 import re
@@ -10,35 +10,148 @@ from fountain.elements import ElementType, FormatSpan, FountainElement
 
 
 class FountainParser:
-    """Parser for Fountain markup."""
+    """Parser for Fountain markup format.
 
-    # Regex patterns for Fountain elements
+    This parser implements a two-pass parsing strategy for Fountain screenplay format:
+    1. First pass: Extract title page metadata from document header
+    2. Second pass: Parse body elements using regex pattern matching
+
+    The parser handles all Fountain specification elements including scene headings,
+    character names, dialogue, action lines, transitions, and special formatting.
+
+    Attributes:
+        lines: List of text lines being parsed
+        current_line: Current line index during parsing
+        elements: List of parsed FountainElement objects
+        in_boneyard: Flag tracking if parser is inside a multi-line comment block
+
+    Examples:
+        >>> parser = FountainParser()
+        >>> doc = parser.parse("INT. COFFEE SHOP - DAY\\n\\nJOHN\\nHello world.")
+        >>> len(doc.elements)
+        3
+        >>> doc.elements[0].type
+        <ElementType.SCENE_HEADING: 'scene_heading'>
+    """
+
+    # Scene Heading Patterns
+    # Matches standard scene heading prefixes: INT., EXT., EST., I/E., INTERIOR., EXTERIOR., INT/EXT., INT./EXT.
+    # Case-insensitive matching allows for "int." or "Int." variations
+    # Examples: "INT. COFFEE SHOP - DAY", "EXT. PARK - NIGHT", "I/E. CAR - CONTINUOUS"
     SCENE_HEADING_PATTERN = re.compile(
         r"^(INT\s*\.|EXT\s*\.|EST\s*\.|I/E\s*\.|INTERIOR\s*\.|EXTERIOR\s*\.|INT/EXT\s*\.|INT\./EXT\s*\.)", re.IGNORECASE
     )
+
+    # Matches scene numbers in format #SCENE_NUMBER# at end of scene headings
+    # Captures the scene number content between the hash marks
+    # Example: "INT. HOUSE - DAY #1A#" captures "1A"
     SCENE_NUMBER_PATTERN = re.compile(r"\s*#([^#]+)#\s*$")
+
+    # Forced scene heading starts with period (.) to override natural scene detection
+    # Used when a line should be a scene heading but doesn't match standard prefixes
+    # Example: ".FLASHBACK - 10 YEARS AGO" becomes "FLASHBACK - 10 YEARS AGO"
     FORCED_SCENE_HEADING_PATTERN = re.compile(r"^\.")
+    # Character Name Patterns
+    # Standard character names: ALL CAPS, may include numbers, spaces, underscores
+    # Must start with letter, prevents false positives from action lines
+    # Examples: "JOHN", "MARY JANE", "ROBOT_1", "DR SMITH"
     CHARACTER_PATTERN = re.compile(r"^[A-Z][A-Z0-9\s_]*$")
+
+    # Dual dialogue character: standard character name followed by caret (^)
+    # Indicates this character speaks simultaneously with previous character
+    # Example: "MARY^" for dual dialogue with preceding character
     DUAL_CHARACTER_PATTERN = re.compile(r"^[A-Z][A-Z0-9\s_]*\^\s*$")
+
+    # Forced character name: prefixed with @ to override natural character detection
+    # Captures the character name after the @ symbol
+    # Example: "@john" forces "john" to be treated as character (even lowercase)
     FORCED_CHARACTER_PATTERN = re.compile(r"^@(.+)$")
+
+    # Character with extensions: CHARACTER_NAME (extension) with optional dual dialogue caret
+    # Captures character name, extension (V.O., O.S., CONT'D, etc.), and dual dialogue marker
+    # Examples: "JOHN (V.O.)", "MARY (O.S.)^", "NARRATOR (CONT'D)"
     CHARACTER_EXTENSION_PATTERN = re.compile(r"^([A-Z][A-Z0-9\s_]*)\s*\(([^)]+)\)\s*(\^)?\s*$")
+    # Transition Patterns
+    # Standard transitions: ALL CAPS ending with colon, or specific fade patterns
+    # Matches common screenplay transitions like "CUT TO:", "FADE IN:", "FADE OUT."
+    # Pattern is quite restrictive to avoid false positives
     TRANSITION_PATTERN = re.compile(r"^[A-Z\s]+TO:$|^FADE IN:$|^FADE OUT\.$|^CUT TO:$")
+
+    # Forced transition: prefixed with > to override natural transition detection
+    # Example: ">SPECIAL TRANSITION" forces transition treatment
     FORCED_TRANSITION_PATTERN = re.compile(r"^>")
+
+    # Special Element Patterns
+    # Forced action: prefixed with ! to ensure line is treated as action
+    # Captures the action text after the ! symbol
+    # Example: "!This is definitely action" becomes "This is definitely action"
     FORCED_ACTION_PATTERN = re.compile(r"^!(.+)$")
+
+    # Centered text: enclosed in >text< for center alignment
+    # Must start with > and end with < with no other < characters inside
+    # Example: ">THE END<" creates centered text
     CENTERED_PATTERN = re.compile(r"^>[^<]*<$")
+    # Notes: inline comments in format [[note text]]
+    # Can appear anywhere in text, captured for special handling
+    # Example: "John walks [[this needs work]] to the door"
     NOTE_PATTERN = re.compile(r"\[\[[^\]]*\]\]")
+
+    # Boneyard (Comment) Patterns
+    # Single-line boneyard: /* comment */ on one line (DOTALL allows newlines in content)
+    # Used for comments that should not appear in final output
     BONEYARD_PATTERN = re.compile(r"^/\*.*?\*/$", re.DOTALL)
+
+    # Multi-line boneyard start: line beginning with /*
+    # Starts a comment block that continues until */
     MULTILINE_BONEYARD_START = re.compile(r"^/\*")
+
+    # Multi-line boneyard end: line ending with */
+    # Ends a comment block started with /*
     MULTILINE_BONEYARD_END = re.compile(r"\*/$")
+    # Document Structure Patterns
+    # Section headings: one or more # symbols followed by optional whitespace
+    # Used for document organization, similar to Markdown headers
+    # Examples: "# Act I", "## Scene 1", "### Subplot"
     SECTION_PATTERN = re.compile(r"^#+\s*")
+
+    # Synopsis: prefixed with = for scene/section summaries
+    # Removes the = prefix to get synopsis content
+    # Example: "= John meets Mary for the first time"
     SYNOPSIS_PATTERN = re.compile(r"^=\s*")
+
+    # Page breaks: three or more equals signs on a line
+    # Forces a page break in formatted output
+    # Example: "===" or "================="
     PAGE_BREAK_PATTERN = re.compile(r"^===+$")
+
+    # Lyrics: prefixed with ~ for song lyrics or musical elements
+    # Captures the lyric text after the ~ symbol
+    # Example: "~Happy birthday to you" for lyrics
     LYRICS_PATTERN = re.compile(r"^~(.+)$")
 
-    # Formatting patterns
+    # Inline Formatting Patterns
+    # These patterns handle Fountain's inline text formatting similar to Markdown
+
+    # Bold + Italic: ***text*** - three asterisks on each side
+    # Highest precedence formatting, captures text between triple asterisks
+    # Example: "***very important***" renders as bold and italic
     BOLD_ITALIC_PATTERN = re.compile(r"\*\*\*([^*]+)\*\*\*")
+
+    # Bold: **text** - two asterisks on each side
+    # Captures text between double asterisks, excludes if part of triple asterisks
+    # Example: "**important**" renders as bold text
     BOLD_PATTERN = re.compile(r"\*\*([^*]+)\*\*")
+
+    # Italic: *text* - single asterisks, with complex lookahead/lookbehind
+    # Negative lookbehind (?<!\*) ensures not preceded by asterisk (avoids **text** collision)
+    # Negative lookahead (?!\*) ensures not followed by asterisk
+    # Requires non-whitespace start/end to avoid false positives
+    # Example: "*emphasis*" renders as italic text
     ITALIC_PATTERN = re.compile(r"(?<!\*)\*([^*\s](?:[^*]*[^*\s])?)\*(?!\*)")
+
+    # Underline: _text_ - underscores on each side
+    # Captures text between underscores for underline formatting
+    # Example: "_underlined_" renders as underlined text
     UNDERLINE_PATTERN = re.compile(r"_([^_]+)_")
 
     def __init__(self) -> None:
@@ -48,7 +161,55 @@ class FountainParser:
         self.in_boneyard = False
 
     def parse(self, text: str) -> FountainDocument:
-        """Parse Fountain text and return a FountainDocument."""
+        """Parse Fountain text and return a FountainDocument.
+
+        Implements a two-pass parsing strategy:
+        1. First pass: Extract title page metadata from document header
+        2. Second pass: Parse body elements line by line using regex classification
+
+        The parser processes elements in order, maintaining context for dialogue
+        detection and handling special cases like dual dialogue pairing.
+
+        Args:
+            text: Raw Fountain markup text to parse
+
+        Returns:
+            FountainDocument containing parsed elements and metadata
+
+        Examples:
+            Basic parsing with title page and dialogue:
+            >>> parser = FountainParser()
+            >>> script = "Title: My Script\\n\\nINT. HOUSE - DAY\\n\\nJOHN\\nHello there."
+            >>> doc = parser.parse(script)
+            >>> doc.metadata['title']
+            'My Script'
+            >>> len(doc.elements)
+            3
+            >>> doc.elements[0].type.value
+            'scene_heading'
+
+            Complex parsing with forced elements and formatting:
+            >>> complex_script = '''Title: Complex Script
+            ... Author: Test Author
+            ...
+            ... .FLASHBACK - TITLE SEQUENCE
+            ...
+            ... @narrator
+            ... This is **bold** and *italic* text.
+            ...
+            ... >THE END<'''
+            >>> doc = parser.parse(complex_script)
+            >>> doc.metadata['author']
+            'Test Author'
+            >>> doc.elements[0].metadata['forced']
+            True
+            >>> doc.elements[1].metadata['forced']
+            True
+            >>> len(doc.elements[2].formatting)
+            2
+            >>> doc.elements[3].type.value
+            'centered'
+        """
         self.lines = text.split("\n")
         self.current_line = 0
         self.elements = []
@@ -86,7 +247,33 @@ class FountainParser:
         return self.parse(text)
 
     def _parse_title_page(self) -> dict[str, str]:
-        """Parse title page metadata from the beginning of the document."""
+        """Parse title page metadata from the beginning of the document.
+
+        Extracts key-value pairs from the document header using Fountain's title page format.
+        Supports multi-line values and handles common title page fields like title, author,
+        credit, source, draft date, contact information, and custom fields.
+
+        The title page ends when a scene heading or other body element is encountered.
+        Multi-line values are supported by continuing on subsequent lines without a colon.
+
+        Returns:
+            Dict mapping field names (lowercase) to their string values
+
+        Examples:
+            >>> parser = FountainParser()
+            >>> parser.lines = ["Title: My Great Script", "Author: John Doe", "", "INT. HOUSE - DAY"]
+            >>> parser.current_line = 0
+            >>> metadata = parser._parse_title_page()
+            >>> metadata['title']
+            'My Great Script'
+            >>> metadata['author']
+            'John Doe'
+
+        Note:
+            Supported fields include: title, author, credit, source, draft date, contact,
+            authors, notes, copyright, date, revised, version, format, created, writers,
+            producer, director. Additional fields are ignored as potential script body.
+        """
         metadata = {}
         current_key = None
 
@@ -178,7 +365,71 @@ class FountainParser:
         return metadata
 
     def _parse_line(self, line: str, had_blank_line_before: bool = False) -> Optional[FountainElement]:
-        """Parse a single line and return the appropriate FountainElement."""
+        """Parse a single line and return the appropriate FountainElement.
+
+        Classifies a single line of Fountain text into the appropriate element type using
+        regex pattern matching. Handles precedence rules and context-sensitive parsing
+        for elements like dialogue vs. action lines.
+
+        The parsing follows Fountain's precedence rules:
+        1. Forced elements (prefixed with !, @, >, .) take highest precedence
+        2. Special markers (boneyard, notes, page breaks) are checked early
+        3. Natural patterns (scene headings, characters, transitions) are matched
+        4. Context-dependent elements (dialogue, parentheticals) use previous elements
+        5. Default fallback is action text
+
+        Args:
+            line: The text line to parse (may include leading/trailing whitespace)
+            had_blank_line_before: Whether there was a blank line before this one,
+                                  affects dialogue continuation detection
+
+        Returns:
+            FountainElement instance for the parsed line, or None if line should be skipped
+            (e.g., inside boneyard comments, empty lines)
+
+        Examples:
+            Scene heading with scene number:
+            >>> parser = FountainParser()
+            >>> parser.current_line = 0
+            >>> element = parser._parse_line("INT. COFFEE SHOP - DAY #1#")
+            >>> element.type.value
+            'scene_heading'
+            >>> element.text
+            'INT. COFFEE SHOP - DAY'
+            >>> element.metadata['scene_number']
+            '1'
+
+            Forced character:
+            >>> parser.lines = ["@john", "Hello there"]
+            >>> parser.current_line = 0
+            >>> element = parser._parse_line("@john")
+            >>> element.type.value
+            'character'
+            >>> element.text
+            'john'
+            >>> element.metadata['forced']
+            True
+
+            Character with extension and dual dialogue:
+            >>> parser.lines = ["MARY (V.O.)^", "Hello there"]
+            >>> parser.current_line = 0
+            >>> element = parser._parse_line("MARY (V.O.)^")
+            >>> element.type.value
+            'character'
+            >>> element.text
+            'MARY'
+            >>> element.metadata['extension']
+            'V.O.'
+            >>> element.metadata['dual_dialogue']
+            True
+
+            Centered text:
+            >>> element = parser._parse_line(">THE END<")
+            >>> element.type.value
+            'centered'
+            >>> element.text
+            'THE END'
+        """
         original_line = line
         line = line.strip()
 
@@ -501,7 +752,43 @@ class FountainParser:
         return has_action and not has_scene_break
 
     def _extract_formatting(self, text: str) -> list[FormatSpan]:
-        """Extract formatting spans from text."""
+        """Extract formatting spans from text using Fountain's inline formatting syntax.
+
+        Parses Fountain's Markdown-like formatting markers to identify bold, italic,
+        underline, and combined formatting within text. Handles precedence to avoid
+        conflicts between overlapping patterns (e.g., ***text*** vs **text**).
+
+        Formatting precedence (highest to lowest):
+        1. Bold-italic (***text***)
+        2. Bold (**text**)
+        3. Italic (*text*)
+        4. Underline (_text_)
+
+        Args:
+            text: Text string to scan for formatting markers
+
+        Returns:
+            List of FormatSpan objects indicating start/end positions and format types
+
+        Examples:
+            >>> parser = FountainParser()
+            >>> spans = parser._extract_formatting("This is **bold** and *italic* text")
+            >>> len(spans)
+            2
+            >>> spans[0].format_type
+            'bold'
+            >>> spans[1].format_type
+            'italic'
+
+            >>> spans = parser._extract_formatting("***bold and italic***")
+            >>> spans[0].format_type
+            'bold_italic'
+
+        Note:
+            Overlapping spans are avoided by checking for existing coverage before
+            adding new spans. Bold-italic spans prevent extraction of separate bold
+            or italic spans within the same range.
+        """
         formatting = []
 
         # Find bold-italic formatting first (***text***)
@@ -537,7 +824,36 @@ class FountainParser:
         return formatting
 
     def _process_dual_dialogue(self) -> None:
-        """Post-process elements to pair dual dialogue characters and their dialogue."""
+        """Post-process elements to pair dual dialogue characters and their dialogue.
+
+        Identifies characters marked with dual dialogue (^) and pairs them with the
+        immediately preceding character and their respective dialogue blocks. Creates
+        DUAL_DIALOGUE elements that contain both character/dialogue pairs for
+        side-by-side rendering.
+
+        The algorithm:
+        1. Finds characters marked with dual_dialogue metadata (ending with ^)
+        2. Locates the most recent previous character (must be adjacent)
+        3. Collects dialogue and parentheticals for both characters
+        4. Creates a single DUAL_DIALOGUE element containing both character blocks
+        5. Replaces the original elements with the dual dialogue element
+
+        Examples:
+            Before processing:
+            - CHARACTER: "JOHN"
+            - DIALOGUE: "Hello there."
+            - CHARACTER: "MARY" (metadata: dual_dialogue=True)
+            - DIALOGUE: "Hi back!"
+
+            After processing:
+            - DUAL_DIALOGUE: metadata contains left_character, left_dialogue,
+              right_character, right_dialogue for simultaneous rendering
+
+        Note:
+            Only processes characters that are immediately adjacent (no scene headings
+            or action lines between them). Characters separated by structural elements
+            are not paired as dual dialogue.
+        """
         i = 0
         while i < len(self.elements):
             element = self.elements[i]
