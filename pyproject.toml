@@ -69,7 +69,11 @@ select = [
     "C4",  # flake8-comprehensions
     "UP",  # pyupgrade
 ]
-ignore = []
+ignore = [
+    "W293",  # blank line contains whitespace
+    "W291",  # trailing whitespace
+    "W292",  # no newline at end of file
+]
 
 
 [tool.mypy]
