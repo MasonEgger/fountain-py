@@ -105,7 +105,6 @@ Documentation
    :maxdepth: 2
    :caption: Documentation
 
-   Home <self>
    installation
    quickstart
 
@@ -114,29 +113,18 @@ Documentation
    :caption: User Guide
 
    user-guide/index
-   user-guide/parsing
-   user-guide/elements
-   user-guide/rendering
-   user-guide/advanced
 
 .. toctree::
    :maxdepth: 2
    :caption: API Reference
 
    api/index
-   api/parser
-   api/document
-   api/elements
-   api/renderer
 
 .. toctree::
    :maxdepth: 2
    :caption: Contributing
 
    contributing/index
-   contributing/development
-   contributing/testing
-   contributing/documentation
 
 .. toctree::
    :maxdepth: 1

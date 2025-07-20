@@ -5,6 +5,7 @@
 
 import os
 import sys
+from importlib.metadata import version as get_version
 
 # -- Path setup --------------------------------------------------------------
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -15,8 +16,15 @@ sys.path.insert(0, os.path.abspath("../../src"))
 project = "fountain-py"
 copyright = "2025, Mason Egger"
 author = "Mason Egger"
-release = "0.1.0"
-version = "0.1.0"
+
+# Get version dynamically from package metadata
+try:
+    release = get_version("fountain-py")
+    version = release
+except Exception:
+    # Fallback version if package not installed
+    release = "0.1.0"
+    version = "0.1.0"
 
 # -- General configuration ---------------------------------------------------
 extensions = [

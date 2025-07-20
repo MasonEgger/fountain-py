@@ -15,7 +15,7 @@ A Python library for parsing [Fountain markup](https://fountain.io/), the screen
 - **Extensible**: Plugin architecture for custom renderers and output formats
 - **Fast**: Efficient regex-based parsing with minimal dependencies
 - **Well-Tested**: Comprehensive test suite with high coverage
-- **Modern Python**: Supports Python 3.8+ with modern async/await patterns
+- **Modern Python**: Supports Python 3.9+ (3.9, 3.10, 3.11, 3.12, 3.13)
 
 ## Quick Start
 
