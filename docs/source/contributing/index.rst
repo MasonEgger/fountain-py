@@ -1,14 +1,9 @@
+:orphan:
+
 Contributing
 ============
 
 Guide for contributing to fountain-py development.
-
-.. toctree::
-   :maxdepth: 2
-
-   development
-   testing
-   documentation
 
 How to Contribute
 -----------------

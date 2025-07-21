@@ -1,0 +1,14 @@
+{#
+    Custom brand template to ensure home link always works
+    Overrides Furo's default behavior that makes brand non-clickable on index page
+#}
+<a class="sidebar-brand" href="{{ pathto(master_doc) }}">
+  {%- if logo %}
+    <img src="{{ pathto('_static/' + logo, 1) }}" class="sidebar-logo" alt="{{ project }} logo"/>
+  {%- endif %}
+  {%- if sidebar_hide_name %}
+    <span class="sidebar-brand-text">{{ release|e }}</span>
+  {%- else %}
+    <span class="sidebar-brand-text">{{ project|e }}</span>
+  {%- endif %}
+</a>

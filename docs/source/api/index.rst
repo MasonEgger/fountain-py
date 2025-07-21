@@ -1,15 +1,9 @@
+:orphan:
+
 API Reference
 =============
 
 Complete API documentation for fountain-py modules.
-
-.. toctree::
-   :maxdepth: 2
-
-   parser
-   document
-   elements
-   renderer
 
 Core Modules
 ------------

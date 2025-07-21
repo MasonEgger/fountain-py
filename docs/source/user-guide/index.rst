@@ -1,14 +1,9 @@
+:orphan:
+
 User Guide
 ==========
 
 The fountain-py user guide provides comprehensive documentation for using the library effectively.
-
-.. toctree::
-   :maxdepth: 2
-
-   parsing
-   elements
-   rendering
 
 Overview
 --------
