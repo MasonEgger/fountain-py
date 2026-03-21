@@ -479,3 +479,45 @@ More dialogue with unicode content: 中文 test."""
                 assert isinstance(doc.elements, list)
             except Exception as e:
                 pytest.fail(f"Parser crashed on {description}: {e}")
+
+
+class TestSpecCompliance:
+    """Tests for Fountain spec compliance gaps."""
+
+    def setup_method(self):
+        self.parser = FountainParser()
+
+    # -- Step 1: Section Level Metadata --
+
+    def test_section_level_1(self):
+        """# produces a SECTION with metadata level 1."""
+        doc = self.parser.parse("# Act One")
+        assert doc.elements[0].type == ElementType.SECTION
+        assert doc.elements[0].metadata["level"] == 1
+        assert doc.elements[0].text == "Act One"
+
+    def test_section_level_2(self):
+        """## produces a SECTION with metadata level 2."""
+        doc = self.parser.parse("## Scene One")
+        assert doc.elements[0].type == ElementType.SECTION
+        assert doc.elements[0].metadata["level"] == 2
+        assert doc.elements[0].text == "Scene One"
+
+    def test_section_level_3(self):
+        """### produces a SECTION with metadata level 3."""
+        doc = self.parser.parse("### Beat One")
+        assert doc.elements[0].type == ElementType.SECTION
+        assert doc.elements[0].metadata["level"] == 3
+        assert doc.elements[0].text == "Beat One"
+
+    def test_section_level_6(self):
+        """###### produces a SECTION with metadata level 6."""
+        doc = self.parser.parse("###### Deep Nesting")
+        assert doc.elements[0].type == ElementType.SECTION
+        assert doc.elements[0].metadata["level"] == 6
+        assert doc.elements[0].text == "Deep Nesting"
+
+    def test_section_text_no_hash_symbols(self):
+        """Section text should not contain # symbols."""
+        doc = self.parser.parse("## My Section")
+        assert "#" not in doc.elements[0].text

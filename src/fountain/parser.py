@@ -599,11 +599,13 @@ class FountainParser:
 
         # Check for sections
         if self.SECTION_PATTERN.match(line):
+            level = len(line) - len(line.lstrip("#"))
             text = self.SECTION_PATTERN.sub("", line).strip()
             return FountainElement(
                 type=ElementType.SECTION,
                 text=text,
                 formatting=self._extract_formatting(text),
+                metadata={"level": level},
                 line_number=self.current_line + 1,
             )
 

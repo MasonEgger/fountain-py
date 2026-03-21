@@ -1,24 +1,10 @@
 # Fountain Spec Compliance Plan
 
-## Current Status
-
-| Step | Description | Status |
-|------|-------------|--------|
-| 1 | Section Level Metadata | Complete |
-| 2 | Ellipsis Protection on Forced Scene Headings | Not Started |
-| 3 | Tab Conversion Verification | Not Started |
-| 4 | Arbitrary Title Page Keys | Not Started |
-| 5 | Scene Headings Require Blank Line Before | Not Started |
-| 6 | Character Names Require Blank Line Before | Not Started |
-| 7 | Transitions Require Blank Lines Before and After | Not Started |
-| 8 | Inline Notes Stripped from Elements | Not Started |
-| 9 | Multi-line Notes | Not Started |
-| 10 | Dialogue Continuation with Whitespace-Only Lines | Not Started |
-| 11 | Backslash Escaping for Emphasis | Not Started |
-
 ## Context
 
 The fountain-py library parses Fountain screenplay markup but has 11 gaps vs the [official spec](https://fountain.io/syntax/). This plan brings it to full compliance using strict TDD — write failing tests first, then minimal code to pass, then run `just test` for quality checks.
+
+After analysis, Gap 11 (tab conversion) is likely already handled by the renderer — Step 3 confirms this. The remaining 10 gaps need real fixes.
 
 **Key files:**
 - `src/fountain/parser.py` — Two-pass parser with regex patterns, `_parse_line()`, `_extract_formatting()`
@@ -26,7 +12,6 @@ The fountain-py library parses Fountain screenplay markup but has 11 gaps vs the
 - `src/fountain/elements.py` — ElementType enum, FountainElement dataclass, FormatSpan
 - `src/fountain/document.py` — FountainDocument container
 - `tests/test_edge_cases.py` — Spec compliance tests (add new class `TestSpecCompliance`)
-- `tests/test_renderer.py` — Renderer tests (add renderer-specific spec tests here)
 - `tests/test_parser.py` — Core parser tests (may need updates for blank-line changes)
 
 **Existing patterns to reuse:**
