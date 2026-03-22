@@ -556,3 +556,330 @@ class TestSpecCompliance:
         doc = self.parser.parse(".2nd Floor")
         assert doc.elements[0].type == ElementType.SCENE_HEADING
         assert doc.elements[0].text == "2nd Floor"
+
+    # -- Step 3: Tab Conversion Verification --
+
+    def test_tab_preserved_in_action(self):
+        """Parser preserves tab character in action element text."""
+        doc = self.parser.parse("\tIndented action")
+        assert doc.elements[0].type == ElementType.ACTION
+        assert doc.elements[0].text == "\tIndented action"
+
+    def test_double_tab_preserved_in_action(self):
+        """Parser preserves multiple tabs in action element text."""
+        doc = self.parser.parse("\t\tDouble indented")
+        assert doc.elements[0].type == ElementType.ACTION
+        assert doc.elements[0].text == "\t\tDouble indented"
+
+    def test_tab_stripped_from_character_name(self):
+        """Tabs in character names are stripped by .strip()."""
+        doc = self.parser.parse("\tJOHN\nHello.")
+        # The tab-prefixed line should not be parsed as a character
+        # (strip() removes leading whitespace before pattern matching)
+        # but the underlying behavior depends on whether JOHN is detected as character
+        # Either way, the element text should not have leading tabs
+        for elem in doc.elements:
+            if elem.type == ElementType.CHARACTER:
+                assert not elem.text.startswith("\t")
+
+    # -- Step 4: Arbitrary Title Page Keys --
+
+    def test_custom_title_page_key(self):
+        """Custom Field: Custom Value should be stored in metadata."""
+        doc = self.parser.parse("Custom Field: Custom Value\n\nINT. HOUSE - DAY")
+        assert doc.metadata.get("custom field") == "Custom Value"
+
+    def test_revision_title_page_key(self):
+        """Revision: Draft 3 should be accepted as a title page key."""
+        doc = self.parser.parse("Revision: Draft 3\n\nINT. HOUSE - DAY")
+        assert doc.metadata.get("revision") == "Draft 3"
+
+    def test_multiple_arbitrary_keys(self):
+        """Multiple arbitrary keys should all be preserved."""
+        script = "Title: Test\nRevision: Draft 3\nSeries: My Show\n\nINT. HOUSE - DAY"
+        doc = self.parser.parse(script)
+        assert doc.metadata.get("title") == "Test"
+        assert doc.metadata.get("revision") == "Draft 3"
+        assert doc.metadata.get("series") == "My Show"
+
+    def test_arbitrary_key_multiline_value(self):
+        """Arbitrary keys with multi-line continuation values should work."""
+        script = "Custom Field: Line 1\n   Line 2\n\nINT. HOUSE - DAY"
+        doc = self.parser.parse(script)
+        assert "Line 1" in doc.metadata.get("custom field", "")
+        assert "Line 2" in doc.metadata.get("custom field", "")
+
+    def test_title_page_ends_at_blank_line_plus_body(self):
+        """Title page still ends correctly at blank line + body element."""
+        script = "Title: Test\nCustom: Value\n\nINT. HOUSE - DAY"
+        doc = self.parser.parse(script)
+        assert doc.metadata.get("title") == "Test"
+        assert doc.metadata.get("custom") == "Value"
+        assert any(e.type == ElementType.SCENE_HEADING for e in doc.elements)
+
+    def test_standard_and_custom_keys_together(self):
+        """Standard keys (Title, Author) should work alongside custom keys."""
+        script = "Title: My Script\nAuthor: Jane\nNetwork: HBO\n\nINT. OFFICE - DAY"
+        doc = self.parser.parse(script)
+        assert doc.metadata.get("title") == "My Script"
+        assert doc.metadata.get("author") == "Jane"
+        assert doc.metadata.get("network") == "HBO"
+
+    # -- Step 5: Scene Headings Require Blank Line Before --
+
+    def test_scene_heading_with_blank_line_before(self):
+        """Scene heading with blank line before should be detected."""
+        doc = self.parser.parse("Some action.\n\nINT. HOUSE - DAY")
+        scene_headings = [e for e in doc.elements if e.type == ElementType.SCENE_HEADING]
+        assert len(scene_headings) == 1
+        assert scene_headings[0].text == "INT. HOUSE - DAY"
+
+    def test_scene_heading_without_blank_line_before(self):
+        """Scene heading without blank line before should NOT be detected."""
+        doc = self.parser.parse("Some action.\nINT. HOUSE - DAY")
+        scene_headings = [e for e in doc.elements if e.type == ElementType.SCENE_HEADING]
+        assert len(scene_headings) == 0
+
+    def test_scene_heading_as_first_element(self):
+        """Scene heading as first/only element should still be detected."""
+        doc = self.parser.parse("INT. HOUSE - DAY")
+        assert doc.elements[0].type == ElementType.SCENE_HEADING
+
+    def test_forced_scene_heading_without_blank_line(self):
+        """Forced scene heading without blank line should still be detected (exempt)."""
+        doc = self.parser.parse("Some action.\n.FORCED HEADING")
+        scene_headings = [e for e in doc.elements if e.type == ElementType.SCENE_HEADING]
+        assert len(scene_headings) == 1
+        assert scene_headings[0].text == "FORCED HEADING"
+
+    def test_scene_heading_after_title_page(self):
+        """Scene heading after title page (first body element) should be detected."""
+        doc = self.parser.parse("Title: Test\n\nINT. HOUSE - DAY")
+        scene_headings = [e for e in doc.elements if e.type == ElementType.SCENE_HEADING]
+        assert len(scene_headings) == 1
+
+    # -- Step 6: Character Names Require Blank Line Before --
+
+    def test_character_with_blank_line_before(self):
+        """Character with blank line before should be detected."""
+        doc = self.parser.parse("Some action.\n\nJOHN\nHello.")
+        characters = [e for e in doc.elements if e.type == ElementType.CHARACTER]
+        assert len(characters) == 1
+        assert characters[0].text == "JOHN"
+
+    def test_character_without_blank_line_before(self):
+        """Character without blank line before should NOT be detected."""
+        doc = self.parser.parse("Some action.\nJOHN\nHello.")
+        characters = [e for e in doc.elements if e.type == ElementType.CHARACTER]
+        assert len(characters) == 0
+
+    def test_character_as_first_element(self):
+        """Character as first element should still be detected."""
+        doc = self.parser.parse("JOHN\nHello.")
+        assert doc.elements[0].type == ElementType.CHARACTER
+
+    def test_forced_character_without_blank_line(self):
+        """Forced character without blank line should still be detected (exempt)."""
+        doc = self.parser.parse("Some action.\n@JOHN\nHello.")
+        characters = [e for e in doc.elements if e.type == ElementType.CHARACTER]
+        assert len(characters) == 1
+
+    def test_character_extension_with_blank_line(self):
+        """Character with extension and blank line before should be detected."""
+        doc = self.parser.parse("Some action.\n\nJOHN (V.O.)\nHello.")
+        characters = [e for e in doc.elements if e.type == ElementType.CHARACTER]
+        assert len(characters) == 1
+
+    def test_character_extension_without_blank_line(self):
+        """Character with extension without blank line should NOT be detected."""
+        doc = self.parser.parse("Some action.\nJOHN (V.O.)\nHello.")
+        characters = [e for e in doc.elements if e.type == ElementType.CHARACTER]
+        assert len(characters) == 0
+
+    # -- Step 7: Transitions Require Blank Lines Before and After --
+
+    def test_transition_with_both_blank_lines(self):
+        """Transition with blank lines before and after should be detected."""
+        doc = self.parser.parse("Action.\n\nCUT TO:\n\nINT. HOUSE - DAY")
+        transitions = [e for e in doc.elements if e.type == ElementType.TRANSITION]
+        assert len(transitions) == 1
+        assert transitions[0].text == "CUT TO:"
+
+    def test_transition_without_blank_before(self):
+        """Transition without blank line before should NOT be detected."""
+        doc = self.parser.parse("Action.\nCUT TO:\n\nINT. HOUSE - DAY")
+        transitions = [e for e in doc.elements if e.type == ElementType.TRANSITION]
+        assert len(transitions) == 0
+
+    def test_transition_without_blank_after(self):
+        """Transition without blank line after should NOT be detected."""
+        doc = self.parser.parse("Action.\n\nCUT TO:\nINT. HOUSE - DAY")
+        transitions = [e for e in doc.elements if e.type == ElementType.TRANSITION]
+        assert len(transitions) == 0
+
+    def test_transition_without_any_blanks(self):
+        """Transition without any blank lines should NOT be detected."""
+        doc = self.parser.parse("Action.\nCUT TO:\nINT. HOUSE - DAY")
+        transitions = [e for e in doc.elements if e.type == ElementType.TRANSITION]
+        assert len(transitions) == 0
+
+    def test_forced_transition_without_blanks(self):
+        """Forced transition without blank lines should still be detected (exempt)."""
+        doc = self.parser.parse("Action.\n>Burn to White.\nMore action.")
+        transitions = [e for e in doc.elements if e.type == ElementType.TRANSITION]
+        assert len(transitions) == 1
+
+    def test_transition_at_end_of_document(self):
+        """Transition at end of document should be detected (EOF counts as blank after)."""
+        doc = self.parser.parse("Action.\n\nCUT TO:")
+        transitions = [e for e in doc.elements if e.type == ElementType.TRANSITION]
+        assert len(transitions) == 1
+
+    def test_fade_in_and_fade_out_transitions(self):
+        """FADE IN: and FADE OUT. should follow the same blank line rules."""
+        doc = self.parser.parse("Title: Test\n\nFADE IN:\n\nINT. HOUSE - DAY\n\nAction.\n\nFADE OUT.")
+        transitions = [e for e in doc.elements if e.type == ElementType.TRANSITION]
+        assert len(transitions) == 2
+
+    # -- Step 8: Inline Notes Stripped from Elements --
+
+    def test_inline_note_stripped_from_action(self):
+        """Inline note in action text should be stripped."""
+        doc = self.parser.parse("John walks [[needs work]] to the door.")
+        actions = [e for e in doc.elements if e.type == ElementType.ACTION]
+        assert len(actions) == 1
+        assert "[[" not in actions[0].text
+        assert "needs work" not in actions[0].text
+        assert "John walks" in actions[0].text
+        assert "to the door." in actions[0].text
+
+    def test_inline_note_stripped_from_dialogue(self):
+        """Inline note in dialogue should be stripped."""
+        doc = self.parser.parse("JOHN\nI love you [[or do I?]] forever.")
+        dialogues = [e for e in doc.elements if e.type == ElementType.DIALOGUE]
+        assert len(dialogues) == 1
+        assert "[[" not in dialogues[0].text
+        assert "or do I?" not in dialogues[0].text
+        assert "I love you" in dialogues[0].text
+        assert "forever." in dialogues[0].text
+
+    def test_standalone_note_unchanged(self):
+        """Standalone note [[text]] should still produce a NOTE element."""
+        doc = self.parser.parse("[[This is entirely a note]]")
+        notes = [e for e in doc.elements if e.type == ElementType.NOTE]
+        assert len(notes) == 1
+
+    def test_multiple_inline_notes_stripped(self):
+        """Multiple inline notes on one line should all be stripped."""
+        doc = self.parser.parse("He [[first note]] walked [[second note]] away.")
+        actions = [e for e in doc.elements if e.type == ElementType.ACTION]
+        assert len(actions) == 1
+        assert "[[" not in actions[0].text
+        assert "first note" not in actions[0].text
+        assert "second note" not in actions[0].text
+
+    def test_text_preserved_after_note_stripping(self):
+        """Text should be otherwise unchanged after note stripping."""
+        doc = self.parser.parse("The door opened [[slowly]] and he entered.")
+        actions = [e for e in doc.elements if e.type == ElementType.ACTION]
+        assert len(actions) == 1
+        assert "The door opened" in actions[0].text
+        assert "and he entered." in actions[0].text
+
+    # -- Step 9: Multi-line Notes --
+
+    def test_multiline_note_basic(self):
+        """Multi-line note spanning multiple lines should produce a single NOTE element."""
+        doc = self.parser.parse("[[This is a note\nthat spans\nmultiple lines]]")
+        notes = [e for e in doc.elements if e.type == ElementType.NOTE]
+        assert len(notes) == 1
+        assert "This is a note" in notes[0].text
+        assert "that spans" in notes[0].text
+        assert "multiple lines" in notes[0].text
+
+    def test_multiline_note_between_elements(self):
+        """Multi-line note between elements should preserve surrounding elements."""
+        script = "INT. HOUSE - DAY\n\n[[This note\nspans lines]]\n\nJOHN\nHello."
+        doc = self.parser.parse(script)
+        notes = [e for e in doc.elements if e.type == ElementType.NOTE]
+        assert len(notes) == 1
+        scenes = [e for e in doc.elements if e.type == ElementType.SCENE_HEADING]
+        assert len(scenes) == 1
+        characters = [e for e in doc.elements if e.type == ElementType.CHARACTER]
+        assert len(characters) == 1
+
+    def test_multiline_note_full_content(self):
+        """Multi-line note should contain all lines in its text."""
+        doc = self.parser.parse("[[Line one\nLine two\nLine three]]")
+        notes = [e for e in doc.elements if e.type == ElementType.NOTE]
+        assert len(notes) == 1
+        assert "Line one" in notes[0].text
+        assert "Line two" in notes[0].text
+        assert "Line three" in notes[0].text
+
+    # -- Step 10: Dialogue Continuation with Whitespace-Only Lines --
+
+    def test_whitespace_line_continues_dialogue(self):
+        """Two-space line within dialogue should continue dialogue, not break to action."""
+        doc = self.parser.parse("JOHN\nFirst line.\n  \nSecond line.")
+        characters = [e for e in doc.elements if e.type == ElementType.CHARACTER]
+        dialogues = [e for e in doc.elements if e.type == ElementType.DIALOGUE]
+        actions = [e for e in doc.elements if e.type == ElementType.ACTION]
+        assert len(characters) == 1
+        assert len(dialogues) >= 2  # At least first and second dialogue lines
+        assert len(actions) == 0
+
+    def test_empty_line_breaks_dialogue(self):
+        """Truly empty line should break dialogue into action."""
+        doc = self.parser.parse("JOHN\nFirst line.\n\nSecond line.")
+        actions = [e for e in doc.elements if e.type == ElementType.ACTION]
+        assert len(actions) >= 1  # "Second line." should be action
+
+    def test_whitespace_continuation_after_parenthetical(self):
+        """Whitespace continuation should work after parenthetical."""
+        doc = self.parser.parse("JOHN\n(beat)\n  \nMore dialogue.")
+        actions = [e for e in doc.elements if e.type == ElementType.ACTION]
+        assert len(actions) == 0
+        dialogues = [e for e in doc.elements if e.type == ElementType.DIALOGUE]
+        assert len(dialogues) >= 1
+
+    # -- Step 11: Backslash Escaping for Emphasis --
+
+    def test_escaped_asterisk_no_formatting(self):
+        r"""He dialed \*69 should have no formatting spans and text contains literal *69."""
+        doc = self.parser.parse("He dialed \\*69")
+        assert doc.elements[0].type == ElementType.ACTION
+        assert "*69" in doc.elements[0].text
+        assert doc.elements[0].formatting == []
+
+    def test_escaped_asterisks_within_bold(self):
+        r"""Text with **\*9765\*** should have bold AND literal asterisks in text."""
+        doc = self.parser.parse("Steel enters **\\*9765\\***")
+        elem = doc.elements[0]
+        assert "*9765*" in elem.text
+        bold_spans = [s for s in elem.formatting if s.format_type == "bold"]
+        assert len(bold_spans) >= 1
+
+    def test_escaped_underscores_no_formatting(self):
+        r"""\_not underlined\_ should have no underline formatting."""
+        doc = self.parser.parse("\\_not underlined\\_")
+        elem = doc.elements[0]
+        assert "_not underlined_" in elem.text
+        underline_spans = [s for s in elem.formatting if s.format_type == "underline"]
+        assert len(underline_spans) == 0
+
+    def test_mixed_escaped_and_real_formatting(self):
+        r"""*italic* and \*not italic\* should have exactly one italic span."""
+        doc = self.parser.parse("This is *italic* and \\*not italic\\*")
+        elem = doc.elements[0]
+        italic_spans = [s for s in elem.formatting if s.format_type == "italic"]
+        assert len(italic_spans) == 1
+        assert "*not italic*" in elem.text
+
+    def test_no_backslashes_unchanged(self):
+        """Text without backslashes should be unchanged (no regression)."""
+        doc = self.parser.parse("Normal **bold** text")
+        elem = doc.elements[0]
+        bold_spans = [s for s in elem.formatting if s.format_type == "bold"]
+        assert len(bold_spans) == 1
+        assert "Normal" in elem.text

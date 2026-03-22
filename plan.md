@@ -6,15 +6,15 @@
 |------|-------------|--------|
 | 1 | Section Level Metadata | Complete |
 | 2 | Ellipsis Protection on Forced Scene Headings | Complete |
-| 3 | Tab Conversion Verification | Not Started |
-| 4 | Arbitrary Title Page Keys | Not Started |
-| 5 | Scene Headings Require Blank Line Before | Not Started |
-| 6 | Character Names Require Blank Line Before | Not Started |
-| 7 | Transitions Require Blank Lines Before and After | Not Started |
-| 8 | Inline Notes Stripped from Elements | Not Started |
-| 9 | Multi-line Notes | Not Started |
-| 10 | Dialogue Continuation with Whitespace-Only Lines | Not Started |
-| 11 | Backslash Escaping for Emphasis | Not Started |
+| 3 | Tab Conversion Verification | Complete |
+| 4 | Arbitrary Title Page Keys | Complete |
+| 5 | Scene Headings Require Blank Line Before | Complete |
+| 6 | Character Names Require Blank Line Before | Complete |
+| 7 | Transitions Require Blank Lines Before and After | Complete |
+| 8 | Inline Notes Stripped from Elements | Complete |
+| 9 | Multi-line Notes | Complete |
+| 10 | Dialogue Continuation with Whitespace-Only Lines | Complete |
+| 11 | Backslash Escaping for Emphasis | Complete |
 
 ## Context
 

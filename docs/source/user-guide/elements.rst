@@ -116,13 +116,15 @@ Scene Structure Elements
 
     .. doctest::
 
-        >>> script = """FADE IN:
-        ... 
+        >>> script = """Title: Test
+        ...
+        ... FADE IN:
+        ...
         ... >SMASH CUT TO:"""
-        >>> 
+        >>>
         >>> document = parser.parse(script)
         >>> transitions = [el for el in document.elements if el.type == ElementType.TRANSITION]
-        >>> 
+        >>>
         >>> transitions[0].text
         'FADE IN:'
         >>> transitions[1].text

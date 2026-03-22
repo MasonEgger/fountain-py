@@ -3,6 +3,7 @@
 
 import json
 import os
+import textwrap
 
 import pytest
 
@@ -15,87 +16,87 @@ class TestQuickstartExamples:
     @pytest.fixture
     def sample_screenplay_text(self):
         """The sample screenplay used in quickstart docs."""
-        return """
+        return textwrap.dedent("""\
     Title: The Coffee Shop Connection
     Author: Jane Doe
     Draft date: 2024-01-15
-    
+
     FADE IN:
-    
+
     INT. COFFEE SHOP - DAY
-    
-    A bustling neighborhood COFFEE SHOP. The afternoon sun streams through 
+
+    A bustling neighborhood COFFEE SHOP. The afternoon sun streams through
     large windows. Business people and students hunker over laptops.
-    
-    ALICE (28), creative but frazzled, sits at a corner table, staring at 
+
+    ALICE (28), creative but frazzled, sits at a corner table, staring at
     her laptop screen. She sighs and rubs her temples.
-    
+
     ALICE
     (muttering to herself)
     Come on, inspiration... where are you?
-    
-    The door chimes. BOB (30s), confident but approachable, enters and 
+
+    The door chimes. BOB (30s), confident but approachable, enters and
     scans the crowded shop. The only empty seat is across from Alice.
-    
+
     BOB
     Excuse me, is this seat taken?
-    
+
     ALICE
     (barely looking up)
     No, go ahead.
-    
+
     Bob sits. They work in silence. Then:
-    
+
     BOB
     Writer's block?
-    
+
     ALICE
     (surprised)
     How did you--?
-    
+
     BOB
     The temple rubbing. Dead giveaway.
     (extends hand)
     Bob. Fellow sufferer.
-    
+
     ALICE
     (smiling despite herself)
-    Alice. What's your poison? Novel? 
+    Alice. What's your poison? Novel?
     Screenplay?
-    
+
     BOB
     Startup pitch deck.
-    
+
     ALICE
     (laughing)
     That's even worse!
-    
+
     CUT TO:
-    
+
     INT. COFFEE SHOP - LATER
-    
+
     Alice and Bob's laptops are pushed aside. Coffee cups multiply.
     They're deep in animated conversation.
-    
+
     ALICE
-    So your app matches writers with 
-    coffee shops based on their 
+    So your app matches writers with
+    coffee shops based on their
     creative energy?
-    
+
     BOB
-    Exactly! And the algorithm considers 
-    noise levels, wifi speed, coffee 
+    Exactly! And the algorithm considers
+    noise levels, wifi speed, coffee
     quality...
-    
+
     ALICE
     (excited)
-    You could add a "writer's block 
+    You could add a "writer's block
     breaker" feature!
-    
+
     [[Note: This is where their collaboration begins]]
-    
+
     FADE OUT.
-    """
+    """)
 
     @pytest.fixture
     def parsed_document(self, sample_screenplay_text):

@@ -189,6 +189,9 @@ class FountainParser:
         self.current_line = 0
         self.elements: list[FountainElement] = []
         self.in_boneyard = False
+        self.in_note = False
+        self.note_buffer: list[str] = []
+        self.note_start_line = 0
 
     def parse(self, text: str) -> FountainDocument:
         """Parse Fountain text and return a FountainDocument.
@@ -296,6 +299,9 @@ class FountainParser:
         self.current_line = 0
         self.elements = []
         self.in_boneyard = False
+        self.in_note = False
+        self.note_buffer = []
+        self.note_start_line = 0
 
         # First pass: extract title page
         metadata = self._parse_title_page()
@@ -303,15 +309,36 @@ class FountainParser:
         # Second pass: parse body elements
         previous_line_was_blank = False
         while self.current_line < len(self.lines):
-            line = self.lines[self.current_line].rstrip()
+            raw_line = self.lines[self.current_line]
+            line = raw_line.rstrip()
 
-            if not line:  # Empty line
+            if not line:  # Empty after rstrip
+                # Check for whitespace-only line in dialogue context (spec: two spaces continues dialogue)
+                is_whitespace_only = bool(raw_line) and raw_line != raw_line.lstrip()
+                in_dialogue_context = self.elements and self.elements[-1].type in (
+                    ElementType.DIALOGUE,
+                    ElementType.PARENTHETICAL,
+                    ElementType.CHARACTER,
+                )
+                if is_whitespace_only and in_dialogue_context:
+                    # Whitespace-only line preserves a blank line within dialogue
+                    self.elements.append(
+                        FountainElement(
+                            type=ElementType.DIALOGUE,
+                            text="",
+                            formatting=[],
+                            line_number=self.current_line + 1,
+                        )
+                    )
+                    self.current_line += 1
+                    continue
                 previous_line_was_blank = True
                 self.current_line += 1
                 continue
 
             element = self._parse_line(line, previous_line_was_blank)
             if element:
+                element.text = self._strip_escapes(element.text)
                 self.elements.append(element)
 
             previous_line_was_blank = False
@@ -383,59 +410,21 @@ class FountainParser:
         Note:
             Supported fields include: title, author, credit, source, draft date, contact,
             authors, notes, copyright, date, revised, version, format, created, writers,
-            producer, director. Additional fields are ignored as potential script body.
+            producer, director. Per the Fountain spec, any key ending with a colon is valid.
         """
         metadata = {}
         current_key = None
-
-        # Expanded list of supported title page fields
-        supported_fields = {
-            "title",
-            "author",
-            "credit",
-            "source",
-            "draft date",
-            "contact",
-            "authors",
-            "notes",
-            "copyright",
-            "date",
-            "revised",
-            "version",
-            "format",
-            "created",
-            "writers",
-            "producer",
-            "director",
-        }
 
         while self.current_line < len(self.lines):
             line = self.lines[self.current_line].strip()
 
             if not line:
-                # Empty line might end title page or continue multi-line value
-                if current_key is None:
-                    self.current_line += 1
-                    continue
-                else:
-                    # Check if next non-empty line is title page or body
-                    next_line_idx = self.current_line + 1
-                    while next_line_idx < len(self.lines) and not self.lines[next_line_idx].strip():
-                        next_line_idx += 1
-
-                    if next_line_idx < len(self.lines):
-                        next_line = self.lines[next_line_idx].strip()
-                        # If next line starts with scene heading, end title page
-                        if (
-                            next_line.startswith(("INT.", "EXT.", "EST.", "I/E."))
-                            or next_line.startswith(".")  # forced scene heading
-                            or (":" not in next_line and current_key)
-                        ):  # likely script body
-                            break
-
-                    # Continue with current key (multi-line value)
-                    self.current_line += 1
-                    continue
+                # Empty line ends title page when we have at least one key
+                if current_key is not None:
+                    break
+                # Skip leading blank lines before title page content
+                self.current_line += 1
+                continue
 
             # Check for title page key-value pairs
             if ":" in line and not line.startswith(("INT.", "EXT.", "EST.", "I/E.")):
@@ -443,18 +432,14 @@ class FountainParser:
                 key = key.strip().lower()
                 value = value.strip()
 
-                if key in supported_fields:
-                    if current_key and current_key in metadata:
-                        # Finalize previous multi-line value
-                        metadata[current_key] = metadata[current_key].strip()
+                if current_key and current_key in metadata:
+                    # Finalize previous multi-line value
+                    metadata[current_key] = metadata[current_key].strip()
 
-                    current_key = key
-                    metadata[key] = value
-                    self.current_line += 1
-                    continue
-                else:
-                    # Unknown field, might be end of title page
-                    break
+                current_key = key
+                metadata[key] = value
+                self.current_line += 1
+                continue
 
             # Check if this is a continuation of multi-line value
             elif current_key and not line.startswith(("INT.", "EXT.", "EST.", "I/E.", ".")):
@@ -567,6 +552,20 @@ class FountainParser:
                 self.in_boneyard = True
             return None  # Skip boneyard start line
 
+        # Handle multi-line notes
+        if self.in_note:
+            self.note_buffer.append(original_line)
+            if "]]" in line:
+                self.in_note = False
+                note_text = "\n".join(self.note_buffer)
+                return FountainElement(
+                    type=ElementType.NOTE,
+                    text=note_text,
+                    formatting=[],
+                    line_number=self.note_start_line,
+                )
+            return None
+
         # Check for page breaks
         if self.PAGE_BREAK_PATTERN.match(line):
             return FountainElement(
@@ -586,6 +585,20 @@ class FountainParser:
                 formatting=[],
                 line_number=self.current_line + 1,
             )
+
+        # Check for multi-line note start: line has [[ but no closing ]]
+        if "[[" in line and "]]" not in line:
+            self.in_note = True
+            self.note_buffer = [original_line]
+            self.note_start_line = self.current_line + 1
+            return None
+
+        # Strip inline notes from the line text
+        if note_matches:
+            line = self.NOTE_PATTERN.sub("", line).strip()
+            original_line = self.NOTE_PATTERN.sub("", original_line).rstrip()
+            if not line:
+                return None
 
         # Check for forced action (starts with !)
         if self.FORCED_ACTION_PATTERN.match(line):
@@ -667,8 +680,8 @@ class FountainParser:
                 line_number=self.current_line + 1,
             )
 
-        # Check for scene heading
-        if self.SCENE_HEADING_PATTERN.match(line):
+        # Check for scene heading (requires blank line before, or first element)
+        if self.SCENE_HEADING_PATTERN.match(line) and (had_blank_line_before or not self.elements):
             scene_metadata: dict[str, Any] = {}
             text = line
             # Check for scene number
@@ -684,8 +697,9 @@ class FountainParser:
                 metadata=scene_metadata,
             )
 
-        # Check for transition
-        if self.TRANSITION_PATTERN.match(line):
+        # Check for transition (requires blank line before and after, or first/last element)
+        has_blank_before = had_blank_line_before or not self.elements
+        if self.TRANSITION_PATTERN.match(line) and has_blank_before and self._is_blank_line_after():
             return FountainElement(
                 type=ElementType.TRANSITION,
                 text=line,
@@ -705,8 +719,8 @@ class FountainParser:
                     metadata={"forced": True},
                 )
 
-        # Check for dual dialogue character (CHARACTER^)
-        if self.DUAL_CHARACTER_PATTERN.match(line):
+        # Check for dual dialogue character (CHARACTER^) — requires blank line before or first element
+        if self.DUAL_CHARACTER_PATTERN.match(line) and (had_blank_line_before or not self.elements):
             character_name = line.replace("^", "").strip()
             if self._is_dialogue_following():
                 return FountainElement(
@@ -717,9 +731,9 @@ class FountainParser:
                     metadata={"dual_dialogue": True},
                 )
 
-        # Check for character with extensions (CHARACTER (V.O.))
+        # Check for character with extensions (CHARACTER (V.O.)) — requires blank line before or first element
         char_ext_match = self.CHARACTER_EXTENSION_PATTERN.match(line)
-        if char_ext_match:
+        if char_ext_match and (had_blank_line_before or not self.elements):
             character_name = char_ext_match.group(1).strip()
             extension = char_ext_match.group(2).strip()
             is_dual = char_ext_match.group(3) is not None
@@ -735,8 +749,8 @@ class FountainParser:
                     metadata=char_metadata,
                 )
 
-        # Check for regular character (must be all caps)
-        if self.CHARACTER_PATTERN.match(line):
+        # Check for regular character (must be all caps) — requires blank line before or first element
+        if self.CHARACTER_PATTERN.match(line) and (had_blank_line_before or not self.elements):
             # Look ahead to see if next line is dialogue or parenthetical
             if self._is_dialogue_following():
                 metadata = {}
@@ -835,6 +849,17 @@ class FountainParser:
                 )
             next_line_idx += 1
         return False
+
+    def _is_blank_line_after(self) -> bool:
+        """Check if there is a blank line (or EOF) after the current line.
+
+        Returns:
+            bool: True if the next line is empty or we are at the end of the document.
+        """
+        next_idx = self.current_line + 1
+        if next_idx >= len(self.lines):
+            return True  # EOF counts as blank after
+        return not self.lines[next_idx].strip()
 
     def _is_dialogue_line(self, had_blank_line_before: bool = False) -> bool:
         """Check if current line is dialogue based on previous elements.
@@ -971,12 +996,38 @@ class FountainParser:
         # Only return True if there's action AND no scene break
         return has_action and not has_scene_break
 
+    @staticmethod
+    def _strip_escapes(text: str) -> str:
+        """Replace backslash escapes with their literal characters."""
+        if "\\" not in text:
+            return text
+        return text.replace("\\*", "*").replace("\\_", "_").replace("\\\\", "\\")
+
+    def _process_escapes(self, text: str) -> tuple[str, str]:
+        """Process backslash escapes for emphasis markers.
+
+        Returns:
+            Tuple of (display_text, formatting_text) where:
+            - display_text: text with escapes resolved to literal characters
+            - formatting_text: text with escapes replaced by placeholders that won't trigger formatting
+        """
+        if "\\" not in text:
+            return text, text
+
+        display_text = text.replace("\\*", "*").replace("\\_", "_").replace("\\\\", "\\")
+        formatting_text = text.replace("\\*", "\x00").replace("\\_", "\x01").replace("\\\\", "\x02")
+        return display_text, formatting_text
+
     def _extract_formatting(self, text: str) -> list[FormatSpan]:
-        """Extract formatting spans from text using Fountain's inline formatting syntax.
+        """Extract formatting spans from text, handling backslash escapes.
 
         Parses Fountain's Markdown-like formatting markers to identify bold, italic,
         underline, and combined formatting within text. Handles precedence to avoid
         conflicts between overlapping patterns (e.g., ***text*** vs **text**).
+
+        Backslash escapes (\\*, \\_) are replaced with placeholders before pattern
+        matching so they don't trigger formatting. Returned span positions are
+        adjusted to match the display text (with escapes resolved).
 
         Formatting precedence (highest to lowest):
         1. Bold-italic (***text***)
@@ -1009,14 +1060,17 @@ class FountainParser:
             adding new spans. Bold-italic spans prevent extraction of separate bold
             or italic spans within the same range.
         """
+        # Process escapes: use placeholders for pattern matching
+        _, formatting_text = self._process_escapes(text)
+
         formatting = []
 
         # Find bold-italic formatting first (***text***)
-        for match in self.BOLD_ITALIC_PATTERN.finditer(text):
+        for match in self.BOLD_ITALIC_PATTERN.finditer(formatting_text):
             formatting.append(FormatSpan(match.start(), match.end(), "bold_italic"))
 
         # Find bold formatting
-        for match in self.BOLD_PATTERN.finditer(text):
+        for match in self.BOLD_PATTERN.finditer(formatting_text):
             # Skip if already covered by bold-italic
             overlap = any(
                 span.start <= match.start() < span.end or span.start < match.end() <= span.end
@@ -1027,7 +1081,7 @@ class FountainParser:
                 formatting.append(FormatSpan(match.start(), match.end(), "bold"))
 
         # Find italic formatting
-        for match in self.ITALIC_PATTERN.finditer(text):
+        for match in self.ITALIC_PATTERN.finditer(formatting_text):
             # Skip if already covered by bold-italic
             overlap = any(
                 span.start <= match.start() < span.end or span.start < match.end() <= span.end
@@ -1038,8 +1092,26 @@ class FountainParser:
                 formatting.append(FormatSpan(match.start(), match.end(), "italic"))
 
         # Find underline formatting
-        for match in self.UNDERLINE_PATTERN.finditer(text):
+        for match in self.UNDERLINE_PATTERN.finditer(formatting_text):
             formatting.append(FormatSpan(match.start(), match.end(), "underline"))
+
+        # Adjust span positions if escapes were present
+        if formatting_text != text:
+            escape_positions = []
+            i = 0
+            while i < len(text):
+                if text[i] == "\\" and i + 1 < len(text) and text[i + 1] in ("*", "_", "\\"):
+                    escape_positions.append(i)
+                    i += 2
+                else:
+                    i += 1
+
+            adjusted = []
+            for span in formatting:
+                offset_start = sum(1 for ep in escape_positions if ep < span.start)
+                offset_end = sum(1 for ep in escape_positions if ep < span.end)
+                adjusted.append(FormatSpan(span.start - offset_start, span.end - offset_end, span.format_type))
+            formatting = adjusted
 
         return formatting
 

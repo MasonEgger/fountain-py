@@ -728,7 +728,7 @@ INT. HOUSE - DAY"""
         assert document.metadata.get("title") == "My Script"
 
     def test_title_page_multiple_empty_lines(self):
-        """Test title page with multiple consecutive empty lines (line 123)."""
+        """Test title page ends at first blank line per spec. Author after blank lines becomes body."""
         text = """Title: My Script
 
 
@@ -739,9 +739,10 @@ INT. HOUSE - DAY"""
 
         document = self.parser.parse(text)
 
-        # Should parse both fields despite multiple empty lines
+        # Per the Fountain spec, a blank line ends the title page.
+        # Author after blank lines is not part of the title page.
         assert document.metadata.get("title") == "My Script"
-        assert document.metadata.get("author") == "Test Author"
+        assert document.metadata.get("author") is None
 
     def test_dual_dialogue_too_far_back(self):
         """Test dual dialogue break when searching too far back (line 495)."""

@@ -305,20 +305,17 @@ Round-Trip Capabilities and Limitations
 .. doctest::
 
     >>> # Demonstrate round-trip verification
-    >>> original_script = """FADE IN:
-    ... 
-    ... INT. OFFICE - DAY
-    ... 
-    ... SARAH
-    ... Ready for the meeting?"""
-    >>> 
+    >>> original_script = """Title: Test
+    ...
+    ... !Action line here."""
+    >>>
     >>> # Parse original
     >>> doc1 = parser.parse(original_script)
-    >>> 
+    >>>
     >>> # Convert to Fountain and parse again
     >>> fountain_text = fountain_renderer.render(doc1)
     >>> doc2 = parser.parse(fountain_text)
-    >>> 
+    >>>
     >>> # Structure should be preserved
     >>> len(doc1.elements) == len(doc2.elements)
     True

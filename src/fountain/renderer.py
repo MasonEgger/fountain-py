@@ -115,7 +115,7 @@ class HTMLRenderer:
         Example:
             >>> from fountain.parser import FountainParser
             >>> parser = FountainParser()
-            >>> doc = parser.parse("FADE IN:\\n\\nINT. ROOM - DAY")
+            >>> doc = parser.parse("Title: Test\\n\\nFADE IN:\\n\\nINT. ROOM - DAY")
             >>> renderer = HTMLRenderer()
             >>> html = renderer.render(doc)
             >>> 'fountain-script' in html  # Check for main container
@@ -227,6 +227,33 @@ class HTMLRenderer:
             # Handle multi-line notes
             notes_html = self._escape_html(metadata["notes"]).replace("\n", "<br>")
             html_parts.append(f'<p class="notes">{notes_html}</p>')
+
+        # Render any custom/unknown metadata fields
+        known_fields = {
+            "title",
+            "author",
+            "authors",
+            "credit",
+            "source",
+            "writers",
+            "producer",
+            "director",
+            "draft date",
+            "date",
+            "revised",
+            "version",
+            "format",
+            "created",
+            "contact",
+            "copyright",
+            "notes",
+        }
+        for key, value in metadata.items():
+            if key not in known_fields:
+                css_class = key.replace(" ", "-")
+                field_label = key.replace("_", " ").title()
+                value_html = self._escape_html(value).replace("\n", "<br>")
+                html_parts.append(f'<p class="custom-field {css_class}">{field_label}: {value_html}</p>')
 
         html_parts.append("</div>")
         return "\n".join(html_parts)
@@ -790,6 +817,13 @@ class FountainRenderer:
                 value = metadata[field]
                 # Capitalize first letter of field for display
                 field_name = field.replace("_", " ").title()
+                title_parts.append(f"{field_name}: {value}")
+
+        # Render any custom/unknown metadata fields
+        title_order_set = set(title_order)
+        for key, value in metadata.items():
+            if key not in title_order_set:
+                field_name = key.replace("_", " ").title()
                 title_parts.append(f"{field_name}: {value}")
 
         # Add empty line after title page

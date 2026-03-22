@@ -436,6 +436,20 @@ class TestHTMLRenderer:
         assert '<span class="character-extension">(V.O.)</span>' in html
         assert '<span class="character-continuation">' not in html
 
+    def test_custom_metadata_fields_in_html(self):
+        """Custom metadata fields should appear in HTML output."""
+        metadata = {
+            "title": "My Script",
+            "network": "HBO",
+            "revision": "Draft 3",
+        }
+        document = FountainDocument([], metadata)
+        html = self.renderer.render(document)
+
+        assert '<h1 class="title">My Script</h1>' in html
+        assert "HBO" in html
+        assert "Draft 3" in html
+
 
 class TestFountainRenderer:
     def setup_method(self):
@@ -732,3 +746,17 @@ That was lovely!"""
         fountain = self.renderer.render(document)
 
         assert "JOHN (CONT'D)" in fountain
+
+    def test_custom_metadata_fields_in_fountain(self):
+        """Custom metadata fields should appear in Fountain round-trip output."""
+        metadata = {
+            "title": "My Script",
+            "network": "HBO",
+            "revision": "Draft 3",
+        }
+        document = FountainDocument([], metadata)
+        fountain = self.renderer.render(document)
+
+        assert "Title: My Script" in fountain
+        assert "Network: HBO" in fountain
+        assert "Revision: Draft 3" in fountain
