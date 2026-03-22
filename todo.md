@@ -7,10 +7,10 @@
 - [x] 4. Verify: Run `just test`
 
 ## Step 2: Ellipsis Protection on Forced Scene Headings
-- [ ] 1. RED: Write tests for ellipsis protection in `TestSpecCompliance`
-- [ ] 2. GREEN: Update `FORCED_SCENE_HEADING_PATTERN` regex
-- [ ] 3. REFACTOR: None needed
-- [ ] 4. Verify: Run `just test`
+- [x] 1. RED: Write tests for ellipsis protection in `TestSpecCompliance`
+- [x] 2. GREEN: Update `FORCED_SCENE_HEADING_PATTERN` regex
+- [x] 3. REFACTOR: None needed
+- [x] 4. Verify: Run `just test`
 
 ## Step 3: Tab Conversion Verification
 - [ ] 1. RED: Write verification tests in `TestSpecCompliance` and `TestHTMLRenderer`

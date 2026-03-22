@@ -5,7 +5,7 @@
 | Step | Description | Status |
 |------|-------------|--------|
 | 1 | Section Level Metadata | Complete |
-| 2 | Ellipsis Protection on Forced Scene Headings | Not Started |
+| 2 | Ellipsis Protection on Forced Scene Headings | Complete |
 | 3 | Tab Conversion Verification | Not Started |
 | 4 | Arbitrary Title Page Keys | Not Started |
 | 5 | Scene Headings Require Blank Line Before | Not Started |

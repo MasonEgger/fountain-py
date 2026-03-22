@@ -521,3 +521,38 @@ class TestSpecCompliance:
         """Section text should not contain # symbols."""
         doc = self.parser.parse("## My Section")
         assert "#" not in doc.elements[0].text
+
+    # -- Step 2: Ellipsis Protection on Forced Scene Headings --
+
+    def test_ellipsis_not_scene_heading(self):
+        """...HELLO should be ACTION, not SCENE_HEADING."""
+        doc = self.parser.parse("...HELLO")
+        assert doc.elements[0].type == ElementType.ACTION
+
+    def test_double_period_not_scene_heading(self):
+        """..text should be ACTION, not SCENE_HEADING."""
+        doc = self.parser.parse("..text")
+        assert doc.elements[0].type == ElementType.ACTION
+
+    def test_ellipsis_spec_example(self):
+        """...where the carnival is parked (spec example) should be ACTION."""
+        doc = self.parser.parse("...where the carnival is parked")
+        assert doc.elements[0].type == ElementType.ACTION
+
+    def test_forced_scene_heading_with_period(self):
+        """.SNIPER SCOPE POV should be a forced SCENE_HEADING (spec example)."""
+        doc = self.parser.parse(".SNIPER SCOPE POV")
+        assert doc.elements[0].type == ElementType.SCENE_HEADING
+        assert doc.elements[0].text == "SNIPER SCOPE POV"
+
+    def test_forced_scene_heading_alpha(self):
+        """.A forced heading should be a forced SCENE_HEADING."""
+        doc = self.parser.parse(".A forced heading")
+        assert doc.elements[0].type == ElementType.SCENE_HEADING
+        assert doc.elements[0].text == "A forced heading"
+
+    def test_forced_scene_heading_digit(self):
+        """.2nd Floor should be a forced SCENE_HEADING (period + digit)."""
+        doc = self.parser.parse(".2nd Floor")
+        assert doc.elements[0].type == ElementType.SCENE_HEADING
+        assert doc.elements[0].text == "2nd Floor"

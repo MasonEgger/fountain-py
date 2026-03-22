@@ -80,7 +80,7 @@ class FountainParser:
     # Forced scene heading starts with period (.) to override natural scene detection
     # Used when a line should be a scene heading but doesn't match standard prefixes
     # Example: ".FLASHBACK - 10 YEARS AGO" becomes "FLASHBACK - 10 YEARS AGO"
-    FORCED_SCENE_HEADING_PATTERN = re.compile(r"^\.")
+    FORCED_SCENE_HEADING_PATTERN = re.compile(r"^\.(?!\.)(?=[A-Za-z0-9])")
     # Character Name Patterns
     # Standard character names: ALL CAPS, may include numbers, spaces, underscores
     # Must start with letter, prevents false positives from action lines
