@@ -1,386 +1,236 @@
-# Fountain Spec Compliance Plan
+# Code Review: fountain-py
 
 ## Context
 
-The fountain-py library parses Fountain screenplay markup but has 11 gaps vs the [official spec](https://fountain.io/syntax/). This plan brings it to full compliance using strict TDD — write failing tests first, then minimal code to pass, then run `just test` for quality checks.
+Full code review of the fountain-py library against: global CLAUDE.md rules, /python skill standards, and general Python best practices. Optimizing for simplicity, speed, and good architecture.
 
-After analysis, Gap 11 (tab conversion) is likely already handled by the renderer — Step 3 confirms this. The remaining 10 gaps need real fixes.
-
-**Key files:**
-- `src/fountain/parser.py` — Two-pass parser with regex patterns, `_parse_line()`, `_extract_formatting()`
-- `src/fountain/renderer.py` — HTMLRenderer and FountainRenderer
-- `src/fountain/elements.py` — ElementType enum, FountainElement dataclass, FormatSpan
-- `src/fountain/document.py` — FountainDocument container
-- `tests/test_edge_cases.py` — Spec compliance tests (add new class `TestSpecCompliance`)
-- `tests/test_parser.py` — Core parser tests (may need updates for blank-line changes)
-
-**Existing patterns to reuse:**
-- Boneyard multi-line state tracking (`self.in_boneyard` flag in parser.py) — reuse for multi-line notes
-- `had_blank_line_before` parameter already passed to `_parse_line()` — reuse for context checks
-- `_is_dialogue_following()` lookahead pattern — reuse for transition blank-line-after check
-- `NOTE_PATTERN` regex — reuse for inline note stripping
+**Overall assessment: This is a high-quality, well-structured codebase.** The issues below are refinements, not fundamental problems. The architecture (two-pass parser, immutable elements, clean pipeline) is solid.
 
 ---
 
-## Step 1: Section Level Metadata
+## Findings
 
-**NOTE**: The FountainRenderer already reads `metadata.get("level", 1)` for sections. The parser just doesn't populate it. Simplest change with zero risk.
+### 1. Missing ABOUTME Comments (Rule Violation)
 
-```text
-Implement section level metadata storage in the Fountain parser. The spec defines # as level 1, ## as level 2, ### as level 3, etc. The parser currently strips # characters but doesn't record the nesting level.
+**Files missing the required 2-line ABOUTME header:**
+- `src/fountain/renderer.py` — has a docstring but no ABOUTME
+- `src/fountain/__init__.py` — has a docstring but no ABOUTME
+- `tests/conftest.py`
+- `tests/test_parser.py`
+- `tests/test_renderer.py`
+- `tests/test_document.py`
+- `tests/test_quickstart_examples.py`
 
-1. RED: Write tests for section level metadata:
-   - Add class `TestSpecCompliance` to `tests/test_edge_cases.py`:
-     - Test that `# Act One` produces a SECTION element with `metadata["level"] == 1`
-     - Test that `## Scene One` produces a SECTION element with `metadata["level"] == 2`
-     - Test that `### Beat One` produces a SECTION element with `metadata["level"] == 3`
-     - Test that `###### Deep Nesting` produces `metadata["level"] == 6`
-     - Test that section text content is correct (no # symbols in text)
+**Rule:** "All code files should start with a brief 2-line comment explaining what the file does. Only the first line starts with 'ABOUTME: '"
 
-2. GREEN: Update the parser to store section levels:
-   - Modify `src/fountain/parser.py` in the section handling block (around line 600):
-     - Count the number of leading `#` characters before stripping
-     - Add `metadata={"level": level}` to the FountainElement constructor
+### 2. Dead Commented-Out Code in `renderer.py:984-1074`
 
-3. REFACTOR: None needed — this is a minimal change.
+~90 lines of commented-out example renderer code (MarkdownRenderer, StatsRenderer). Per Clean Code rules: "Remove any leftover debug or commented-out code."
 
-4. Verify: Run `just test` to confirm all tests pass including existing section tests in `test_parser.py::test_section_parsing`.
+This belongs in documentation (e.g., `docs/source/user-guide/rendering.rst`), not as dead code in the source file.
+
+**Action:** Remove the commented-out code block.
+
+### 3. `_escape_html` Reinvents `html.escape` (Simplicity)
+
+`renderer.py:460-488` — Custom HTML escaping that duplicates `html.escape()` from stdlib. The stdlib version handles the same entities and is battle-tested.
+
+**Action:** Replace with `import html` and `html.escape(text, quote=True)`. Note: stdlib uses `&#x27;` for `'` which matches the current behavior.
+
+### 4. `_get_css` Theme Fallback Mutates State (Bad Pattern)
+
+`renderer.py:683-689` — The "else" branch temporarily mutates `self.theme`, calls itself recursively, then restores. This is fragile and not thread-safe.
+
+```python
+# Current (bad):
+old_theme = self.theme
+self.theme = "default"
+css = self._get_css()
+self.theme = old_theme
+return css
+
+# Better (simple):
+return self._get_default_css()
 ```
 
----
+**Action:** Extract the CSS string into a module-level constant or a `_get_default_css()` method, and have `_get_css` just return it (since only one theme exists).
 
-## Step 2: Ellipsis Protection on Forced Scene Headings
+### 5. `get_statistics` Iterates Elements ~17x (Performance + Simplicity)
 
-**NOTE**: Current regex `r"^\."` matches ANY leading period. The spec says only a period followed by an alphanumeric character forces a scene heading — `...text` must NOT trigger it. The existing test `(".CUSTOM SCENE HEADING", True)` must continue to pass since `.C` is period + alpha.
+`document.py:298-309` — Calls `get_characters()` (1 pass), `get_scenes()` (1 pass), then loops through all 15 `ElementType` values (15 passes). That's 17 full iterations over elements.
 
-```text
-Fix the forced scene heading regex to prevent ellipses from triggering false scene headings. Per the Fountain spec, only a single period followed by an alphanumeric character forces a scene heading.
+**Action:** Single-pass implementation using a `Counter`:
 
-1. RED: Write tests for ellipsis protection:
-   - Add to `TestSpecCompliance` in `tests/test_edge_cases.py`:
-     - Test that `...HELLO` is parsed as ACTION, not SCENE_HEADING
-     - Test that `..text` is parsed as ACTION, not SCENE_HEADING
-     - Test that `...where the carnival is parked` is ACTION (spec example)
-     - Test that `.SNIPER SCOPE POV` IS a forced SCENE_HEADING (spec example)
-     - Test that `.A forced heading` IS a forced SCENE_HEADING
-     - Test that `.2nd Floor` IS a forced SCENE_HEADING (period + digit)
-
-2. GREEN: Update the forced scene heading regex:
-   - Modify `src/fountain/parser.py` line 83:
-     - Change `FORCED_SCENE_HEADING_PATTERN = re.compile(r"^\.")` to
-       `FORCED_SCENE_HEADING_PATTERN = re.compile(r"^\.(?!\.)(?=[A-Za-z0-9])")`
-     - This uses negative lookahead `(?!\.)` to reject `..` and positive lookahead `(?=[A-Za-z0-9])` to require alphanumeric after the period
-
-3. REFACTOR: None needed.
-
-4. Verify: Run `just test`. Confirm existing test `(".CUSTOM SCENE HEADING", True)` in `test_scene_heading_variations` still passes.
+```python
+from collections import Counter
+type_counts = Counter(el.type for el in self.elements)
 ```
 
----
+### 6. Title Page Rendering Is Highly Repetitive (DRY)
 
-## Step 3: Tab Conversion Verification
+`renderer.py:149-259` — 15+ nearly identical `if "field" in metadata:` blocks. Each follows the pattern: check key, format HTML, append.
 
-**NOTE**: The parser preserves tabs in action text (`original_line.rstrip()` at line 776). The HTMLRenderer converts tabs to `&nbsp;` sequences. This step confirms compliance without code changes.
+**Action:** Use a data-driven approach with an ordered list of `(key, css_class, prefix)` tuples. Keeps the rendering logic DRY and makes adding new fields trivial.
 
-```text
-Verify that tab-to-four-spaces conversion is already handled correctly by the existing parser and renderer. The spec says tabs in Action elements convert to four spaces in formatted output.
+### 7. `title_order` List Duplicated Between Renderers (DRY)
 
-1. RED: Write verification tests:
-   - Add to `TestSpecCompliance` in `tests/test_edge_cases.py`:
-     - Test that parsing `\tIndented action` preserves the tab character in element text
-     - Test that parsing `\t\tDouble indented` preserves both tabs
-     - Test that tabs in action are preserved while tabs in other elements (character names, transitions) are stripped by `.strip()`
-   - Add to `TestHTMLRenderer` in `tests/test_renderer.py`:
-     - Test that rendering action with `\t` produces four `&nbsp;` characters in HTML output
-     - Test that rendering action with `\t\t` produces eight `&nbsp;` characters
+Both `HTMLRenderer._render_title_page` and `FountainRenderer._render_title_page` maintain separate but overlapping lists of known/ordered title page fields.
 
-2. GREEN: These tests should pass WITHOUT any code changes. If any fail, investigate and fix.
+**Action:** Extract to a module-level constant `TITLE_PAGE_FIELD_ORDER` shared by both renderers.
 
-3. Verify: Run `just test`.
+### 8. `_is_dialogue_following` Pattern Chain (Simplicity)
+
+`parser.py:834-849` — A 14-line `or` chain checking every structural pattern. Hard to read and easy to miss a pattern.
+
+**Action:** Collect structural patterns into a tuple and use `any()`:
+
+```python
+STRUCTURAL_PATTERNS = (
+    self.SCENE_HEADING_PATTERN, self.FORCED_SCENE_HEADING_PATTERN,
+    self.TRANSITION_PATTERN, ...
+)
+return not any(p.match(next_line) for p in STRUCTURAL_PATTERNS)
 ```
 
----
+Plus the special `[[...]]` check as a separate condition.
 
-## Step 4: Arbitrary Title Page Keys
+### 9. `__init__.py` Has Exports (Python Skill Conflict)
 
-**NOTE**: The parser uses a `supported_fields` whitelist (line 392-410) and rejects unknown keys as end-of-title-page. The spec says ANY key ending with a colon is valid. The renderers have hardcoded field lists for display — need fallback for unknown fields.
+The /python skill says "Empty `__init__.py` — never add anything to `__init__.py`". However, this is a published library where `from fountain import FountainParser` is the primary API. **Keeping the exports is the right call here** — the skill rule is better suited to application code. No action needed, but noting the deliberate deviation.
 
-```text
-Update the title page parser to accept arbitrary key-value pairs, not just a fixed whitelist. The Fountain spec allows any key ending with a colon on the title page. Also update renderers to display unknown fields.
+### 10. `Any` Type Usage (Python Skill Conflict)
 
-1. RED: Write tests for arbitrary title page keys:
-   - Add to `TestSpecCompliance` in `tests/test_edge_cases.py`:
-     - Test that `Custom Field: Custom Value` in title page is stored in metadata as `metadata["custom field"] == "Custom Value"`
-     - Test that `Revision: Draft 3` is accepted as a title page key
-     - Test that multiple arbitrary keys are all preserved
-     - Test that arbitrary keys with multi-line values work (continuation lines)
-     - Test that title page still ends correctly at blank line + body element
-     - Test that standard keys (Title, Author) still work alongside custom keys
+The /python skill says "No `Any`". Used in `elements.py` (`dict[str, Any]`), `document.py`, and `parser.py` for metadata. The metadata dict genuinely holds heterogeneous types (str, int, bool, nested FountainElement). A precise union type would be complex and fragile.
 
-2. GREEN: Update the parser title page logic:
-   - Modify `src/fountain/parser.py` in `_parse_title_page()`:
-     - Remove the `if key in supported_fields:` / `else: break` branching (lines 446-457)
-     - Accept any key-value pair where the key portion doesn't look like a body element
-     - Keep the `supported_fields` set as a comment for documentation, or remove entirely
-     - Maintain existing end-of-title-page heuristics (blank line followed by scene heading, etc.)
+**Action:** Define a `MetadataValue` type alias to at least narrow the type surface:
 
-3. RED: Write renderer tests for custom field display:
-   - Add to `TestHTMLRenderer` in `tests/test_renderer.py`:
-     - Test that custom metadata fields appear in HTML output
-   - Add to `TestFountainRenderer` in `tests/test_renderer.py`:
-     - Test that custom metadata fields appear in Fountain round-trip output
-
-4. GREEN: Update renderers:
-   - Modify `src/fountain/renderer.py`:
-     - In `HTMLRenderer._render_title_page()`: After known field rendering, loop through remaining metadata keys and render them with a generic `<p class="custom-field">` wrapper
-     - In `FountainRenderer._render_title_page()`: After known fields, append remaining custom fields in `Key: Value` format
-
-5. REFACTOR: None needed.
-
-6. Verify: Run `just test`. Confirm existing title page tests in `test_parser.py::test_enhanced_title_page` still pass.
+```python
+MetadataValue = Union[str, int, bool, list["FountainElement"], "FountainElement", None]
 ```
 
----
+This is more informative than `Any` while remaining practical.
 
-## Step 5: Scene Headings Require Blank Line Before
+### 11. `format_type: str` Could Be a StrEnum (Type Safety)
 
-**NOTE**: `had_blank_line_before` is already passed to `_parse_line()` but not checked for scene headings. Forced scene headings (`.PREFIX`) should be exempt — forced elements override context requirements. The `not self.elements` check handles the first-element-in-document case. Existing tests parse single-line inputs (first element), so they won't break.
+`elements.py:128` — `FormatSpan.format_type` is an untyped string. Values are one of `"bold"`, `"italic"`, `"underline"`, `"bold_italic"`. A `StrEnum` would prevent typos and improve IDE support.
 
-```text
-Add blank-line-before requirement for natural scene heading detection. The Fountain spec requires a blank line before scene headings. Forced scene headings (period prefix) are exempt.
+**Caveat:** `StrEnum` requires Python 3.11+. Since the project targets 3.9+, use a regular string `Literal` type instead:
 
-1. RED: Write tests for blank line requirement:
-   - Add to `TestSpecCompliance` in `tests/test_edge_cases.py`:
-     - Test that `"Some action.\n\nINT. HOUSE - DAY"` correctly identifies SCENE_HEADING (blank line present)
-     - Test that `"Some action.\nINT. HOUSE - DAY"` does NOT produce a SCENE_HEADING (no blank line) — should be ACTION instead
-     - Test that `"INT. HOUSE - DAY"` as first/only element is still SCENE_HEADING (first element exception)
-     - Test that `"Some action.\n.FORCED HEADING"` still produces SCENE_HEADING even without blank line (forced elements exempt)
-     - Test that `"Title: Test\n\nINT. HOUSE - DAY"` works after title page (first body element)
-
-2. GREEN: Add blank line guard to scene heading detection:
-   - Modify `src/fountain/parser.py` in `_parse_line()` around line 669:
-     - Wrap the natural scene heading block with `if had_blank_line_before or not self.elements:`
-     - Do NOT add this guard to the forced scene heading block (line 632) — forced elements are exempt
-     - If the guard fails, the line falls through to ACTION (default)
-
-3. RED: Run existing tests to check for regressions:
-   - Run `uv run pytest tests/test_edge_cases.py::TestSceneHeadingEdgeCases -v`
-   - Run `uv run pytest tests/test_parser.py -v`
-   - If any existing tests break because they lack blank lines, fix those tests to include proper blank lines (this aligns them with the spec)
-
-4. GREEN: Fix any broken existing tests by adding blank lines where needed.
-
-5. Verify: Run `just test`.
+```python
+FormatType = Literal["bold", "italic", "underline", "bold_italic"]
 ```
 
----
+### 12. `_render_element` Long If/Elif Chain (Minor)
 
-## Step 6: Character Names Require Blank Line Before
+`renderer.py:261-337` — 15-branch if/elif for element types. A dispatch dict would be cleaner, but the per-type special handling (scene numbers, character extensions, dual dialogue) makes a pure dispatch impractical. **No action needed** — the current approach is readable and each branch is small.
 
-**NOTE**: Same pattern as Step 5. Forced characters (`@PREFIX`) are exempt. The guard applies to: dual character (`^`), character with extension, and regular character checks. NOT to forced character.
+### 13. `render()` Should Return Fragments, Not Full Pages (Architecture)
 
-```text
-Add blank-line-before requirement for character name detection. The Fountain spec requires one empty line before a character cue. Forced characters (@prefix) are exempt.
+The current `HTMLRenderer.render()` emits a `<style>` block + `<div>` wrapper — a near-complete HTML page. This makes the renderer unsuitable for embedding (mkdocs plugins, fence handlers, web frameworks) where CSS is managed externally and only an HTML fragment is needed.
 
-1. RED: Write tests for character blank line requirement:
-   - Add to `TestSpecCompliance` in `tests/test_edge_cases.py`:
-     - Test that `"Some action.\n\nJOHN\nHello."` correctly identifies CHARACTER (blank line present)
-     - Test that `"Some action.\nJOHN\nHello."` does NOT produce a CHARACTER (no blank line) — JOHN becomes ACTION
-     - Test that `"JOHN\nHello."` as first element still produces CHARACTER
-     - Test that `"Some action.\n@JOHN\nHello."` still produces CHARACTER even without blank line (forced character exempt)
-     - Test that `"Some action.\n\nJOHN (V.O.)\nHello."` works with extensions and blank line
-     - Test that `"Some action.\nJOHN (V.O.)\nHello."` without blank line does NOT produce CHARACTER
+**Action:** Restructure `HTMLRenderer` so that:
 
-2. GREEN: Add blank line guards to character detection:
-   - Modify `src/fountain/parser.py` in `_parse_line()`:
-     - At the dual character check (line 707): wrap with `if had_blank_line_before or not self.elements:`
-     - At the character with extension check (line 719): wrap with same guard
-     - At the regular character check (line 737): wrap with same guard
-     - Do NOT add to forced character check (line 695) — forced elements are exempt
-     - When the guard fails, the line falls through to dialogue check or ACTION default
+- **`render(doc)` returns a pure HTML fragment** — just the `<div class="fountain-script">...</div>` with element markup inside. No `<style>` tag. This is the universal default suitable for embedding anywhere.
+- **`render_page(doc)` returns a full standalone page** — the fragment wrapped with the `<style>` block. For users who want a self-contained HTML file.
+- **`get_css()` becomes a public method** — returns the CSS string (no `<style>` tags) so consumers can inject it once per page however they need (e.g., mkdocs plugin adds it to `extra_css`, a web app puts it in a `<link>`, etc.).
 
-3. RED: Run existing tests to find regressions:
-   - Run `uv run pytest tests/ -v`
-   - If existing tests break, fix them to include blank lines where the spec requires them
+This is a breaking change to `render()` — document it in CHANGELOG.
 
-4. GREEN: Fix any broken tests.
+### 14. Namespace CSS Classes (Future-Proofing)
 
-5. Verify: Run `just test`.
-```
+Current CSS classes use generic names: `.action`, `.character`, `.dialogue`, `.note`, `.centered`. These will collide with theme CSS in mkdocs, Material, Bootstrap, or any other CSS framework.
 
----
+**Action:** Prefix all CSS classes with `fountain-`:
+- `.action` → `.fountain-action`
+- `.character` → `.fountain-character`
+- `.dialogue` → `.fountain-dialogue`
+- `.scene-heading` → `.fountain-scene-heading`
+- etc.
 
-## Step 7: Transitions Require Blank Lines Before and After
+The outer wrapper `.fountain-script` is already namespaced. Inner classes need the same treatment. This affects:
+- `_render_element()` — all `class=` attributes
+- `_render_title_page()` — all `class=` attributes
+- `_render_dual_dialogue()` — all `class=` attributes
+- `_get_css()` — all CSS selectors
+- Test assertions that check for specific class names
 
-**NOTE**: Transitions need both a blank line before AND after. This requires a new `_is_blank_line_after()` helper method, following the same pattern as `_is_dialogue_following()`. Forced transitions (`>PREFIX`) are exempt.
-
-```text
-Add blank-line-before and blank-line-after requirements for transition detection. The Fountain spec requires blank lines on both sides of transitions. Forced transitions (> prefix) are exempt.
-
-1. RED: Write tests for transition blank line requirements:
-   - Add to `TestSpecCompliance` in `tests/test_edge_cases.py`:
-     - Test that `"Action.\n\nCUT TO:\n\nINT. HOUSE"` correctly identifies TRANSITION (both blank lines present)
-     - Test that `"Action.\nCUT TO:\n\nINT. HOUSE"` does NOT produce a TRANSITION (no blank before)
-     - Test that `"Action.\n\nCUT TO:\nINT. HOUSE"` does NOT produce a TRANSITION (no blank after)
-     - Test that `"Action.\nCUT TO:\nINT. HOUSE"` does NOT produce a TRANSITION (no blanks at all)
-     - Test that `"Action.\n>Burn to White.\nMore action."` still produces TRANSITION (forced, exempt)
-     - Test that `"CUT TO:"` at end of document is TRANSITION (EOF counts as blank after)
-     - Test that `"FADE IN:"` and `"FADE OUT."` follow the same rules
-
-2. GREEN: Add blank line guards and lookahead:
-   - Add new method `_is_blank_line_after()` to `FountainParser` in `src/fountain/parser.py`:
-     - Check if `self.current_line + 1` is beyond document length (EOF = True)
-     - Check if the next line is empty after strip (blank = True)
-     - Return bool
-   - Modify `_parse_line()` at the transition check (line 686):
-     - Wrap with `if (had_blank_line_before or not self.elements) and self._is_blank_line_after():`
-     - Do NOT add to forced transition check (line 658) — forced elements are exempt
-
-3. RED: Run existing tests for regressions.
-
-4. GREEN: Fix any broken tests by adding blank lines around transitions.
-
-5. Verify: Run `just test`.
-```
+This is a breaking change for anyone targeting the current CSS classes — do it now before the library is widely adopted.
 
 ---
 
-## Step 8: Inline Notes Stripped from Elements
+## Items NOT Changing (Confirmed Good)
 
-**NOTE**: Standalone notes (`[[full note]]` as entire line) must remain as NOTE elements. Inline notes within other text must be stripped. The existing `NOTE_PATTERN = re.compile(r"\[\[[^\]]*\]\]")` can be reused for stripping.
-
-```text
-Strip inline notes from element text while preserving standalone note elements. The Fountain spec says notes [[text]] within other content are removed from formatted output, but the surrounding text remains.
-
-1. RED: Write tests for inline note stripping:
-   - Add to `TestSpecCompliance` in `tests/test_edge_cases.py`:
-     - Test that `"John walks [[needs work]] to the door."` produces ACTION with text containing "John walks  to the door." (note removed)
-     - Test that inline note in dialogue is stripped: parse `"JOHN\nI love you [[or do I?]] forever."` and verify dialogue text has no note content but retains surrounding text
-     - Test that `"[[This is entirely a note]]"` still produces a NOTE element (standalone note unchanged)
-     - Test that multiple inline notes on one line are all stripped
-     - Test that text is otherwise unchanged after note stripping
-
-2. GREEN: Add inline note stripping to the parser:
-   - Modify `src/fountain/parser.py` in `_parse_line()`, after the standalone note check (line 588):
-     - Use `NOTE_PATTERN.sub("", line)` to strip inline notes from the line text
-     - Re-strip whitespace after removal
-     - If the line becomes empty after stripping, return None
-     - Continue parsing with the stripped line for element type detection
-
-3. REFACTOR: Consider whether stripped note content should be stored in element metadata for reference. Decide based on spec — the spec says notes "won't appear in formatted screenplay" so stripping is sufficient.
-
-4. Verify: Run `just test`.
-```
+- **Architecture**: Two-pass parser, immutable elements, clean pipeline — excellent
+- **Regex compilation**: All patterns compiled at class level — correct
+- **Type hints**: Full coverage, strict mypy — excellent
+- **Import organization**: Clean, absolute imports — correct
+- **Naming**: Descriptive, evergreen, no generic names — excellent
+- **Test suite**: 200+ behavioral tests, good TDD patterns, comprehensive spec coverage — excellent
+- **Error handling**: Appropriate boundary validation, no silent swallowing — good
+- **Dataclass/Enum usage**: Clean, proper patterns — good
 
 ---
 
-## Step 9: Multi-line Notes
+## Implementation Plan
 
-**NOTE**: Reuse the same state-tracking pattern as boneyard (`self.in_boneyard` flag). Add `self.in_note` and `self.note_buffer` to accumulate lines between `[[` and `]]`. Must handle the case where `[[` starts mid-line (prefix text becomes action, note content accumulates).
+Steps are ordered so that the largest structural changes (renderer API, CSS namespacing) happen first, then smaller cleanups build on top.
 
-```text
-Add support for multi-line notes that span across line breaks. The Fountain spec says notes [[...]] can contain carriage returns. Implement using the same state-tracking pattern as boneyard comments.
+### Step 1: Namespace CSS Classes (Finding #14)
+**File:** `renderer.py`
+Prefix all inner CSS classes with `fountain-`. This touches `_render_element`, `_render_title_page`, `_render_dual_dialogue`, and the CSS string. Do this first since later steps (DRY title page, fragment rendering) will build on the new class names.
 
-1. RED: Write tests for multi-line notes:
-   - Add to `TestSpecCompliance` in `tests/test_edge_cases.py`:
-     - Test that `"[[This is a note\nthat spans\nmultiple lines]]"` produces a single NOTE element containing all three lines
-     - Test multi-line note between elements: `"INT. HOUSE - DAY\n\n[[This note\nspans lines]]\n\nJOHN\nHello."` — verify NOTE exists AND surrounding elements are correct
-     - Test that the NOTE element text contains the full multi-line content
-     - Test note with two-space blank line inside: `"[[Note\n  \nmore note]]"` produces single NOTE (spec says two spaces connect the element)
+### Step 2: Restructure `HTMLRenderer` — Fragment vs Page (Finding #13)
+**File:** `renderer.py`
+- Rename current `render()` → `render_page()` (full HTML with `<style>`)
+- New `render()` returns fragment only (no `<style>`, just the `<div class="fountain-script">` tree)
+- Make `get_css()` public — returns raw CSS string (no `<style>` tags) for external consumers
+- Extract CSS string into a module-level constant `DEFAULT_CSS`
+- This also resolves Finding #4 (`_get_css` theme fallback)
 
-2. GREEN: Add multi-line note state tracking:
-   - Modify `src/fountain/parser.py`:
-     - Add `self.in_note: bool = False` and `self.note_buffer: list[str] = []` to `__init__()`
-     - Reset both in `parse()` alongside `self.in_boneyard`
-     - In `_parse_line()`, after boneyard handling but before other checks:
-       - If `self.in_note`: append line to buffer; if `]]` found in line, close note, join buffer, return NOTE element; otherwise return None
-       - After standalone note check: if line contains `[[` but not `]]`, set `self.in_note = True`, start buffer with line, return None
-     - Store the note start line number for the element
+### Step 3: Replace `_escape_html` with `html.escape` (Finding #3)
+**File:** `renderer.py` — add `import html`, replace method body
 
-3. REFACTOR: Ensure multi-line note handling doesn't interfere with inline note stripping from Step 8. Multi-line note detection should come first (it's a state machine check), then inline stripping applies to non-note lines.
+### Step 4: DRY Up Title Page Rendering (Findings #6, #7)
+**File:** `renderer.py`
+- Extract `TITLE_PAGE_FIELD_ORDER` as a module-level constant shared by both renderers
+- Refactor `HTMLRenderer._render_title_page` to data-driven approach
+- Refactor `FountainRenderer._render_title_page` to use the same constant
 
-4. Verify: Run `just test`.
-```
+### Step 5: Remove Dead Code (Finding #2)
+**File:** `renderer.py:984-1074` — delete commented-out example renderers
 
----
+### Step 6: Simplify `_is_dialogue_following` (Finding #8)
+**File:** `parser.py` — collect structural patterns into a tuple, use `any()`
 
-## Step 10: Dialogue Continuation with Whitespace-Only Lines
+### Step 7: Optimize `get_statistics` to Single Pass (Finding #5)
+**File:** `document.py` — use `Counter`
 
-**NOTE**: The spec says a line with just spaces (e.g., two spaces) preserves a blank line within dialogue without breaking to action. The distinction: truly empty line `""` breaks dialogue; whitespace-only line `"  "` continues it. The raw line must be checked before `rstrip()`. After `text.split("\n")`, a whitespace-only line is `"  "` (non-empty string that is all spaces), while a truly empty line is `""`.
+### Step 8: Add `FormatType` Literal and `MetadataValue` Type Alias (Findings #10, #11)
+**File:** `elements.py` — add type aliases, update `FormatSpan.format_type` annotation
 
-```text
-Support dialogue continuation across whitespace-only lines. The Fountain spec says a line containing only spaces within dialogue preserves a blank line without breaking to action. A truly empty line still breaks dialogue.
+### Step 9: Add Missing ABOUTME Comments (Finding #1)
+**Files:** `renderer.py`, `__init__.py`, `conftest.py`, `test_parser.py`, `test_renderer.py`, `test_document.py`, `test_quickstart_examples.py`
 
-1. RED: Write tests for dialogue whitespace continuation:
-   - Add to `TestSpecCompliance` in `tests/test_edge_cases.py`:
-     - Test that `"JOHN\nFirst line.\n  \nSecond line."` produces CHARACTER + three DIALOGUE elements (no ACTION) — the two-space line continues dialogue
-     - Test that `"JOHN\nFirst line.\n\nSecond line."` DOES break dialogue — produces CHARACTER + DIALOGUE + ACTION (truly empty line breaks)
-     - Test that whitespace continuation works after parenthetical: `"JOHN\n(beat)\n  \nMore dialogue."` — all dialogue/parenthetical, no action
-     - Test with spec example: dealer dialogue with two-space blank line between lines
+### Step 10: Update Tests
+All renderer tests will need CSS class name updates (`scene-heading` → `fountain-scene-heading`, etc.) and `render()` → `render_page()` where tests expect CSS output. Add new tests for `render()` fragment output and `get_css()`.
 
-2. GREEN: Update the main parse loop:
-   - Modify `src/fountain/parser.py` in `parse()`, around lines 304-311:
-     - Before `line = self.lines[self.current_line].rstrip()`, save the raw line
-     - After rstrip, when `not line` (empty after strip):
-       - Check if the raw line was whitespace-only (non-empty but all spaces): `raw_line and raw_line != raw_line.lstrip()`
-       - AND previous element is dialogue context: `self.elements and self.elements[-1].type in (ElementType.DIALOGUE, ElementType.PARENTHETICAL, ElementType.CHARACTER)`
-       - If both true: append an empty DIALOGUE element and continue WITHOUT setting `previous_line_was_blank = True`
-       - Otherwise: proceed with existing blank line logic
+### Step 11: Update Documentation
+- Update `docs/source/user-guide/rendering.rst` with new API (`render` vs `render_page` vs `get_css`)
+- Update docstrings/doctests throughout `renderer.py`
+- Update CHANGELOG.md with breaking changes
 
-3. REFACTOR: None needed.
-
-4. Verify: Run `just test`. Pay special attention to existing dialogue continuation tests in `test_parser.py`.
-```
+### Step 12: Run Full Test Suite
+**Command:** `just test` — verify all changes pass tests, coverage, lint, type-check, format
 
 ---
 
-## Step 11: Backslash Escaping for Emphasis
+## Verification
 
-**NOTE**: Most complex change. The spec says `\*` produces a literal asterisk and `\_` a literal underscore. The parser must handle escapes before applying formatting regex. Strategy: replace escaped chars with placeholders before formatting extraction, then restore in display text.
-
-```text
-Implement backslash escaping for emphasis markers. The Fountain spec says backslash escapes emphasis characters: \* produces literal *, \_ produces literal _. Must work both standalone and within formatted text (e.g., **\*9765\*** renders literal asterisks inside bold).
-
-1. RED: Write tests for backslash escaping:
-   - Add to `TestSpecCompliance` in `tests/test_edge_cases.py`:
-     - Test that `"He dialed \*69"` has no formatting spans and text contains literal `*69`
-     - Test that `"Steel enters: **\*9765\***"` has bold formatting AND text contains literal asterisks `*9765*` within the bold span
-     - Test that `"\_not underlined\_"` has no underline formatting and text contains literal `_`
-     - Test that `"This is *italic* and \*not italic\*"` has exactly one italic span (the first) and literal asterisks for the escaped pair
-     - Test that text without backslashes is unchanged (no regression)
-     - Test that `\\` (escaped backslash) doesn't interfere with emphasis
-
-2. GREEN: Implement escape processing:
-   - Add new method `_process_escapes(self, text: str) -> tuple[str, str]` to `FountainParser` in `src/fountain/parser.py`:
-     - `display_text`: Replace `\*` with `*` and `\_` with `_` (for element text storage)
-     - `formatting_text`: Replace `\*` and `\_` with placeholder characters (e.g., `\x00`, `\x01`) that won't trigger formatting regex
-     - Return `(display_text, formatting_text)`
-   - Modify `_parse_line()`:
-     - Before calling `_extract_formatting(text)`, call `_process_escapes(text)`
-     - Pass `formatting_text` to `_extract_formatting()` for span detection
-     - Use `display_text` as the element's text content
-     - Adjust FormatSpan positions: each `\*` removal shifts positions by -1. Build an offset map from escape positions to correctly map formatting_text spans back to display_text positions.
-
-3. REFACTOR: Consider whether `_process_escapes` should also handle `\\` (literal backslash). The spec mentions backslash as escape character but only shows `\*` examples. Handle `\\` → `\` for completeness.
-
-4. Verify: Run `just test`. Confirm all formatting tests in `test_edge_cases.py::TestFormattingEdgeCases` still pass.
-```
-
----
-
-## Implementation Guidelines
-
-- **TDD strictly**: Write failing tests first, then minimal code. No speculative code.
-- **One step at a time**: Complete each step before moving to the next. Run `just test` after each.
-- **Don't break existing tests**: If a step causes regressions, fix the tests to align with the spec (the spec is authoritative).
-- **Forced elements are exempt**: Forced prefixes (`.`, `!`, `@`, `>`) override context requirements like blank-line-before. Never add context guards to forced element detection.
-- **Match existing style**: Dataclasses, type hints, docstrings, 120-char lines, ruff formatting.
-- **All new tests go in `TestSpecCompliance`** class in `tests/test_edge_cases.py` unless they are renderer-specific (those go in existing renderer test classes).
-
-## Success Metrics
-
-- All 11 gaps have passing tests confirming spec compliance
-- Zero regressions in existing test suite
-- `just test` passes (pytest + ruff lint + ruff format + mypy strict)
-- `just unit-test-cov` shows maintained or improved coverage
-- Parser correctly handles all spec examples from https://fountain.io/syntax/
+After all changes:
+1. `just test` — must pass all tests, doctests, lint, type-check, format check
+2. `just unit-test-cov` — coverage must remain at 99%+
+3. Verify round-trip tests still pass (parse → render → parse)
+4. Verify `render()` returns no `<style>` tags
+5. Verify `render_page()` returns full HTML with CSS
+6. Verify `get_css()` returns raw CSS string
+7. Verify no CSS class collisions with generic names (grep for bare `.action`, `.character`, etc.)
