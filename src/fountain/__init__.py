@@ -1,3 +1,5 @@
+# ABOUTME: Public API for the fountain screenplay parser library.
+# Exports FountainParser, FountainDocument, ElementType, FountainElement, and type aliases.
 """
 Fountain-py: A Python library for parsing Fountain markup.
 
@@ -6,7 +8,7 @@ it to various output formats including HTML and structured data.
 """
 
 from fountain.document import FountainDocument
-from fountain.elements import ElementType, FountainElement
+from fountain.elements import ElementType, FormatType, FountainElement, MetadataValue
 from fountain.parser import FountainParser
 
 __all__ = [
@@ -14,4 +16,6 @@ __all__ = [
     "FountainDocument",
     "ElementType",
     "FountainElement",
+    "FormatType",
+    "MetadataValue",
 ]

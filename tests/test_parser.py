@@ -1,3 +1,5 @@
+# ABOUTME: Tests for the Fountain markup parser core functionality.
+# Covers element detection, title page parsing, formatting extraction, and edge cases.
 """
 Tests for the Fountain parser.
 """
@@ -1027,7 +1029,7 @@ Now I'm back to talking."""
 
         html_renderer = HTMLRenderer()
         html = html_renderer.render(document)
-        assert '<span class="character-continuation">(CONT\'D)</span>' in html
+        assert '<span class="fountain-character-continuation">(CONT\'D)</span>' in html
 
         # Test Fountain rendering includes continuation
         from fountain.renderer import FountainRenderer
@@ -1074,9 +1076,9 @@ Even more action."""
         html_renderer = HTMLRenderer()
         html = html_renderer.render(document)
 
-        assert '<span class="scene-number">#1#</span>' in html
-        assert '<span class="scene-number">#2A#</span>' in html
-        assert '<span class="scene-number">#3#</span>' in html
+        assert '<span class="fountain-scene-number">#1#</span>' in html
+        assert '<span class="fountain-scene-number">#2A#</span>' in html
+        assert '<span class="fountain-scene-number">#3#</span>' in html
 
         # Test Fountain rendering preserves scene numbers
         from fountain.renderer import FountainRenderer

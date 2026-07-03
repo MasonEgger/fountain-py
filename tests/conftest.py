@@ -1,3 +1,5 @@
+# ABOUTME: Pytest configuration and shared fixtures for fountain test suite.
+# Provides sample .fountain file loading and common test document fixtures.
 """Pytest configuration and fixtures."""
 
 from pathlib import Path

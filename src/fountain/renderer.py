@@ -1,3 +1,5 @@
+# ABOUTME: HTML and Fountain-format renderers for parsed screenplay documents.
+# Converts FountainDocument/FountainElement trees into formatted HTML or round-trip Fountain markup.
 """
 Renderers for Fountain documents.
 
@@ -18,14 +20,204 @@ Example:
     >>> doc = parser.parse("INT. HOUSE - DAY\\n\\nAction here.")
     >>> renderer = HTMLRenderer()
     >>> html = renderer.render(doc)
-    >>> '<div class="scene-heading">INT. HOUSE - DAY</div>' in html
+    >>> '<div class="fountain-scene-heading">INT. HOUSE - DAY</div>' in html
     True
 """
 
+import html as html_module
 from typing import Optional
 
 from fountain.document import FountainDocument
 from fountain.elements import ElementType, FormatSpan, FountainElement
+
+DEFAULT_CSS = """\
+.fountain-script {
+    font-family: 'Courier New', 'Courier', monospace;
+    font-size: 12pt;
+    line-height: 1.2;
+    max-width: 70%;
+    margin: 0 auto;
+    padding: 1in;
+    background: white;
+    color: black;
+}
+
+.fountain-title-page {
+    text-align: center;
+    margin-bottom: 3in;
+}
+
+.fountain-title-page .fountain-title {
+    font-size: 24pt;
+    font-weight: bold;
+    margin-bottom: 1in;
+    text-transform: uppercase;
+}
+
+.fountain-title-page .fountain-author {
+    font-size: 14pt;
+    margin-bottom: 0.5in;
+}
+
+.fountain-title-page .fountain-credit,
+.fountain-title-page .fountain-source,
+.fountain-title-page .fountain-draft-date,
+.fountain-title-page .fountain-contact,
+.fountain-title-page .fountain-writers,
+.fountain-title-page .fountain-producer,
+.fountain-title-page .fountain-director,
+.fountain-title-page .fountain-date,
+.fountain-title-page .fountain-revised,
+.fountain-title-page .fountain-version,
+.fountain-title-page .fountain-format,
+.fountain-title-page .fountain-created,
+.fountain-title-page .fountain-copyright,
+.fountain-title-page .fountain-notes {
+    font-size: 12pt;
+    margin-bottom: 0.25in;
+}
+
+.fountain-title-page .fountain-notes,
+.fountain-title-page .fountain-contact {
+    white-space: pre-line;
+}
+
+.fountain-script-body {
+    page-break-before: always;
+}
+
+.fountain-scene-heading {
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-top: 2em;
+    margin-bottom: 1em;
+}
+
+.fountain-action {
+    margin-bottom: 1em;
+    text-align: left;
+}
+
+.fountain-character {
+    text-align: center;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-top: 1em;
+    margin-bottom: 0;
+}
+
+.fountain-dialogue {
+    text-align: center;
+    margin: 0 auto 1em auto;
+}
+
+.fountain-parenthetical {
+    text-align: center;
+    font-style: italic;
+    margin: 0 auto;
+}
+
+.fountain-transition {
+    text-align: right;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-top: 1em;
+    margin-bottom: 1em;
+}
+
+.fountain-note {
+    font-style: italic;
+    color: #666;
+    margin: 0.5em 0;
+}
+
+.fountain-boneyard {
+    display: none;
+}
+
+.fountain-section {
+    font-weight: bold;
+    font-size: 14pt;
+    margin: 2em 0 1em 0;
+    text-transform: uppercase;
+}
+
+.fountain-synopsis {
+    font-style: italic;
+    color: #666;
+    margin: 0.5em 0;
+}
+
+.fountain-scene-number {
+    font-weight: normal;
+    color: #888;
+    font-size: 10pt;
+}
+
+.fountain-character-extension,
+.fountain-character-continuation {
+    font-weight: normal;
+    font-size: 10pt;
+}
+
+.fountain-dual-dialogue {
+    display: flex;
+    margin: 1em 0;
+}
+
+.fountain-dual-dialogue-left,
+.fountain-dual-dialogue-right {
+    flex: 1;
+    padding: 0 1em;
+}
+
+.fountain-dual-dialogue-left {
+    border-right: 1px solid #ddd;
+}
+
+.fountain-page-break {
+    page-break-before: always;
+    border-top: 2px solid #ccc;
+    margin: 2em 0;
+    height: 0;
+}
+
+.fountain-centered {
+    text-align: center;
+    margin: 1em 0;
+}
+
+.fountain-lyrics {
+    text-align: center;
+    font-style: italic;
+    margin: 0.5em auto;
+    color: #444;
+}"""
+
+
+# Each entry: (metadata_key, css_class, html_tag, prefix, multiline)
+TITLE_PAGE_FIELD_ORDER: list[tuple[str, str, str, str, bool]] = [
+    ("title", "fountain-title", "h1", "", False),
+    ("author", "fountain-author", "p", "by ", False),
+    ("authors", "fountain-author", "p", "by ", False),
+    ("credit", "fountain-credit", "p", "", False),
+    ("source", "fountain-source", "p", "", False),
+    ("writers", "fountain-writers", "p", "Writers: ", False),
+    ("producer", "fountain-producer", "p", "Producer: ", False),
+    ("director", "fountain-director", "p", "Director: ", False),
+    ("draft date", "fountain-draft-date", "p", "", False),
+    ("date", "fountain-date", "p", "", False),
+    ("revised", "fountain-revised", "p", "Revised: ", False),
+    ("version", "fountain-version", "p", "Version: ", False),
+    ("format", "fountain-format", "p", "Format: ", False),
+    ("created", "fountain-created", "p", "Created: ", False),
+    ("contact", "fountain-contact", "p", "", True),
+    ("copyright", "fountain-copyright", "p", "", False),
+    ("notes", "fountain-notes", "p", "", True),
+]
+
+# Set of known field keys for quick lookup
+_KNOWN_TITLE_FIELDS = {field[0] for field in TITLE_PAGE_FIELD_ORDER}
 
 
 class HTMLRenderer:
@@ -36,31 +228,30 @@ class HTMLRenderer:
     screenplay layout conventions. It handles all Fountain element types and
     preserves formatting marks like bold, italic, and underline.
 
-    The renderer supports theming through CSS customization and provides a
-    default theme that mimics traditional screenplay appearance with Courier
-    font and proper margins.
+    The renderer provides three output modes:
 
-    Attributes:
-        theme: The CSS theme to use. Currently supports "default" theme.
+    - ``render(doc)`` — Pure HTML fragment for embedding (no CSS)
+    - ``render_page(doc)`` — Standalone HTML with embedded CSS
+    - ``get_css()`` — Raw CSS string for external stylesheet use
 
     CSS Classes Generated:
         - fountain-script: Main container for the entire screenplay
-        - title-page: Container for title page metadata
-        - script-body: Container for the main screenplay content
-        - scene-heading: Scene headers (INT/EXT)
-        - action: Action/description paragraphs
-        - character: Character names before dialogue
-        - dialogue: Spoken dialogue text
-        - parenthetical: Stage directions within dialogue
-        - transition: Scene transitions (CUT TO:, etc.)
-        - note: Production notes (hidden by default)
-        - boneyard: Deleted content (hidden)
-        - section: Section headers for organization
-        - synopsis: Scene synopsis (hidden by default)
-        - dual-dialogue: Container for simultaneous dialogue
-        - page-break: Page break markers
-        - centered: Centered text
-        - lyrics: Song lyrics with special formatting
+        - fountain-title-page: Container for title page metadata
+        - fountain-script-body: Container for the main screenplay content
+        - fountain-scene-heading: Scene headers (INT/EXT)
+        - fountain-action: Action/description paragraphs
+        - fountain-character: Character names before dialogue
+        - fountain-dialogue: Spoken dialogue text
+        - fountain-parenthetical: Stage directions within dialogue
+        - fountain-transition: Scene transitions (CUT TO:, etc.)
+        - fountain-note: Production notes (hidden by default)
+        - fountain-boneyard: Deleted content (hidden)
+        - fountain-section: Section headers for organization
+        - fountain-synopsis: Scene synopsis (hidden by default)
+        - fountain-dual-dialogue: Container for simultaneous dialogue
+        - fountain-page-break: Page break markers
+        - fountain-centered: Centered text
+        - fountain-lyrics: Song lyrics with special formatting
 
     Example:
         Render a simple screenplay to HTML:
@@ -80,53 +271,40 @@ class HTMLRenderer:
         ... ''')
         >>> renderer = HTMLRenderer()
         >>> html = renderer.render(doc)
-        >>> '<h1 class="title">My Screenplay</h1>' in html
+        >>> '<h1 class="fountain-title">My Screenplay</h1>' in html
         True
-        >>> '<div class="character">JOHN</div>' in html
+        >>> '<div class="fountain-character">JOHN</div>' in html
         True
     """
 
-    def __init__(self, theme: str = "default"):
-        """Initialize the HTML renderer with a theme.
-
-        Args:
-            theme: The CSS theme to use. Currently only "default" is supported,
-                which provides traditional screenplay formatting with Courier font
-                and industry-standard margins and spacing.
-        """
-        self.theme = theme
-
     def render(self, document: FountainDocument) -> str:
-        """Render a FountainDocument as HTML with screenplay formatting.
+        """Render a FountainDocument as an HTML fragment.
 
-        Converts a parsed Fountain document into a complete HTML document with
-        embedded CSS styling. The output includes proper screenplay formatting
-        with title page, scene headings, dialogue, and all other Fountain elements.
+        Returns a pure HTML fragment suitable for embedding in web pages,
+        documentation systems, or any context where CSS is managed externally.
+        Use ``render_page()`` for standalone HTML with embedded CSS.
 
         Args:
             document: The FountainDocument to render, containing parsed elements
                 and optional title page metadata.
 
         Returns:
-            A complete HTML string with embedded CSS that can be saved as an HTML
-            file or embedded in a web page. The HTML includes all necessary styling
-            for proper screenplay display.
+            An HTML fragment string containing the screenplay markup wrapped in a
+            ``<div class="fountain-script">`` container. Does not include
+            ``<style>`` tags or CSS.
 
         Example:
             >>> from fountain.parser import FountainParser
             >>> parser = FountainParser()
-            >>> doc = parser.parse("Title: Test\\n\\nFADE IN:\\n\\nINT. ROOM - DAY")
+            >>> doc = parser.parse("INT. ROOM - DAY\\n\\nAction here.")
             >>> renderer = HTMLRenderer()
             >>> html = renderer.render(doc)
-            >>> 'fountain-script' in html  # Check for main container
+            >>> '<div class="fountain-script">' in html
             True
-            >>> '<div class="transition">FADE IN:</div>' in html
+            >>> '<style>' not in html
             True
         """
         html_parts = []
-
-        # Add CSS
-        html_parts.append(self._get_css())
 
         # Add document wrapper
         html_parts.append('<div class="fountain-script">')
@@ -136,7 +314,7 @@ class HTMLRenderer:
             html_parts.append(self._render_title_page(document.metadata))
 
         # Add script body
-        html_parts.append('<div class="script-body">')
+        html_parts.append('<div class="fountain-script-body">')
 
         for element in document.elements:
             html_parts.append(self._render_element(element))
@@ -145,6 +323,54 @@ class HTMLRenderer:
         html_parts.append("</div>")  # fountain-script
 
         return "\n".join(html_parts)
+
+    def render_page(self, document: FountainDocument) -> str:
+        """Render a FountainDocument as a standalone HTML page with embedded CSS.
+
+        Returns a complete HTML string with a ``<style>`` block and the screenplay
+        fragment. Suitable for saving as a self-contained HTML file.
+
+        Args:
+            document: The FountainDocument to render.
+
+        Returns:
+            A complete HTML string with embedded CSS styling followed by the
+            screenplay markup.
+
+        Example:
+            >>> from fountain.parser import FountainParser
+            >>> parser = FountainParser()
+            >>> doc = parser.parse("INT. ROOM - DAY\\n\\nAction here.")
+            >>> renderer = HTMLRenderer()
+            >>> html = renderer.render_page(doc)
+            >>> '<style>' in html
+            True
+            >>> '<div class="fountain-script">' in html
+            True
+        """
+        css_block = f"<style>\n{DEFAULT_CSS}\n</style>"
+        fragment = self.render(document)
+        return f"{css_block}\n{fragment}"
+
+    def get_css(self) -> str:
+        """Return the raw CSS string for screenplay formatting.
+
+        Returns the CSS rules without ``<style>`` tags, so consumers can inject
+        the styles however they need (e.g., into an external stylesheet, a
+        ``<link>`` tag, or a build system's CSS pipeline).
+
+        Returns:
+            A string containing CSS rules for all Fountain element types.
+
+        Example:
+            >>> renderer = HTMLRenderer()
+            >>> css = renderer.get_css()
+            >>> '.fountain-script' in css
+            True
+            >>> '<style>' not in css
+            True
+        """
+        return DEFAULT_CSS
 
     def _render_title_page(self, metadata: dict[str, str]) -> str:
         """Render the title page metadata as HTML.
@@ -166,94 +392,30 @@ class HTMLRenderer:
             Multi-line fields like 'contact' and 'notes' are preserved with
             line breaks converted to HTML <br> tags.
         """
-        html_parts = ['<div class="title-page">']
+        html_parts = ['<div class="fountain-title-page">']
 
-        # Primary title information
-        if "title" in metadata:
-            html_parts.append(f'<h1 class="title">{self._escape_html(metadata["title"])}</h1>')
+        # Render known fields in defined order
+        rendered_keys: set[str] = set()
+        for key, css_class, tag, prefix, multiline in TITLE_PAGE_FIELD_ORDER:
+            if key not in metadata:
+                continue
+            # Skip 'authors' if 'author' was already rendered (they share a slot)
+            if key == "authors" and "author" in metadata:
+                continue
+            rendered_keys.add(key)
+            value_html = self._escape_html(metadata[key])
+            if multiline:
+                value_html = value_html.replace("\n", "<br>")
+            html_parts.append(f'<{tag} class="{css_class}">{prefix}{value_html}</{tag}>')
 
-        # Author information (handle both 'author' and 'authors')
-        if "author" in metadata:
-            html_parts.append(f'<p class="author">by {self._escape_html(metadata["author"])}</p>')
-        elif "authors" in metadata:
-            html_parts.append(f'<p class="author">by {self._escape_html(metadata["authors"])}</p>')
-
-        # Credit and attribution
-        if "credit" in metadata:
-            html_parts.append(f'<p class="credit">{self._escape_html(metadata["credit"])}</p>')
-
-        if "source" in metadata:
-            html_parts.append(f'<p class="source">{self._escape_html(metadata["source"])}</p>')
-
-        # Production information
-        if "writers" in metadata:
-            html_parts.append(f'<p class="writers">Writers: {self._escape_html(metadata["writers"])}</p>')
-
-        if "producer" in metadata:
-            html_parts.append(f'<p class="producer">Producer: {self._escape_html(metadata["producer"])}</p>')
-
-        if "director" in metadata:
-            html_parts.append(f'<p class="director">Director: {self._escape_html(metadata["director"])}</p>')
-
-        # Version and date information
-        if "draft date" in metadata:
-            html_parts.append(f'<p class="draft-date">{self._escape_html(metadata["draft date"])}</p>')
-
-        if "date" in metadata:
-            html_parts.append(f'<p class="date">{self._escape_html(metadata["date"])}</p>')
-
-        if "revised" in metadata:
-            html_parts.append(f'<p class="revised">Revised: {self._escape_html(metadata["revised"])}</p>')
-
-        if "version" in metadata:
-            html_parts.append(f'<p class="version">Version: {self._escape_html(metadata["version"])}</p>')
-
-        if "format" in metadata:
-            html_parts.append(f'<p class="format">Format: {self._escape_html(metadata["format"])}</p>')
-
-        if "created" in metadata:
-            html_parts.append(f'<p class="created">Created: {self._escape_html(metadata["created"])}</p>')
-
-        # Contact and legal information
-        if "contact" in metadata:
-            # Handle multi-line contact information
-            contact_html = self._escape_html(metadata["contact"]).replace("\n", "<br>")
-            html_parts.append(f'<p class="contact">{contact_html}</p>')
-
-        if "copyright" in metadata:
-            html_parts.append(f'<p class="copyright">{self._escape_html(metadata["copyright"])}</p>')
-
-        if "notes" in metadata:
-            # Handle multi-line notes
-            notes_html = self._escape_html(metadata["notes"]).replace("\n", "<br>")
-            html_parts.append(f'<p class="notes">{notes_html}</p>')
-
-        # Render any custom/unknown metadata fields
-        known_fields = {
-            "title",
-            "author",
-            "authors",
-            "credit",
-            "source",
-            "writers",
-            "producer",
-            "director",
-            "draft date",
-            "date",
-            "revised",
-            "version",
-            "format",
-            "created",
-            "contact",
-            "copyright",
-            "notes",
-        }
+        # Render any custom/unknown metadata fields after known fields
         for key, value in metadata.items():
-            if key not in known_fields:
-                css_class = key.replace(" ", "-")
-                field_label = key.replace("_", " ").title()
-                value_html = self._escape_html(value).replace("\n", "<br>")
-                html_parts.append(f'<p class="custom-field {css_class}">{field_label}: {value_html}</p>')
+            if key in _KNOWN_TITLE_FIELDS:
+                continue
+            css_class = key.replace(" ", "-")
+            field_label = key.replace("_", " ").title()
+            value_html = self._escape_html(value).replace("\n", "<br>")
+            html_parts.append(f'<p class="fountain-custom-field {css_class}">{field_label}: {value_html}</p>')
 
         html_parts.append("</div>")
         return "\n".join(html_parts)
@@ -286,55 +448,57 @@ class HTMLRenderer:
             ... )
             >>> renderer = HTMLRenderer()
             >>> html = renderer._render_element(element)
-            >>> '<div class="character">SARAH <span class="character-extension">(V.O.)</span></div>' == html
+            >>> expected = '<div class="fountain-character">SARAH '
+            >>> expected += '<span class="fountain-character-extension">(V.O.)</span></div>'
+            >>> expected == html
             True
         """
         css_class = element.type.value.replace("_", "-")
         text = self._apply_formatting(element.text, element.formatting)
 
         if element.type == ElementType.SCENE_HEADING:
-            scene_html = f'<div class="scene-heading">{text}'
+            scene_html = f'<div class="fountain-scene-heading">{text}'
             if element.metadata and "scene_number" in element.metadata:
-                scene_html += f' <span class="scene-number">#{element.metadata["scene_number"]}#</span>'
+                scene_html += f' <span class="fountain-scene-number">#{element.metadata["scene_number"]}#</span>'
             scene_html += "</div>"
             return scene_html
         elif element.type == ElementType.ACTION:
             # Convert tabs to spaces and preserve leading whitespace
             text_with_spacing = text.replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
             text_with_br = text_with_spacing.replace("\n", "<br>")
-            return f'<div class="action">{text_with_br}</div>'
+            return f'<div class="fountain-action">{text_with_br}</div>'
         elif element.type == ElementType.CHARACTER:
-            char_html = f'<div class="character">{text}'
+            char_html = f'<div class="fountain-character">{text}'
             if element.metadata and "extension" in element.metadata:
-                char_html += f' <span class="character-extension">({element.metadata["extension"]})</span>'
+                char_html += f' <span class="fountain-character-extension">({element.metadata["extension"]})</span>'
             elif element.metadata and element.metadata.get("continuation"):
-                char_html += ' <span class="character-continuation">(CONT\'D)</span>'
+                char_html += ' <span class="fountain-character-continuation">(CONT\'D)</span>'
             char_html += "</div>"
             return char_html
         elif element.type == ElementType.DIALOGUE:
-            return f'<div class="dialogue">{text}</div>'
+            return f'<div class="fountain-dialogue">{text}</div>'
         elif element.type == ElementType.PARENTHETICAL:
-            return f'<div class="parenthetical">{text}</div>'
+            return f'<div class="fountain-parenthetical">{text}</div>'
         elif element.type == ElementType.TRANSITION:
-            return f'<div class="transition">{text}</div>'
+            return f'<div class="fountain-transition">{text}</div>'
         elif element.type == ElementType.NOTE:
-            return f'<div class="note">{text}</div>'
+            return f'<div class="fountain-note">{text}</div>'
         elif element.type == ElementType.BONEYARD:
-            return f'<div class="boneyard">{text}</div>'
+            return f'<div class="fountain-boneyard">{text}</div>'
         elif element.type == ElementType.SECTION:
-            return f'<div class="section">{text}</div>'
+            return f'<div class="fountain-section">{text}</div>'
         elif element.type == ElementType.SYNOPSIS:
-            return f'<div class="synopsis">{text}</div>'
+            return f'<div class="fountain-synopsis">{text}</div>'
         elif element.type == ElementType.DUAL_DIALOGUE:
             return self._render_dual_dialogue(element)
         elif element.type == ElementType.PAGE_BREAK:
-            return '<div class="page-break"></div>'
+            return '<div class="fountain-page-break"></div>'
         elif element.type == ElementType.CENTERED:
-            return f'<div class="centered">{text}</div>'
+            return f'<div class="fountain-centered">{text}</div>'
         elif element.type == ElementType.LYRICS:
-            return f'<div class="lyrics">{text}</div>'
+            return f'<div class="fountain-lyrics">{text}</div>'
         else:
-            return f'<div class="{css_class}">{text}</div>'
+            return f'<div class="fountain-{css_class}">{text}</div>'
 
     def _apply_formatting(self, text: str, formatting: list[FormatSpan]) -> str:
         """Apply formatting spans to text and escape HTML.
@@ -437,17 +601,17 @@ class HTMLRenderer:
         right_char = metadata["right_character"]
         right_dialogue = metadata["right_dialogue"]
 
-        html_parts = ['<div class="dual-dialogue">']
+        html_parts = ['<div class="fountain-dual-dialogue">']
 
         # Left column
-        html_parts.append('<div class="dual-dialogue-left">')
+        html_parts.append('<div class="fountain-dual-dialogue-left">')
         html_parts.append(self._render_element(left_char))
         for dialogue_element in left_dialogue:
             html_parts.append(self._render_element(dialogue_element))
         html_parts.append("</div>")
 
         # Right column
-        html_parts.append('<div class="dual-dialogue-right">')
+        html_parts.append('<div class="fountain-dual-dialogue-right">')
         html_parts.append(self._render_element(right_char))
         for dialogue_element in right_dialogue:
             html_parts.append(self._render_element(dialogue_element))
@@ -479,214 +643,7 @@ class HTMLRenderer:
             >>> renderer._escape_html("<script>alert('XSS')</script>")
             '&lt;script&gt;alert(&#x27;XSS&#x27;)&lt;/script&gt;'
         """
-        return (
-            text.replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace('"', "&quot;")
-            .replace("'", "&#x27;")
-        )
-
-    def _get_css(self) -> str:
-        """Get CSS styles for the chosen theme.
-
-        Returns embedded CSS styles that format the HTML output to look like
-        a traditional screenplay. The default theme uses Courier font and
-        follows industry-standard screenplay formatting conventions.
-
-        Returns:
-            A string containing a complete <style> tag with CSS rules for all
-            Fountain element types. The CSS includes:
-            - Courier font family for authentic screenplay appearance
-            - Proper margins and spacing (70% max-width, 1in padding)
-            - Element-specific formatting (centered dialogue, uppercase scenes)
-            - Special handling for notes and boneyard (hidden by default)
-            - Responsive dual dialogue layout
-            - Print-friendly page breaks
-
-        Note:
-            Currently only the "default" theme is implemented. Future versions
-            may support additional themes for different screenplay formats or
-            custom styling needs.
-
-        CSS Customization:
-            Users can override these styles by adding their own CSS after the
-            generated HTML or by implementing a custom renderer subclass.
-        """
-        if self.theme == "default":
-            return """
-<style>
-.fountain-script {
-    font-family: 'Courier New', 'Courier', monospace;
-    font-size: 12pt;
-    line-height: 1.2;
-    max-width: 70%;
-    margin: 0 auto;
-    padding: 1in;
-    background: white;
-    color: black;
-}
-
-.title-page {
-    text-align: center;
-    margin-bottom: 3in;
-}
-
-.title-page .title {
-    font-size: 24pt;
-    font-weight: bold;
-    margin-bottom: 1in;
-    text-transform: uppercase;
-}
-
-.title-page .author {
-    font-size: 14pt;
-    margin-bottom: 0.5in;
-}
-
-.title-page .credit,
-.title-page .source,
-.title-page .draft-date,
-.title-page .contact,
-.title-page .writers,
-.title-page .producer,
-.title-page .director,
-.title-page .date,
-.title-page .revised,
-.title-page .version,
-.title-page .format,
-.title-page .created,
-.title-page .copyright,
-.title-page .notes {
-    font-size: 12pt;
-    margin-bottom: 0.25in;
-}
-
-.title-page .notes,
-.title-page .contact {
-    white-space: pre-line;
-}
-
-.script-body {
-    page-break-before: always;
-}
-
-.scene-heading {
-    font-weight: bold;
-    text-transform: uppercase;
-    margin-top: 2em;
-    margin-bottom: 1em;
-}
-
-.action {
-    margin-bottom: 1em;
-    text-align: left;
-}
-
-.character {
-    text-align: center;
-    font-weight: bold;
-    text-transform: uppercase;
-    margin-top: 1em;
-    margin-bottom: 0;
-}
-
-.dialogue {
-    text-align: center;
-    margin: 0 auto 1em auto;
-}
-
-.parenthetical {
-    text-align: center;
-    font-style: italic;
-    margin: 0 auto;
-}
-
-.transition {
-    text-align: right;
-    font-weight: bold;
-    text-transform: uppercase;
-    margin-top: 1em;
-    margin-bottom: 1em;
-}
-
-.note {
-    font-style: italic;
-    color: #666;
-    margin: 0.5em 0;
-}
-
-.boneyard {
-    display: none;
-}
-
-.section {
-    font-weight: bold;
-    font-size: 14pt;
-    margin: 2em 0 1em 0;
-    text-transform: uppercase;
-}
-
-.synopsis {
-    font-style: italic;
-    color: #666;
-    margin: 0.5em 0;
-}
-
-.scene-number {
-    font-weight: normal;
-    color: #888;
-    font-size: 10pt;
-}
-
-.character-extension,
-.character-continuation {
-    font-weight: normal;
-    font-size: 10pt;
-}
-
-.dual-dialogue {
-    display: flex;
-    margin: 1em 0;
-}
-
-.dual-dialogue-left,
-.dual-dialogue-right {
-    flex: 1;
-    padding: 0 1em;
-}
-
-.dual-dialogue-left {
-    border-right: 1px solid #ddd;
-}
-
-.page-break {
-    page-break-before: always;
-    border-top: 2px solid #ccc;
-    margin: 2em 0;
-    height: 0;
-}
-
-.centered {
-    text-align: center;
-    margin: 1em 0;
-}
-
-.lyrics {
-    text-align: center;
-    font-style: italic;
-    margin: 0.5em auto;
-    color: #444;
-}
-</style>
-"""
-        else:
-            # Fallback to default theme
-            old_theme = self.theme
-            self.theme = "default"
-            css = self._get_css()
-            self.theme = old_theme
-            return css
+        return html_module.escape(text, quote=True)
 
 
 class FountainRenderer:
@@ -791,38 +748,16 @@ class FountainRenderer:
         """
         title_parts = []
 
-        # Render supported title page fields in a logical order
-        title_order = [
-            "title",
-            "author",
-            "authors",
-            "credit",
-            "source",
-            "writers",
-            "producer",
-            "director",
-            "copyright",
-            "notes",
-            "contact",
-            "draft date",
-            "date",
-            "revised",
-            "version",
-            "format",
-            "created",
-        ]
-
-        for field in title_order:
-            if field in metadata:
-                value = metadata[field]
-                # Capitalize first letter of field for display
-                field_name = field.replace("_", " ").title()
+        # Render known fields in the shared ordering
+        for key, _css_class, _tag, _prefix, _multiline in TITLE_PAGE_FIELD_ORDER:
+            if key in metadata:
+                value = metadata[key]
+                field_name = key.replace("_", " ").title()
                 title_parts.append(f"{field_name}: {value}")
 
         # Render any custom/unknown metadata fields
-        title_order_set = set(title_order)
         for key, value in metadata.items():
-            if key not in title_order_set:
+            if key not in _KNOWN_TITLE_FIELDS:
                 field_name = key.replace("_", " ").title()
                 title_parts.append(f"{field_name}: {value}")
 
@@ -979,95 +914,3 @@ class FountainRenderer:
         # This is a limitation of the current approach - we lose the exact
         # original formatting markup positions during parsing
         return text
-
-
-# Example: Creating a Custom Renderer
-# ===================================
-#
-# To create a custom renderer, inherit from a base class or create your own:
-#
-# Example of a Markdown renderer:
-#
-# class MarkdownRenderer:
-#     \"\"\"Render Fountain documents as Markdown.
-#
-#     Example:
-#         >>> from fountain.parser import FountainParser
-#         >>> parser = FountainParser()
-#         >>> doc = parser.parse("INT. HOUSE - DAY\\n\\nAction here.")
-#         >>> renderer = MarkdownRenderer()
-#         >>> md = renderer.render(doc)
-#         >>> '## INT. HOUSE - DAY' in md
-#         True
-#         >>> 'Action here.' in md
-#         True
-#     \"\"\"
-#
-#     def render(self, document: FountainDocument) -> str:
-#         \"\"\"Render document as Markdown.\"\"\"
-#         md_parts = []
-#
-#         # Add title if present
-#         if document.metadata and "title" in document.metadata:
-#             md_parts.append(f"# {document.metadata['title']}")
-#             if "author" in document.metadata:
-#                 md_parts.append(f"*by {document.metadata['author']}*")
-#             md_parts.append("")
-#
-#         # Render elements
-#         for element in document.elements:
-#             if element.type == ElementType.SCENE_HEADING:
-#                 md_parts.append(f"## {element.text}")
-#             elif element.type == ElementType.ACTION:
-#                 md_parts.append(element.text)
-#             elif element.type == ElementType.CHARACTER:
-#                 md_parts.append(f"**{element.text}**")
-#             elif element.type == ElementType.DIALOGUE:
-#                 md_parts.append(f"> {element.text}")
-#             elif element.type == ElementType.PARENTHETICAL:
-#                 md_parts.append(f"*{element.text}*")
-#             elif element.type == ElementType.TRANSITION:
-#                 md_parts.append(f"### {element.text}")
-#             elif element.type == ElementType.NOTE:
-#                 md_parts.append(f"<!-- {element.text} -->")
-#             else:
-#                 md_parts.append(element.text)
-#             md_parts.append("")
-#
-#         return "\\n".join(md_parts)
-#
-#
-# Example of a JSON statistics renderer:
-#
-# class StatsRenderer:
-#     \"\"\"Render document statistics as JSON.
-#
-#     Example:
-#         >>> import json
-#         >>> from fountain.parser import FountainParser
-#         >>> parser = FountainParser()
-#         >>> doc = parser.parse("INT. HOUSE\\n\\nJOHN\\nHello\\n\\nSARAH\\nHi\")
-#         >>> renderer = StatsRenderer()
-#         >>> stats_json = renderer.render(doc)
-#         >>> stats = json.loads(stats_json)
-#         >>> stats["total_elements"]
-#         4
-#         >>> sorted(stats["characters"])
-#         ['JOHN', 'SARAH']
-#     \"\"\"
-#
-#     def render(self, document: FountainDocument) -> str:
-#         \"\"\"Generate statistics JSON.\"\"\"
-#         import json
-#
-#         stats = document.get_statistics()
-#         stats["characters"] = list(document.get_characters())
-#
-#         # Add scene list
-#         scenes = []
-#         for element in document.elements:
-#             if element.type == ElementType.SCENE_HEADING:
-#                 scenes.append(element.text)
-#         stats["scenes"] = scenes
-#
-#         return json.dumps(stats, indent=2)

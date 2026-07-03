@@ -24,6 +24,7 @@ Example:
 """
 
 import json
+from collections import Counter
 from typing import Any, Optional
 
 from fountain.elements import ElementType, FountainElement
@@ -295,36 +296,33 @@ class FountainDocument:
                 >>> stats['action_count']
                 1
         """
-        stats = {
+        type_counts = Counter(el.type for el in self.elements)
+
+        stats: dict[str, int] = {
             "total_elements": len(self.elements),
             "characters": len(self.get_characters()),
             "scenes": len(self.get_scenes()),
         }
 
-        # Count by element type
         for element_type in ElementType:
-            count = sum(1 for el in self.elements if el.type == element_type)
-            stats[f"{element_type.value}_count"] = count
+            stats[f"{element_type.value}_count"] = type_counts.get(element_type, 0)
 
         return stats
 
-    def to_html(self, theme: str = "default") -> str:
-        """Convert the document to HTML format using the specified theme.
+    def to_html(self) -> str:
+        """Convert the document to a standalone HTML page with embedded CSS.
 
         Renders the entire document as properly formatted HTML suitable for
-        display in web browsers or HTML viewers. The output includes appropriate
-        CSS classes for styling and maintains the screenplay format structure.
-
-        Args:
-            theme: Theme name for styling the HTML output (default: "default")
+        saving as a self-contained HTML file. The output includes embedded CSS
+        styling and maintains the screenplay format structure.
 
         Returns:
-            Complete HTML string representation of the document.
+            Complete HTML string with embedded CSS, suitable for saving to a file.
 
         Note:
-            This method creates an HTMLRenderer instance and delegates rendering
-            to it. Different themes may produce different visual presentations
-            while maintaining the same semantic structure.
+            This method creates an HTMLRenderer instance and delegates to
+            ``render_page()``. For an HTML fragment without CSS (e.g., for
+            embedding in another page), use ``HTMLRenderer.render()`` directly.
 
         Example:
             Converting to HTML::
@@ -341,10 +339,10 @@ class FountainDocument:
                 True
                 >>> 'A simple room.' in html
                 True
-                >>> '<div class=' in html or '<p class=' in html  # Has CSS classes
+                >>> '<style>' in html
                 True
         """
         from fountain.renderer import HTMLRenderer
 
-        renderer = HTMLRenderer(theme)
-        return renderer.render(self)
+        renderer = HTMLRenderer()
+        return renderer.render_page(self)

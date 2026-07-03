@@ -1,3 +1,5 @@
+# ABOUTME: Tests validating all code examples from the quickstart documentation.
+# Ensures documentation examples produce correct output and stay in sync with the API.
 #!/usr/bin/env python3
 """Test all code examples from the quickstart documentation."""
 

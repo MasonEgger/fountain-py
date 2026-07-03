@@ -21,9 +21,14 @@ Example:
         'INT. COFFEE SHOP - DAY'
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, NamedTuple, Optional
+from typing import Any, Literal, NamedTuple, Union
+
+FormatType = Literal["bold", "italic", "underline", "bold_italic"]
+MetadataValue = Union[str, int, bool, list["FountainElement"], "FountainElement", None]
 
 
 class ElementType(Enum):
@@ -125,7 +130,7 @@ class FormatSpan(NamedTuple):
 
     start: int
     end: int
-    format_type: str  # 'bold', 'italic', 'underline'
+    format_type: FormatType
 
 
 @dataclass
@@ -201,7 +206,7 @@ class FountainElement:
     text: str
     formatting: list[FormatSpan]
     line_number: int
-    metadata: Optional[dict[str, Any]] = None
+    metadata: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         """Initialize metadata dictionary if None was provided.

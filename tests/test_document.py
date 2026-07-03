@@ -1,3 +1,5 @@
+# ABOUTME: Tests for FountainDocument analysis and container methods.
+# Covers character extraction, scene listing, statistics, and document-level operations.
 """
 Tests for the FountainDocument class.
 """
@@ -124,13 +126,14 @@ class TestFountainDocument:
         elements = [FountainElement(ElementType.ACTION, "Some action", [], 1)]
         document = FountainDocument(elements)
         html = document.to_html()
-        assert '<div class="action">' in html
+        assert '<div class="fountain-action">' in html
 
-    def test_to_html_with_theme(self):
-        """Test to_html with custom theme (lines 84-87)."""
+    def test_to_html_returns_standalone_page(self):
+        """Test that to_html returns a full page with embedded CSS."""
         document = FountainDocument([])
-        html = document.to_html(theme="custom")
+        html = document.to_html()
         assert "<style>" in html
+        assert ".fountain-script" in html
 
     def test_lyrics_in_statistics(self):
         """Test that lyrics are included in document statistics."""

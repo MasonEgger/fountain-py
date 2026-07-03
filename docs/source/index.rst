@@ -60,14 +60,13 @@ Parse a script and extract insights in just a few lines:
    # Analyze the script
    characters = document.get_characters()
    stats = document.get_statistics()
-   print(f"Pages: {stats['pages']:.1f}")
    print(f"Scenes: {stats['scenes']}")
-   print(f"Characters: {', '.join(characters[:5])}")
-   
-   # Render to HTML
+   print(f"Characters: {', '.join(sorted(characters)[:5])}")
+
+   # Render to standalone HTML with embedded CSS
    renderer = HTMLRenderer()
-   html = renderer.render(document)
-   
+   html = renderer.render_page(document)
+
    # Save the formatted screenplay
    with open("big_fish.html", "w") as f:
        f.write(html)

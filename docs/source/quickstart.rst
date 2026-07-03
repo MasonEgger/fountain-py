@@ -316,7 +316,7 @@ Here's a complete example that ties everything together:
                'characters': sorted(document.get_characters()),
                'scenes': document.get_scenes(),
                'scene_count': len(document.get_scenes()),
-               'page_estimate': document.get_statistics().get('dialogue', 0) // 20  # Rough estimate
+               'page_estimate': document.get_statistics().get('dialogue_count', 0) // 20  # Rough estimate
            }
            
            # Generate HTML version

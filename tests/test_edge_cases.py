@@ -883,3 +883,19 @@ class TestSpecCompliance:
         bold_spans = [s for s in elem.formatting if s.format_type == "bold"]
         assert len(bold_spans) == 1
         assert "Normal" in elem.text
+
+    def test_dialogue_not_broken_by_regular_text(self):
+        """Regular text following a character name should be dialogue, not action."""
+        doc = self.parser.parse("JOHN\nHello.\nMore dialogue.")
+        types = [el.type for el in doc.elements]
+        assert types[0] == ElementType.CHARACTER
+        assert types[1] == ElementType.DIALOGUE
+        assert types[2] == ElementType.DIALOGUE
+
+    def test_dialogue_broken_by_scene_heading(self):
+        """A scene heading after dialogue should break the dialogue context."""
+        doc = self.parser.parse("\n\nJOHN\nHello.\n\nINT. HOUSE - DAY")
+        types = [el.type for el in doc.elements]
+        assert ElementType.CHARACTER in types
+        assert ElementType.DIALOGUE in types
+        assert ElementType.SCENE_HEADING in types

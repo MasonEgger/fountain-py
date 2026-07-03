@@ -33,7 +33,7 @@ The rendering architecture follows a strategy pattern design that makes it easy 
     >>> # Check for basic HTML structure
     >>> '<div class="fountain-script">' in html
     True
-    >>> '<h1 class="title">My Screenplay</h1>' in html
+    >>> '<h1 class="fountain-title">My Screenplay</h1>' in html
     True
 
 HTML Rendering
@@ -60,11 +60,11 @@ Basic HTML Rendering
     >>> html = renderer.render(document)
     >>> 
     >>> # Scene heading with proper CSS class
-    >>> '<div class="scene-heading">INT. KITCHEN - MORNING</div>' in html
+    >>> '<div class="fountain-scene-heading">INT. KITCHEN - MORNING</div>' in html
     True
-    >>> '<div class="character">JOHN</div>' in html
+    >>> '<div class="fountain-character">JOHN</div>' in html
     True
-    >>> '<div class="dialogue">Good morning!</div>' in html
+    >>> '<div class="fountain-dialogue">Good morning!</div>' in html
     True
 
 Title Page Rendering
@@ -89,13 +89,13 @@ The renderer automatically formats title page metadata into a traditional screen
     >>> html = renderer.render(document)
     >>> 
     >>> # Title page elements
-    >>> '<div class="title-page">' in html
+    >>> '<div class="fountain-title-page">' in html
     True
-    >>> '<h1 class="title">The Amazing Story</h1>' in html
+    >>> '<h1 class="fountain-title">The Amazing Story</h1>' in html
     True
-    >>> '<p class="author">by John Doe</p>' in html
+    >>> '<p class="fountain-author">by John Doe</p>' in html
     True
-    >>> '<p class="draft-date">2025-01-20</p>' in html
+    >>> '<p class="fountain-draft-date">2025-01-20</p>' in html
     True
 
 Advanced Element Rendering
@@ -119,15 +119,15 @@ The renderer handles all Fountain element types with appropriate formatting:
     >>> html = renderer.render(document)
     >>> 
     >>> # Scene numbers
-    >>> '<span class="scene-number">#1#</span>' in html
+    >>> '<span class="fountain-scene-number">#1#</span>' in html
     True
-    >>> 
+    >>>
     >>> # Character extensions
-    >>> '<span class="character-extension">(V.O.)</span>' in html
+    >>> '<span class="fountain-character-extension">(V.O.)</span>' in html
     True
-    >>> 
+    >>>
     >>> # Dual dialogue (side-by-side layout)
-    >>> '<div class="dual-dialogue">' in html
+    >>> '<div class="fountain-dual-dialogue">' in html
     True
     >>> 
     >>> # Inline formatting (preserves original markup)
@@ -135,7 +135,7 @@ The renderer handles all Fountain element types with appropriate formatting:
     True
     >>> 
     >>> # Centered text
-    >>> '<div class="centered">THE END</div>' in html
+    >>> '<div class="fountain-centered">THE END</div>' in html
     True
 
 CSS Classes and Styling
@@ -143,34 +143,34 @@ CSS Classes and Styling
 
 The HTMLRenderer generates CSS classes for each element type:
 
-============== ============================= ================================================
-Element Type   CSS Class                     Description
-============== ============================= ================================================
-Title Page     ``.title-page``               Container for all title page metadata
-               ``.title``                    Main screenplay title (24pt, uppercase)
-               ``.author``                   Author name(s)
-               ``.draft-date``               Draft date and version info
-Script Body    ``.fountain-script``          Main container (Courier font, 70% width)
-               ``.script-body``              Container for screenplay elements
-Scenes         ``.scene-heading``            Scene headers (bold, uppercase)
-               ``.scene-number``             Scene numbers (#1#, smaller font)
-Dialogue       ``.character``                Character names (centered, bold, uppercase)
-               ``.dialogue``                 Spoken words (centered)
-               ``.parenthetical``            Stage directions (centered, italic)
-               ``.character-extension``      V.O., O.S., etc. (smaller font)
-               ``.dual-dialogue``            Container for simultaneous dialogue
-               ``.dual-dialogue-left``       Left column for dual dialogue
-               ``.dual-dialogue-right``      Right column for dual dialogue
-Action/Other   ``.action``                   Narrative text (left-aligned)
-               ``.transition``               Scene transitions (right-aligned, bold, uppercase)
-               ``.note``                     Production notes (italic, gray)
-               ``.boneyard``                 Deleted content (hidden by default)
-               ``.section``                  Section headers (bold, 14pt, uppercase)
-               ``.synopsis``                 Scene synopsis (italic, gray)
-               ``.page-break``               Forced page breaks
-               ``.centered``                 Centered text
-               ``.lyrics``                   Song lyrics (centered, italic)
-============== ============================= ================================================
+============== ====================================== ================================================
+Element Type   CSS Class                              Description
+============== ====================================== ================================================
+Title Page     ``.fountain-title-page``               Container for all title page metadata
+               ``.fountain-title``                    Main screenplay title (24pt, uppercase)
+               ``.fountain-author``                   Author name(s)
+               ``.fountain-draft-date``               Draft date and version info
+Script Body    ``.fountain-script``                   Main container (Courier font, 70% width)
+               ``.fountain-script-body``              Container for screenplay elements
+Scenes         ``.fountain-scene-heading``            Scene headers (bold, uppercase)
+               ``.fountain-scene-number``             Scene numbers (#1#, smaller font)
+Dialogue       ``.fountain-character``                Character names (centered, bold, uppercase)
+               ``.fountain-dialogue``                 Spoken words (centered)
+               ``.fountain-parenthetical``            Stage directions (centered, italic)
+               ``.fountain-character-extension``      V.O., O.S., etc. (smaller font)
+               ``.fountain-dual-dialogue``            Container for simultaneous dialogue
+               ``.fountain-dual-dialogue-left``       Left column for dual dialogue
+               ``.fountain-dual-dialogue-right``      Right column for dual dialogue
+Action/Other   ``.fountain-action``                   Narrative text (left-aligned)
+               ``.fountain-transition``               Scene transitions (right-aligned, bold, uppercase)
+               ``.fountain-note``                     Production notes (italic, gray)
+               ``.fountain-boneyard``                 Deleted content (hidden by default)
+               ``.fountain-section``                  Section headers (bold, 14pt, uppercase)
+               ``.fountain-synopsis``                 Scene synopsis (italic, gray)
+               ``.fountain-page-break``               Forced page breaks
+               ``.fountain-centered``                 Centered text
+               ``.fountain-lyrics``                   Song lyrics (centered, italic)
+============== ====================================== ================================================
 
 The default theme uses Courier New font with traditional screenplay spacing and can be customized through CSS.
 
@@ -234,21 +234,30 @@ HTML output can be saved to files for viewing or printing:
     parser = FountainParser()
     document = parser.parse_file("screenplay.fountain")
     renderer = HTMLRenderer()
-    html = renderer.render(document)
-    
+    # render_page() returns standalone HTML with embedded CSS
+    html = renderer.render_page(document)
+
     # Save as HTML file
     with open("screenplay.html", "w", encoding="utf-8") as f:
         f.write(html)
-    
-    # The generated HTML is self-contained with embedded CSS
-    print("Screenplay saved as screenplay.html")
 
-The generated HTML includes all necessary CSS and can be:
+    # render() returns a fragment for embedding (no CSS)
+    fragment = renderer.render(document)
+
+    # get_css() returns raw CSS for external stylesheets
+    css = renderer.get_css()
+
+The ``render_page()`` output includes all necessary CSS and can be:
 
 - Opened in any web browser
 - Printed with proper screenplay formatting
-- Embedded in web pages or documentation
 - Used as input for PDF conversion tools
+
+The ``render()`` fragment is ideal for:
+
+- Embedding in web pages or documentation
+- Use with mkdocs or other static site generators
+- Any context where CSS is managed externally
 
 Fountain Round-Trip Conversion
 ------------------------------
@@ -322,24 +331,21 @@ Round-Trip Capabilities and Limitations
     >>> doc1.elements[0].type == doc2.elements[0].type
     True
 
-Working with Renderer Configuration
-------------------------------------
+Working with the Rendering API
+-------------------------------
 
-The HTMLRenderer supports basic theming and configuration:
+The HTMLRenderer provides three output modes for different use cases:
 
 .. doctest::
 
-    >>> # Initialize with default theme
-    >>> renderer = HTMLRenderer(theme="default")
-    >>> renderer.theme
-    'default'
-    >>> 
-    >>> # All themes currently resolve to default
-    >>> custom_renderer = HTMLRenderer(theme="custom")
-    >>> custom_renderer.theme
-    'custom'
-
-Currently, only the "default" theme is implemented, but the architecture supports future theme additions.
+    >>> renderer = HTMLRenderer()
+    >>>
+    >>> # get_css() returns raw CSS for external use
+    >>> css = renderer.get_css()
+    >>> '.fountain-script' in css
+    True
+    >>> '<style>' not in css
+    True
 
 Creating Custom Renderers
 --------------------------
@@ -399,10 +405,10 @@ Here's a comprehensive example showing the full rendering workflow:
     parser = FountainParser()
     document = parser.parse_file("my_screenplay.fountain")
     
-    # Generate HTML for web display
+    # Generate standalone HTML with embedded CSS
     html_renderer = HTMLRenderer()
-    html = html_renderer.render(document)
-    
+    html = html_renderer.render_page(document)
+
     # Save HTML version
     with open("my_screenplay.html", "w", encoding="utf-8") as f:
         f.write(html)
@@ -449,7 +455,7 @@ Renderers are designed to be robust and handle edge cases gracefully:
     >>> # Document with only metadata
     >>> metadata_only = parser.parse("Title: Empty Script\nAuthor: Test")
     >>> html = renderer.render(metadata_only)
-    >>> '<h1 class="title">Empty Script</h1>' in html
+    >>> '<h1 class="fountain-title">Empty Script</h1>' in html
     True
 
 Next Steps

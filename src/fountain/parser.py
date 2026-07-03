@@ -159,6 +159,24 @@ class FountainParser:
     # Example: "~Happy birthday to you" for lyrics
     LYRICS_PATTERN = re.compile(r"^~(.+)$")
 
+    # Structural patterns used by _is_dialogue_following to detect non-dialogue elements.
+    # If the next line matches any of these, it's structural — not dialogue.
+    STRUCTURAL_PATTERNS: tuple[re.Pattern[str], ...] = (
+        SCENE_HEADING_PATTERN,
+        FORCED_SCENE_HEADING_PATTERN,
+        TRANSITION_PATTERN,
+        FORCED_TRANSITION_PATTERN,
+        CHARACTER_PATTERN,
+        DUAL_CHARACTER_PATTERN,
+        FORCED_CHARACTER_PATTERN,
+        CHARACTER_EXTENSION_PATTERN,
+        SECTION_PATTERN,
+        SYNOPSIS_PATTERN,
+        PAGE_BREAK_PATTERN,
+        CENTERED_PATTERN,
+        FORCED_ACTION_PATTERN,
+    )
+
     # Inline Formatting Patterns
     # These patterns handle Fountain's inline text formatting similar to Markdown
 
@@ -831,22 +849,9 @@ class FountainParser:
             next_line = self.lines[next_line_idx].strip()
             if next_line:
                 # It's dialogue if it's not another structural element
-                return not (
-                    self.SCENE_HEADING_PATTERN.match(next_line)
-                    or self.FORCED_SCENE_HEADING_PATTERN.match(next_line)
-                    or self.TRANSITION_PATTERN.match(next_line)
-                    or self.FORCED_TRANSITION_PATTERN.match(next_line)
-                    or self.CHARACTER_PATTERN.match(next_line)
-                    or self.DUAL_CHARACTER_PATTERN.match(next_line)
-                    or self.FORCED_CHARACTER_PATTERN.match(next_line)
-                    or self.CHARACTER_EXTENSION_PATTERN.match(next_line)
-                    or self.SECTION_PATTERN.match(next_line)
-                    or self.SYNOPSIS_PATTERN.match(next_line)
-                    or self.PAGE_BREAK_PATTERN.match(next_line)
-                    or self.CENTERED_PATTERN.match(next_line)
-                    or self.FORCED_ACTION_PATTERN.match(next_line)
-                    or (next_line.startswith("[[") and next_line.endswith("]]"))
-                )
+                is_structural = any(p.match(next_line) for p in self.STRUCTURAL_PATTERNS)
+                is_standalone_note = next_line.startswith("[[") and next_line.endswith("]]")
+                return not (is_structural or is_standalone_note)
             next_line_idx += 1
         return False
 
