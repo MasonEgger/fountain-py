@@ -95,6 +95,7 @@ Project Links
 
 - **GitHub Repository**: `github.com/MasonEgger/fountain-py <https://github.com/MasonEgger/fountain-py>`_
 - **PyPI Package**: `pypi.org/project/fountain-py <https://pypi.org/project/fountain-py/>`_
+- **Documentation**: `masonegger.github.io/fountain-py <https://masonegger.github.io/fountain-py/>`_
 - **Issue Tracker**: `Report bugs or request features <https://github.com/MasonEgger/fountain-py/issues>`_
 
 Documentation

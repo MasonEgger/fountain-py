@@ -6,16 +6,16 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-A Python library for parsing [Fountain markup](https://fountain.io/), the screenwriting format. Fountain-Py converts Fountain scripts into structured Python objects and can render them as HTML or other formats.
+A Python library for parsing [Fountain markup](https://fountain.io/), the screenwriting format. Fountain-Py converts Fountain scripts into structured Python objects and can render them as HTML.
 
 ## Features
 
-- **Complete Fountain Support**: Parses all major Fountain elements including scenes, dialogue, action, transitions, and more
-- **Type-Safe**: Built with full type hints and mypy compatibility  
-- **Extensible**: Plugin architecture for custom renderers and output formats
-- **Fast**: Efficient regex-based parsing with minimal dependencies
-- **Well-Tested**: Comprehensive test suite with high coverage
-- **Modern Python**: Supports Python 3.9+ (3.9, 3.10, 3.11, 3.12, 3.13)
+- **Full Fountain Spec Compliance**: Parses all Fountain elements including scenes, dialogue, action, transitions, notes, dual dialogue, lyrics, and more
+- **Type-Safe**: Built with full type hints and strict mypy compliance
+- **Multiple Render Modes**: HTML fragments for embedding, full pages with CSS, or raw CSS for custom styling
+- **Zero Dependencies**: Pure Python with no runtime dependencies
+- **Well-Tested**: 241 tests, 99% coverage, doctests across all modules
+- **Modern Python**: Supports Python 3.9 through 3.13
 
 ## Quick Start
 
@@ -29,72 +29,107 @@ pip install fountain-py
 
 ```python
 from fountain import FountainParser
+from fountain.renderer import HTMLRenderer
 
 # Parse a Fountain script
 parser = FountainParser()
-with open("script.fountain", "r") as f:
-    document = parser.parse(f.read())
+document = parser.parse("""Title: My Screenplay
+Author: Jane Writer
 
-# Access parsed elements
-print(f"Title: {document.title}")
-print(f"Characters: {document.get_characters()}")
+INT. COFFEE SHOP - DAY
 
-# Render as HTML
-from fountain.renderer import HTMLRenderer
+SARAH enters, looking tired.
+
+SARAH
+One large cappuccino, please!
+""")
+
+# Access parsed data
+print(document.metadata["title"])       # "My Screenplay"
+print(document.get_characters())        # ["SARAH"]
+print(len(document.elements))           # 3
+
+# Render as HTML fragment (for embedding in web pages)
 renderer = HTMLRenderer()
-html_output = renderer.render(document)
+html_fragment = renderer.render(document)
+
+# Render as standalone HTML file with embedded CSS
+html_page = renderer.render_page(document)
+
+# Get raw CSS for external stylesheets
+css = renderer.get_css()
 ```
 
-### Command Line Usage
+### Rendering Modes
 
-```bash
-# Convert Fountain to HTML
-python -m fountain script.fountain --output script.html
+```python
+renderer = HTMLRenderer()
 
-# Get script statistics
-python -m fountain script.fountain --stats
+# Fragment — no <style> tags, just the screenplay markup
+# Use this for embedding in web pages, docs, or CMS systems
+fragment = renderer.render(document)
+
+# Full page — self-contained HTML with embedded CSS
+# Use this for saving as .html files or previewing
+page = renderer.render_page(document)
+
+# Raw CSS — for custom stylesheet integration
+# Use this with mkdocs, static site generators, or your own build pipeline
+css = renderer.get_css()
+```
+
+### Round-Trip Conversion
+
+```python
+from fountain.renderer import FountainRenderer
+
+# Convert back to Fountain markup
+fountain_renderer = FountainRenderer()
+fountain_text = fountain_renderer.render(document)
 ```
 
 ## Documentation
 
-Full documentation is available at [fountain-py.readthedocs.io](https://fountain-py.readthedocs.io).
+Full documentation is available at [masonegger.github.io/fountain-py](https://masonegger.github.io/fountain-py/).
 
-- [Installation Guide](https://fountain-py.readthedocs.io/en/latest/installation/)
-- [Quick Start Tutorial](https://fountain-py.readthedocs.io/en/latest/quickstart/)
-- [API Reference](https://fountain-py.readthedocs.io/en/latest/api/)
-- [Examples](https://fountain-py.readthedocs.io/en/latest/examples/)
+- [Installation Guide](https://masonegger.github.io/fountain-py/installation.html)
+- [Quick Start Tutorial](https://masonegger.github.io/fountain-py/quickstart.html)
+- [API Reference](https://masonegger.github.io/fountain-py/api/index.html)
 
 ## Development
 
 ### Setup
 
 ```bash
-# Clone the repository
 git clone https://github.com/MasonEgger/fountain-py.git
 cd fountain-py
 
-# Install with development dependencies
-uv sync --dev
-
-# Install pre-commit hooks
-pre-commit install
+# Install with development and docs dependencies
+just dev && uv sync --group docs
 ```
 
 ### Running Tests
 
 ```bash
-# Run all tests
+# Run comprehensive quality checks (tests, coverage, doctests, lint, type check)
 just test
 
+# Run only unit tests
+just unit-test
+
 # Run tests with coverage
-just test-cov
+just unit-test-cov
 
-# Run linting and formatting
-just lint
-just format
+# Run specific tests
+uv run pytest tests/test_parser.py
+```
 
-# Run type checking
-just type-check
+### Code Quality
+
+```bash
+just lint         # Lint check (ruff)
+just format       # Format code (ruff)
+just type-check   # Type checking (mypy strict)
 ```
 
 ## Contributing
