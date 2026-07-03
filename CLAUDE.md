@@ -54,14 +54,14 @@ Raw Fountain Text → FountainParser → FountainDocument (list of FountainEleme
 ### Core Components (`src/fountain/`)
 
 - **`parser.py`** — Two-pass parser. Pass 1: title page metadata (`_parse_title_page()`). Pass 2: line-by-line body element classification (`_parse_line()`) using regex patterns with precedence: forced elements (`!`, `@`, `>`, `.`) → special markers (boneyard, notes, page breaks) → natural patterns (scene headings, transitions) → character/dialogue detection → action fallback.
-- **`elements.py`** — `ElementType` enum (15 types), `FountainElement` dataclass (type, text, formatting spans, line_number, metadata dict), `FormatSpan` named tuple for inline bold/italic/underline.
-- **`document.py`** — `FountainDocument` container with analysis methods (character extraction, statistics).
-- **`renderer.py`** — `HTMLRenderer` and `FountainRenderer` (round-trip back to Fountain markup).
-- **`__init__.py`** — Public API exports: `FountainParser`, `FountainDocument`, `ElementType`, `FountainElement`.
+- **`elements.py`** — `ElementType` enum (15 types), `FountainElement` dataclass (type, text, formatting spans, line_number, metadata dict), `FormatSpan` named tuple for inline bold/italic/underline, `FormatType` and `MetadataValue` type aliases.
+- **`document.py`** — `FountainDocument` container with analysis methods (character extraction, statistics). `to_html()` delegates to `HTMLRenderer.render_page()`.
+- **`renderer.py`** — `HTMLRenderer` with three output modes: `render()` (pure HTML fragment, no CSS), `render_page()` (standalone page with embedded CSS), `get_css()` (raw CSS string). All CSS classes carry a `fountain-` prefix. Title page rendering is data-driven via the `TITLE_PAGE_FIELD_ORDER` table. `FountainRenderer` round-trips back to Fountain markup.
+- **`__init__.py`** — Public API exports: `FountainParser`, `FountainDocument`, `ElementType`, `FountainElement`, `FormatType`, `MetadataValue`.
 
 ### Key Parser Internals
 - `had_blank_line_before` parameter passed to `_parse_line()` for context-dependent element detection
-- `_is_dialogue_following()` lookahead determines if an uppercase line is a character cue
+- `_is_dialogue_following()` lookahead determines if an uppercase line is a character cue; checks the `STRUCTURAL_PATTERNS` tuple to reject non-dialogue lines
 - `self.in_boneyard` flag for multi-line `/* */` comment state tracking
 - `NOTE_PATTERN` regex handles `[[inline notes]]`
 - Forced element prefixes (`.`, `!`, `@`, `>`) override normal classification rules
@@ -79,4 +79,7 @@ Raw Fountain Text → FountainParser → FountainDocument (list of FountainEleme
 - **mypy**: Strict mode with all warnings enabled
 - **pytest**: Strict markers, `--doctest-modules` enabled by default
 - **coverage**: Source from `src/` directory
-- **CI**: GitHub Actions runs tests on Python 3.9–3.13; PRs target `main`
+- **CI**: GitHub Actions runs tests on Python 3.9–3.13; PRs target `main`. `docs.yml` builds Sphinx HTML and deploys it to GitHub Pages on pushes to `main`.
+
+## Release Status
+- Not yet published to PyPI; version 0.1.0. The publishing plan lives in `plan.md`/`todo.md` (steps 4–7 still open: publish workflow hardening, TestPyPI workflow, build verification in CI, local verify).
