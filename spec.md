@@ -1,236 +1,381 @@
-# Code Review: fountain-py
+# fountain-py Product Spec
+
+Date: 2026-07-02.
+This document states the behavior of fountain-py as it exists in this working tree, and the requirements that separate today's behavior from a publishable 0.1.0.
+Actual behavior is the contract: where this spec describes parsing or rendering, it describes what the code does today, verified by the test suite (241 tests passing) and the compliance audit in `.ai-sessions/fountain-compliance-audit.md`.
+Full compliance with the Fountain syntax specification at https://fountain.io/syntax/ is a stated product requirement.
+The gaps between today's behavior and that requirement are enumerated in the Spec Compliance Requirements section; each is a defect to fix, not a contract to preserve.
 
-## Context
+## Product Goal
 
-Full code review of the fountain-py library against: global CLAUDE.md rules, /python skill standards, and general Python best practices. Optimizing for simplicity, speed, and good architecture.
+fountain-py is a zero-dependency Python library that parses Fountain screenplay markup into structured objects and renders them as HTML or back to Fountain text.
+The 0.1.0 release ships when the library is spec-compliant per the requirements below, the publish pipeline is hardened per the Path to PyPI section, and the documentation matches the code.
 
-**Overall assessment: This is a high-quality, well-structured codebase.** The issues below are refinements, not fundamental problems. The architecture (two-pass parser, immutable elements, clean pipeline) is solid.
+## Public API Contract
 
----
+### Package Exports
 
-## Findings
+`fountain/__init__.py` exports exactly six symbols via `__all__` (src/fountain/__init__.py:14-21):
 
-### 1. Missing ABOUTME Comments (Rule Violation)
+- `FountainParser` (from `fountain.parser`)
+- `FountainDocument` (from `fountain.document`)
+- `ElementType` (from `fountain.elements`)
+- `FountainElement` (from `fountain.elements`)
+- `FormatType` (from `fountain.elements`)
+- `MetadataValue` (from `fountain.elements`)
+
+`HTMLRenderer`, `FountainRenderer`, `DEFAULT_CSS`, and `TITLE_PAGE_FIELD_ORDER` are public in `fountain.renderer` but are not re-exported at the package top level.
+`FormatSpan` is public in `fountain.elements` but is likewise not in the top-level `__all__`.
+See Open Questions on whether the renderer classes belong in the top-level API.
 
-**Files missing the required 2-line ABOUTME header:**
-- `src/fountain/renderer.py` — has a docstring but no ABOUTME
-- `src/fountain/__init__.py` — has a docstring but no ABOUTME
-- `tests/conftest.py`
-- `tests/test_parser.py`
-- `tests/test_renderer.py`
-- `tests/test_document.py`
-- `tests/test_quickstart_examples.py`
+### FountainParser
 
-**Rule:** "All code files should start with a brief 2-line comment explaining what the file does. Only the first line starts with 'ABOUTME: '"
+`FountainParser()` takes no constructor arguments.
+Parser instances hold mutable parse state (`lines`, `current_line`, `elements`, boneyard and note flags) that is reset at the top of every `parse()` call, so an instance can be reused sequentially but is not thread-safe.
 
-### 2. Dead Commented-Out Code in `renderer.py:984-1074`
+`parse(text: str) -> FountainDocument` runs a two-pass parse: pass 1 extracts title page metadata, pass 2 classifies body lines, then a post-pass pairs dual dialogue.
+It never raises on malformed markup; unclassifiable lines fall back to ACTION elements.
+The known exceptions to that promise are the boneyard truncation defects E2 and E3 below, which silently drop document content.
+
+`parse_file(filepath: str) -> FountainDocument` reads the file as UTF-8 and delegates to `parse()`.
+It propagates `FileNotFoundError`, `OSError`, and `UnicodeDecodeError` from the underlying `open()` and `read()`.
+
+There is no validation API.
+`parse()` reports no warnings or errors; the only diagnostics available are the element types and line numbers on the parsed output.
 
-~90 lines of commented-out example renderer code (MarkdownRenderer, StatsRenderer). Per Clean Code rules: "Remove any leftover debug or commented-out code."
+### Title Page Parsing Rules (Pass 1)
 
-This belongs in documentation (e.g., `docs/source/user-guide/rendering.rst`), not as dead code in the source file.
+- Leading blank lines are skipped.
+- A line containing a colon that does not start with the literal strings `INT.`, `EXT.`, `EST.`, or `I/E.` opens or continues the title page as a `key: value` pair (src/fountain/parser.py:448).
+- Keys are lowercased and arbitrary; any key is accepted per the Fountain spec's open key set.
+- A line without a colon following a current key is appended to that key's value, joined with a single space, unless it starts with `INT.`, `EXT.`, `EST.`, `I/E.`, or `.`, which ends the title page instead (src/fountain/parser.py:463-473; verified by probe: `Title: X` followed by `.FLASHBACK` yields a forced SCENE_HEADING, not a longer title).
+- A blank line ends the title page once at least one key has been read.
+- The result is a flat `dict[str, str]` stored as `FountainDocument.metadata`.
 
-**Action:** Remove the commented-out code block.
+Known deviations from the Fountain spec in this pass are requirements A1, A2, and B3 below.
+The line-one detection heuristic itself (what counts as a title page at all) is documented contract behavior; see Ambiguity A3.
 
-### 3. `_escape_html` Reinvents `html.escape` (Simplicity)
+### Body Classification Rules (Pass 2)
 
-`renderer.py:460-488` — Custom HTML escaping that duplicates `html.escape()` from stdlib. The stdlib version handles the same entities and is battle-tested.
+Lines are classified one at a time with this precedence (src/fountain/parser.py:481-813):
 
-**Action:** Replace with `import html` and `html.escape(text, quote=True)`. Note: stdlib uses `&#x27;` for `'` which matches the current behavior.
-
-### 4. `_get_css` Theme Fallback Mutates State (Bad Pattern)
-
-`renderer.py:683-689` — The "else" branch temporarily mutates `self.theme`, calls itself recursively, then restores. This is fragile and not thread-safe.
-
-```python
-# Current (bad):
-old_theme = self.theme
-self.theme = "default"
-css = self._get_css()
-self.theme = old_theme
-return css
-
-# Better (simple):
-return self._get_default_css()
-```
-
-**Action:** Extract the CSS string into a module-level constant or a `_get_default_css()` method, and have `_get_css` just return it (since only one theme exists).
-
-### 5. `get_statistics` Iterates Elements ~17x (Performance + Simplicity)
-
-`document.py:298-309` — Calls `get_characters()` (1 pass), `get_scenes()` (1 pass), then loops through all 15 `ElementType` values (15 passes). That's 17 full iterations over elements.
-
-**Action:** Single-pass implementation using a `Counter`:
-
-```python
-from collections import Counter
-type_counts = Counter(el.type for el in self.elements)
-```
-
-### 6. Title Page Rendering Is Highly Repetitive (DRY)
-
-`renderer.py:149-259` — 15+ nearly identical `if "field" in metadata:` blocks. Each follows the pattern: check key, format HTML, append.
-
-**Action:** Use a data-driven approach with an ordered list of `(key, css_class, prefix)` tuples. Keeps the rendering logic DRY and makes adding new fields trivial.
-
-### 7. `title_order` List Duplicated Between Renderers (DRY)
-
-Both `HTMLRenderer._render_title_page` and `FountainRenderer._render_title_page` maintain separate but overlapping lists of known/ordered title page fields.
-
-**Action:** Extract to a module-level constant `TITLE_PAGE_FIELD_ORDER` shared by both renderers.
-
-### 8. `_is_dialogue_following` Pattern Chain (Simplicity)
-
-`parser.py:834-849` — A 14-line `or` chain checking every structural pattern. Hard to read and easy to miss a pattern.
-
-**Action:** Collect structural patterns into a tuple and use `any()`:
-
-```python
-STRUCTURAL_PATTERNS = (
-    self.SCENE_HEADING_PATTERN, self.FORCED_SCENE_HEADING_PATTERN,
-    self.TRANSITION_PATTERN, ...
-)
-return not any(p.match(next_line) for p in STRUCTURAL_PATTERNS)
-```
-
-Plus the special `[[...]]` check as a separate condition.
-
-### 9. `__init__.py` Has Exports (Python Skill Conflict)
-
-The /python skill says "Empty `__init__.py` — never add anything to `__init__.py`". However, this is a published library where `from fountain import FountainParser` is the primary API. **Keeping the exports is the right call here** — the skill rule is better suited to application code. No action needed, but noting the deliberate deviation.
-
-### 10. `Any` Type Usage (Python Skill Conflict)
-
-The /python skill says "No `Any`". Used in `elements.py` (`dict[str, Any]`), `document.py`, and `parser.py` for metadata. The metadata dict genuinely holds heterogeneous types (str, int, bool, nested FountainElement). A precise union type would be complex and fragile.
-
-**Action:** Define a `MetadataValue` type alias to at least narrow the type surface:
-
-```python
-MetadataValue = Union[str, int, bool, list["FountainElement"], "FountainElement", None]
-```
-
-This is more informative than `Any` while remaining practical.
-
-### 11. `format_type: str` Could Be a StrEnum (Type Safety)
-
-`elements.py:128` — `FormatSpan.format_type` is an untyped string. Values are one of `"bold"`, `"italic"`, `"underline"`, `"bold_italic"`. A `StrEnum` would prevent typos and improve IDE support.
-
-**Caveat:** `StrEnum` requires Python 3.11+. Since the project targets 3.9+, use a regular string `Literal` type instead:
-
-```python
-FormatType = Literal["bold", "italic", "underline", "bold_italic"]
-```
-
-### 12. `_render_element` Long If/Elif Chain (Minor)
-
-`renderer.py:261-337` — 15-branch if/elif for element types. A dispatch dict would be cleaner, but the per-type special handling (scene numbers, character extensions, dual dialogue) makes a pure dispatch impractical. **No action needed** — the current approach is readable and each branch is small.
-
-### 13. `render()` Should Return Fragments, Not Full Pages (Architecture)
-
-The current `HTMLRenderer.render()` emits a `<style>` block + `<div>` wrapper — a near-complete HTML page. This makes the renderer unsuitable for embedding (mkdocs plugins, fence handlers, web frameworks) where CSS is managed externally and only an HTML fragment is needed.
-
-**Action:** Restructure `HTMLRenderer` so that:
-
-- **`render(doc)` returns a pure HTML fragment** — just the `<div class="fountain-script">...</div>` with element markup inside. No `<style>` tag. This is the universal default suitable for embedding anywhere.
-- **`render_page(doc)` returns a full standalone page** — the fragment wrapped with the `<style>` block. For users who want a self-contained HTML file.
-- **`get_css()` becomes a public method** — returns the CSS string (no `<style>` tags) so consumers can inject it once per page however they need (e.g., mkdocs plugin adds it to `extra_css`, a web app puts it in a `<link>`, etc.).
-
-This is a breaking change to `render()` — document it in CHANGELOG.
-
-### 14. Namespace CSS Classes (Future-Proofing)
-
-Current CSS classes use generic names: `.action`, `.character`, `.dialogue`, `.note`, `.centered`. These will collide with theme CSS in mkdocs, Material, Bootstrap, or any other CSS framework.
-
-**Action:** Prefix all CSS classes with `fountain-`:
-- `.action` → `.fountain-action`
-- `.character` → `.fountain-character`
-- `.dialogue` → `.fountain-dialogue`
-- `.scene-heading` → `.fountain-scene-heading`
-- etc.
-
-The outer wrapper `.fountain-script` is already namespaced. Inner classes need the same treatment. This affects:
-- `_render_element()` — all `class=` attributes
-- `_render_title_page()` — all `class=` attributes
-- `_render_dual_dialogue()` — all `class=` attributes
-- `_get_css()` — all CSS selectors
-- Test assertions that check for specific class names
-
-This is a breaking change for anyone targeting the current CSS classes — do it now before the library is widely adopted.
-
----
-
-## Items NOT Changing (Confirmed Good)
-
-- **Architecture**: Two-pass parser, immutable elements, clean pipeline — excellent
-- **Regex compilation**: All patterns compiled at class level — correct
-- **Type hints**: Full coverage, strict mypy — excellent
-- **Import organization**: Clean, absolute imports — correct
-- **Naming**: Descriptive, evergreen, no generic names — excellent
-- **Test suite**: 200+ behavioral tests, good TDD patterns, comprehensive spec coverage — excellent
-- **Error handling**: Appropriate boundary validation, no silent swallowing — good
-- **Dataclass/Enum usage**: Clean, proper patterns — good
-
----
-
-## Implementation Plan
-
-Steps are ordered so that the largest structural changes (renderer API, CSS namespacing) happen first, then smaller cleanups build on top.
-
-### Step 1: Namespace CSS Classes (Finding #14)
-**File:** `renderer.py`
-Prefix all inner CSS classes with `fountain-`. This touches `_render_element`, `_render_title_page`, `_render_dual_dialogue`, and the CSS string. Do this first since later steps (DRY title page, fragment rendering) will build on the new class names.
-
-### Step 2: Restructure `HTMLRenderer` — Fragment vs Page (Finding #13)
-**File:** `renderer.py`
-- Rename current `render()` → `render_page()` (full HTML with `<style>`)
-- New `render()` returns fragment only (no `<style>`, just the `<div class="fountain-script">` tree)
-- Make `get_css()` public — returns raw CSS string (no `<style>` tags) for external consumers
-- Extract CSS string into a module-level constant `DEFAULT_CSS`
-- This also resolves Finding #4 (`_get_css` theme fallback)
-
-### Step 3: Replace `_escape_html` with `html.escape` (Finding #3)
-**File:** `renderer.py` — add `import html`, replace method body
-
-### Step 4: DRY Up Title Page Rendering (Findings #6, #7)
-**File:** `renderer.py`
-- Extract `TITLE_PAGE_FIELD_ORDER` as a module-level constant shared by both renderers
-- Refactor `HTMLRenderer._render_title_page` to data-driven approach
-- Refactor `FountainRenderer._render_title_page` to use the same constant
-
-### Step 5: Remove Dead Code (Finding #2)
-**File:** `renderer.py:984-1074` — delete commented-out example renderers
-
-### Step 6: Simplify `_is_dialogue_following` (Finding #8)
-**File:** `parser.py` — collect structural patterns into a tuple, use `any()`
-
-### Step 7: Optimize `get_statistics` to Single Pass (Finding #5)
-**File:** `document.py` — use `Counter`
-
-### Step 8: Add `FormatType` Literal and `MetadataValue` Type Alias (Findings #10, #11)
-**File:** `elements.py` — add type aliases, update `FormatSpan.format_type` annotation
-
-### Step 9: Add Missing ABOUTME Comments (Finding #1)
-**Files:** `renderer.py`, `__init__.py`, `conftest.py`, `test_parser.py`, `test_renderer.py`, `test_document.py`, `test_quickstart_examples.py`
-
-### Step 10: Update Tests
-All renderer tests will need CSS class name updates (`scene-heading` → `fountain-scene-heading`, etc.) and `render()` → `render_page()` where tests expect CSS output. Add new tests for `render()` fragment output and `get_css()`.
-
-### Step 11: Update Documentation
-- Update `docs/source/user-guide/rendering.rst` with new API (`render` vs `render_page` vs `get_css`)
-- Update docstrings/doctests throughout `renderer.py`
-- Update CHANGELOG.md with breaking changes
-
-### Step 12: Run Full Test Suite
-**Command:** `just test` — verify all changes pass tests, coverage, lint, type-check, format
-
----
-
-## Verification
-
-After all changes:
-1. `just test` — must pass all tests, doctests, lint, type-check, format check
-2. `just unit-test-cov` — coverage must remain at 99%+
-3. Verify round-trip tests still pass (parse → render → parse)
-4. Verify `render()` returns no `<style>` tags
-5. Verify `render_page()` returns full HTML with CSS
-6. Verify `get_css()` returns raw CSS string
-7. Verify no CSS class collisions with generic names (grep for bare `.action`, `.character`, etc.)
+1. Inside a multi-line boneyard, lines are skipped until a line ends with `*/`.
+2. A line that is entirely `/* ... */` becomes a BONEYARD element with its text verbatim, including the delimiters.
+3. A line starting `/*` without a closing `*/` on the same line enters boneyard state and is skipped.
+4. Inside a multi-line note, lines accumulate until a line contains `]]`, then a single NOTE element is emitted with the buffered text.
+5. Three or more equals signs alone on a line become PAGE_BREAK.
+6. A line that starts with `[[`, ends with `]]`, and contains at least one complete `[[...]]` match becomes a NOTE element with the full line verbatim, brackets included; `[[a]] middle [[b]]` is one NOTE, so the interior text never reaches formatted output (requirement E13).
+7. A line containing `[[` without `]]` starts a multi-line note.
+8. Inline `[[notes]]` are stripped from the line text and discarded; the note content is unrecoverable from the parse (see Ambiguity E9).
+9. `!text` forces ACTION; the `!` is removed and the remainder is stripped of surrounding whitespace.
+10. `#`-prefixed lines become SECTION with `metadata["level"]` equal to the number of leading hashes.
+11. `=`-prefixed lines (not page breaks) become SYNOPSIS with one `=` stripped.
+12. `~text` becomes LYRICS with the `~` removed.
+13. `.HEADING` (a period followed by an alphanumeric, not `..`) forces SCENE_HEADING with `metadata["forced"] = True`; a trailing `#number#` is extracted to `metadata["scene_number"]`.
+14. `>text<` becomes CENTERED with the angle brackets removed.
+15. `>text` (no trailing `<`) forces TRANSITION.
+16. A line matching the scene heading prefixes `INT.`, `EXT.`, `EST.`, `I/E.`, `INTERIOR.`, `EXTERIOR.`, `INT/EXT.`, `INT./EXT.` (case-insensitive, optional space before the dot) becomes SCENE_HEADING when preceded by a blank line or before any element has been emitted (document start, or after lines that produced no element, such as a multi-line boneyard); scene numbers are extracted as in rule 13.
+17. A line matching `^[A-Z\s]+TO:$`, `FADE IN:`, `FADE OUT.`, or `CUT TO:` becomes TRANSITION when followed by a blank line (EOF counts as blank) and preceded by a blank line or no emitted element; verified by probe, `FADE OUT.` on line one is a TRANSITION.
+18. `@name` forces CHARACTER with `metadata["forced"] = True`, but only when the lookahead `_is_dialogue_following()` approves the next line; otherwise the line falls through toward ACTION with the `@` retained (defect C6).
+19. `NAME^` (all caps) becomes CHARACTER with `metadata["dual_dialogue"] = True` when preceded by a blank line (or no emitted element, as in rule 16) and followed by dialogue.
+20. `NAME (extension)` with optional trailing `^` becomes CHARACTER with `metadata["extension"]` (and `dual_dialogue` when the caret is present) under the same blank-line and lookahead conditions.
+21. A line matching `^[A-Z][A-Z0-9\s_]*$` becomes CHARACTER under the same conditions; `metadata["continuation"] = True` is set when the same character spoke earlier in the scene with intervening action and no scene break.
+22. A line following a CHARACTER or PARENTHETICAL, or following DIALOGUE with no intervening blank line, becomes DIALOGUE; if it is wrapped in parentheses it becomes PARENTHETICAL instead.
+23. Everything else becomes ACTION, with the original line's leading whitespace preserved (trailing whitespace stripped).
+
+A whitespace-only line while the previous element is DIALOGUE, PARENTHETICAL, or CHARACTER emits an empty DIALOGUE element, implementing the spec's two-space dialogue continuation (src/fountain/parser.py:333-352).
+Backslash escapes `\*`, `\_`, and `\\` are resolved to literal characters in element text, and formatting spans are position-adjusted around them (src/fountain/parser.py:1004-1024, 1104-1119).
+
+The character cue lookahead `_is_dialogue_following()` skips blank lines and rejects the cue when the next non-empty line matches any structural pattern in `STRUCTURAL_PATTERNS` or is a standalone `[[...]]` note line (src/fountain/parser.py:164-178, 815-856).
+This lookahead is the source of defects C3, C4, and C6 below.
+
+### Dual Dialogue Post-Processing
+
+After line classification, `_process_dual_dialogue()` (src/fountain/parser.py:1123-1222) finds CHARACTER elements with `dual_dialogue` metadata, pairs each with the immediately preceding character block (no scene heading or action between them), and replaces both blocks with one DUAL_DIALOGUE element.
+The DUAL_DIALOGUE element has empty text and carries `left_character`, `left_dialogue`, `right_character`, and `right_dialogue` in its metadata, where the dialogue values are lists of DIALOGUE and PARENTHETICAL elements.
+
+### Inline Formatting Extraction
+
+`_extract_formatting()` (src/fountain/parser.py:1026-1121) returns `FormatSpan` entries for `***bold italic***`, `**bold**`, `*italic*`, and `_underline_`, with precedence in that order.
+Overlap suppression is partial: bold is suppressed only inside bold-italic spans, italic inside bold-italic and bold spans, and underline is never suppressed, so `**_word_**` yields overlapping bold and underline spans (src/fountain/parser.py:1074-1101; verified by probe; this feeds defect D6).
+The italic pattern has whitespace guards (no space adjacent to the delimiters); bold and underline do not (defect D7).
+Span positions cover the full match including the delimiter characters, and the delimiters remain in the element text (defect D4).
+
+### FountainDocument
+
+`FountainDocument(elements, metadata=None)` holds `elements: list[FountainElement]` and `metadata: dict[str, str]` (empty dict when None).
+
+- `to_dict() -> dict[str, Any]` returns `{"metadata": ..., "elements": [...]}` where each element dict carries `type` (the enum value string), `text`, `formatting` (list of `{start, end, format_type}`), `line_number`, and `metadata`.
+- `to_json() -> str` is `json.dumps(self.to_dict(), indent=2)`.
+- `get_characters() -> list[str]` returns unique CHARACTER names, uppercased, trailing `^` stripped, sorted alphabetically.
+- `get_scenes() -> list[str]` returns SCENE_HEADING texts in document order.
+- `get_statistics() -> dict[str, int]` returns `total_elements`, `characters` (unique count), `scenes`, and a `{element_type}_count` key for each of the 15 element types; the per-type counts come from a single `Counter` pass, while `characters` and `scenes` delegate to `get_characters()` and `get_scenes()` (src/fountain/document.py:299-308).
+- `to_html() -> str` constructs an `HTMLRenderer` and returns `render_page(self)` (full page with embedded CSS).
+
+### Type System
+
+- `ElementType` (src/fountain/elements.py:34-91) is an `Enum` with exactly 15 members: TITLE_PAGE, SCENE_HEADING, ACTION, CHARACTER, DIALOGUE, PARENTHETICAL, TRANSITION, NOTE, BONEYARD, SECTION, SYNOPSIS, DUAL_DIALOGUE, PAGE_BREAK, CENTERED, LYRICS.
+  TITLE_PAGE exists in the enum but the parser never emits it as an element; title page data lives in `FountainDocument.metadata`.
+- `FountainElement` (src/fountain/elements.py:136-233) is a mutable dataclass with fields `type: ElementType`, `text: str`, `formatting: list[FormatSpan]`, `line_number: int` (1-based source line), and `metadata: dict[str, Any] | None` which `__post_init__` normalizes to an empty dict.
+- `FormatSpan` (src/fountain/elements.py:94-133) is a NamedTuple of `start: int`, `end: int` (exclusive), `format_type: FormatType`.
+- `FormatType` is `Literal["bold", "italic", "underline", "bold_italic"]`.
+- `MetadataValue` is `Union[str, int, bool, list["FountainElement"], "FountainElement", None]`, the value union that element metadata actually holds.
+  It is exported but not yet applied to the `FountainElement.metadata` annotation; see requirement CR-2.
+
+### HTMLRenderer
+
+Three output modes (src/fountain/renderer.py:280-373):
+
+- `render(document) -> str` returns a pure HTML fragment: `<div class="fountain-script">` wrapping an optional `<div class="fountain-title-page">` and a `<div class="fountain-script-body">` of element divs. No `<style>` tag.
+- `render_page(document) -> str` returns `<style>` + `DEFAULT_CSS` + `</style>` followed by the fragment.
+- `get_css() -> str` returns the raw `DEFAULT_CSS` string with no `<style>` tags.
+
+All CSS classes are namespaced with the `fountain-` prefix (e.g. `fountain-scene-heading`, `fountain-action`, `fountain-character`, `fountain-dual-dialogue`).
+Title page fields render in the order defined by the module constant `TITLE_PAGE_FIELD_ORDER` (src/fountain/renderer.py:199-217), shared with `FountainRenderer`; unknown keys render after known ones as `<p class="fountain-custom-field {key}">Key: value</p>`.
+When both `author` and `authors` keys are present, `HTMLRenderer` renders only `author` (they share a slot; src/fountain/renderer.py:403-404) while `FountainRenderer` emits both keys; verified by probe, see Open Question 10.
+Element text is HTML-escaped via `html.escape(text, quote=True)`.
+Scene numbers render as `<span class="fountain-scene-number">#N#</span>`, character extensions as `<span class="fountain-character-extension">(EXT)</span>`, and continuation metadata as a `(CONT'D)` span.
+Dual dialogue renders as a flexbox two-column layout.
+Formatting spans map to `<strong>`, `<em>`, `<u>`, and `<strong><em>` for bold_italic; the span builder assumes non-overlapping spans (defect D6).
+In ACTION elements, tabs become four `&nbsp;` entities and embedded newlines become `<br>` at render time.
+
+### FountainRenderer
+
+`FountainRenderer().render(document) -> str` converts a document back to Fountain markup: title page fields as `Key: Value` lines, then each element rendered with its forcing markers, scene numbers, extensions, carets, and section hashes restored, joined with single newlines (src/fountain/renderer.py:690-727).
+Known limitations, stated in the code and confirmed by probe:
+
+- Blank-line separators are not emitted, so re-parsing the output degrades CHARACTER and DIALOGUE to ACTION (requirement A4).
+- DUAL_DIALOGUE elements render as the empty string, so paired dual dialogue blocks vanish entirely from the output (requirement A4b; verified by probe on this tree: a scene with a dual dialogue pair round-trips to just the scene heading line).
+- Inline emphasis markers are not re-emitted; `_apply_formatting_removal()` returns the text unchanged (src/fountain/renderer.py:883-916).
+- LYRICS render as `~text~` but the parser strips only the leading tilde, so every round trip appends a literal `~` to the lyric text (requirement A4c; src/fountain/renderer.py:876-877 versus src/fountain/parser.py:160, 654-662; verified by probe: `~La la la` re-parses as `La la la~`).
+
+### Error Behavior Summary
+
+- Malformed markup never raises; it degrades to ACTION.
+- `parse_file` propagates file system and decoding errors unchanged.
+- Boneyard edge cases E2 and E3 silently truncate the document, which violates the library's own degrade-to-action philosophy and the Fountain spec's error-handling guidance; they are the highest-priority fixes in this spec.
+
+### Supported Python Versions
+
+Per pyproject.toml: `requires-python = ">=3.9"`, classifiers for 3.9 through 3.13, ruff `target-version = "py39"`, mypy `python_version = "3.9"`.
+CI (`.github/workflows/ci.yml:14`) tests the 3.9, 3.10, 3.11, 3.12, 3.13 matrix.
+The package ships zero runtime dependencies and includes `py.typed`.
+
+## Spec Compliance Requirements
+
+Full compliance with https://fountain.io/syntax/ is a product requirement.
+The verified audit (`.ai-sessions/fountain-compliance-audit.md`, dated 2026-07-02, all probes re-run against this tree) confirmed 34 gaps.
+Each is a numbered requirement below; IDs match the audit for traceability, and the items tagged "found during spec verification" (A4b, A4c, E13) are additions from this review, not audit items.
+Each acceptance criterion is written so a failing test can encode it today and pass after the fix.
+Severities come from the audit: high items block 0.1.0; medium and low items should be fixed or explicitly waived by Mason before release.
+
+### Group A: Title Page and Whitespace
+
+- **A1 (medium).** Title page multi-line values must preserve their line structure instead of flattening to a space-joined string (src/fountain/parser.py:463-467).
+  Acceptance: parsing `Contact:` followed by three indented address lines yields a `contact` value with three lines (or a list of three values), and `render_page()` output contains `<br>` between them.
+- **A2 (medium).** Title page continuation must require indentation (3+ spaces or a tab), and indented lines containing colons must remain values of the current key (src/fountain/parser.py:448, 463).
+  Acceptance: `Notes:` followed by an indented `Draft 3: final revisions` yields `metadata["notes"] == "Draft 3: final revisions"` and no `draft 3` key; an unindented non-key line ends the title page instead of being absorbed into the previous value.
+- **A4 (high).** Blank lines must survive parse and `FountainRenderer` round trip; the spec treats every carriage return as intent (src/fountain/parser.py:331-355; src/fountain/renderer.py:727).
+  Acceptance: `parse(FountainRenderer().render(parse(script)))` preserves element types for a script containing character/dialogue blocks separated by blank lines; CHARACTER does not degrade to ACTION.
+- **A4b (high).** Dual dialogue must survive the Fountain round trip (src/fountain/renderer.py:865-868).
+  Acceptance: rendering a document containing a DUAL_DIALOGUE element emits both character blocks with the caret on the second cue; re-parsing reproduces a DUAL_DIALOGUE element.
+  (Found during spec verification; same fix surface as A4.)
+- **A4c (low).** Lyrics must round-trip without accreting delimiters; the Fountain lyric marker is a leading `~` only (src/fountain/renderer.py:876-877).
+  Acceptance: `parse(FountainRenderer().render(parse("~La la la")))` yields a LYRICS element with text `La la la` and no trailing tilde.
+  (Found during spec verification: today the text comes back as `La la la~`.)
+- **A5 (medium).** Tabs in Action must convert to four spaces in element text at parse time, and indentation must be visible in HTML output (src/fountain/parser.py:808-813; src/fountain/renderer.py:96-99, 466-469).
+  Acceptance: a tab-indented action line yields `element.text` starting with four spaces; rendered HTML preserves the indentation visually (e.g. `white-space: pre-wrap` on `.fountain-action` or equivalent).
+  Shares a fix surface with D10.
+
+### Group B: Scene Headings
+
+- **B1 (high).** Scene heading prefixes followed by a space must be recognized alongside the dot forms: `INT HOUSE - DAY` is a scene heading (src/fountain/parser.py:70-73).
+  Acceptance: `INT`, `EXT`, `EST`, `I/E`, `INT/EXT` space forms parse as SCENE_HEADING; `INTERNAL AFFAIRS INVESTIGATES.` still parses as ACTION (prefix boundary required).
+- **B2 (medium).** A natural scene heading requires a blank line after it (src/fountain/parser.py:702-717; compare the transition branch at 720).
+  Acceptance: `EXT. BRICK'S PATIO - DAY` immediately followed by a non-blank line parses as ACTION.
+- **B3 (medium).** The title page guard for scene headings must be case-insensitive and accept the space form (src/fountain/parser.py:448).
+  Acceptance: a document whose first line is `int. house - day - 3:00 pm` parses it as SCENE_HEADING, not as title page metadata.
+- **B4 (low).** Scene numbers must be restricted to alphanumerics plus dashes and periods (src/fountain/parser.py:78).
+  Acceptance: `INT. HOUSE - DAY #$%^&#` keeps `#$%^&#` in the heading text and sets no `scene_number` metadata.
+
+### Group C: Characters and Dialogue
+
+- **C1 (high).** Uppercase cues containing punctuation must be recognized: `MR. SMITH`, `O'BRIEN`, `JEAN-CLAUDE`, `DEALER #2` (src/fountain/parser.py:88, 93, 103).
+  Acceptance: each of those lines followed by a dialogue line parses as CHARACTER plus DIALOGUE.
+- **C2 (low).** Digit-first cues with at least one letter must be recognized: `23 SKIDOO` (src/fountain/parser.py:88).
+  Acceptance: `23 SKIDOO` with dialogue parses as CHARACTER plus DIALOGUE; bare `23` remains ACTION.
+- **C3 (medium).** A blank line immediately after a cue disqualifies it; the lookahead must not skip blank lines (src/fountain/parser.py:847-856).
+  Acceptance: `JOHN`, blank line, `He walks to the door.` parses as two ACTION elements.
+- **C4 (low).** An all-caps line after a cue is dialogue, not a competing structural element (src/fountain/parser.py:852).
+  Acceptance: `JOHN` then `I SAID NO` parses as CHARACTER plus DIALOGUE.
+- **C5 (medium).** A trailing caret on a forced character creates dual dialogue with the caret stripped (src/fountain/parser.py:98, 729-738).
+  Acceptance: a `BRICK` block followed by an `@McClane ^` block yields a DUAL_DIALOGUE element and the right character's text is `McClane`.
+- **C6 (medium).** `@` must force CHARACTER unconditionally; the force must not be gated on the dialogue lookahead (src/fountain/parser.py:729-738).
+  Acceptance: `@McClane` then `I SAID NO` parses as CHARACTER (forced) plus DIALOGUE, with no literal `@` in the text.
+- **C7 (low).** Forced characters must get extension extraction like natural cues (src/fountain/parser.py:729-738 versus 103).
+  Acceptance: `@McClane (O.S.)` yields text `McClane` and `metadata["extension"] == "O.S."`.
+
+### Group D: Transitions and Emphasis
+
+- **D1 (low).** One or more trailing spaces after the colon defeat a transition (src/fountain/parser.py:331 rstrips before classification).
+  Acceptance: `CUT TO: ` (trailing space) parses as ACTION.
+- **D2 (low).** Uppercase lines ending in `TO:` with punctuation are transitions: `SMASH-CUT TO:` (src/fountain/parser.py:108).
+  Acceptance: `SMASH-CUT TO:` with surrounding blank lines parses as TRANSITION.
+- **D4 (high).** Emphasis delimiters must be stripped from element text, and spans must cover only the emphasized content (src/fountain/parser.py:1074-1101; src/fountain/renderer.py:556-567).
+  Acceptance: parsing `This is **bold** text.` yields text `This is bold text.` with a bold span over `bold`; HTML output is `<strong>bold</strong>` with no asterisks.
+- **D5 (medium).** The spec's keypad escape example must render correctly (src/fountain/parser.py:1104-1119).
+  Acceptance: `Steel enters the code on the keypad: **\*9765\***` renders with `<strong>*9765*</strong>` and no stray delimiters.
+- **D6 (high).** Nested emphasis must not duplicate text; the renderer's segment builder must handle overlapping or nested spans (src/fountain/renderer.py:529-553; src/fountain/parser.py:1089-1101).
+  Acceptance: the spec's line `_Steel's face FILLS the *Leupold Mark 4* scope_.` renders as an underlined phrase containing one italic span, with each word appearing exactly once.
+- **D7 (medium).** Bold and underline need the same delimiter-adjacent-space guards italic has (src/fountain/parser.py:191, 203 versus 198).
+  Acceptance: `_ kilos_` and `** word**` produce no formatting spans.
+- **D8 (medium).** Formatting span offsets must be computed against the stored text, including leading indentation (src/fountain/parser.py:808-812).
+  Acceptance: ten spaces then `*Scott* --` yields an italic span positioned over `Scott`, not over the leading whitespace.
+- **D9 (low).** Forced action must retain indentation after the `!` (src/fountain/parser.py:622-629).
+  Acceptance: `!    INDENTED FORCED ACTION` yields text beginning with four spaces.
+- **D10 (medium).** Space-indented action must be visible in HTML output; the spec's ten-space card example passes its indentation through (src/fountain/renderer.py:96-99, 466-469).
+  Acceptance: rendering a ten-space-indented action line produces HTML whose visual output preserves the indentation.
+  Same fix surface as A5.
+
+### Group E: Boneyard, Notes, Sections
+
+- **E1 (medium).** Mid-line `/* ... */` must be stripped from action and dialogue text (src/fountain/parser.py:132-140, 553-571).
+  Acceptance: `Hello /* hidden */ world.` yields text `Hello world.`.
+- **E2 (high).** A boneyard close with trailing text on the same line must end the boneyard; the close pattern must not be end-anchored (src/fountain/parser.py:140, 554-557).
+  Acceptance: a `/*` block closed by `*/ And we are back.` yields `And we are back.` and all following lines as elements; nothing after the close is dropped.
+- **E3 (high).** A single-line boneyard followed by trailing text must not swallow the document (src/fountain/parser.py:132, 136, 140, 568-571).
+  Acceptance: `/* cut this */ keep this` followed by more action yields `keep this` and the following action as elements.
+- **E4 (medium).** A mid-line boneyard opener must not leak the interior lines (src/fountain/parser.py:136, 568-571).
+  Acceptance: `He waves /* begin cut`, interior lines, `*/` yields a single action `He waves` and no interior text.
+- **E5 (medium).** Sections and synopses must be ignored in formatted output, and standalone notes must not render with literal `[[ ]]` brackets (src/fountain/renderer.py:488-491, 128-132, 138-149, 250, 484-485).
+  Acceptance: rendering `# Act I`, `= He meets her.`, and `[[remember to fix]]` produces formatted output where section and synopsis are not visible by default and any rendered note shows its content without brackets.
+- **E6 (low).** A two-space connector line inside a note must produce a note whose text contains an empty line (src/fountain/parser.py:329-355, 574-585).
+  Acceptance: a note whose middle line is two spaces yields one NOTE whose text contains `\n\n` (an empty interior line).
+- **E7 (low).** A genuinely blank line must break an open note; the bracket lines fall back to text (src/fountain/parser.py:329-355, 574-585).
+  Acceptance: the same note with a truly blank middle line does not survive as a single NOTE; E6 and E7 inputs produce distinguishable outputs.
+- **E8 (low).** A two-space line inside a note must not inject an empty DIALOGUE element (src/fountain/parser.py:333-351).
+  Acceptance: dialogue block, then a note containing a two-space line, yields CHARACTER, DIALOGUE, NOTE and no empty dialogue element.
+- **E10 (low).** A lone `]` inside a note must not break recognition; only `]]` closes (src/fountain/parser.py:127).
+  Acceptance: `[[check ref] ok]]` yields a NOTE with text `check ref] ok`.
+- **E11 (low).** Boneyard content must not ship in HTML fragments (src/fountain/parser.py:560-566; src/fountain/renderer.py:134-136, 486-487).
+  Acceptance: `HTMLRenderer.render()` output for a document containing `/* hidden scene */` contains no boneyard text; behavior is consistent between single-line and multi-line boneyards.
+- **E13 (low).** A line that starts with `[[` and ends with `]]` but carries text between two notes must not be swallowed as a single NOTE (src/fountain/parser.py:597-605).
+  Acceptance: `[[a]] middle [[b]]` parses as ACTION with text `middle` (inline notes stripped per body rule 8), not as a NOTE containing the whole line.
+  (Found during spec verification; today the whole line becomes one NOTE and `middle` never reaches formatted output.)
+
+Refuted candidate for the record: double-equals synopsis handling (`== two equals` yielding SYNOPSIS text `= two equals`) is a defensible literal reading of the spec and is not a defect (audit E12; src/fountain/parser.py:150).
+
+## Documented Contract Ambiguities
+
+The Fountain spec leaves these underdetermined; the audit classified them as ambiguity or deliberate extension.
+The behaviors below are contract: they must be documented in the user guide and pinned by tests, and changing them is a breaking change.
+
+- **A3: title page detection heuristic.** Any first line containing a colon that fails the scene heading guard opens the title page, including `FADE IN:`, a tab-indented `CUT TO:`, or prose like `He opens the card:` (src/fountain/parser.py:448, 463).
+  Documented workarounds: a leading blank line, or forced syntax such as `>CUT TO:`.
+  The guard's case sensitivity (B3) and in-page indentation (A2) remain defects tracked separately.
+- **C8: lyrics inside a dialogue block end the block.** `JOHN` / `~Willy Wonka!` / `Wasn't that great?` yields CHARACTER, LYRICS, ACTION (src/fountain/parser.py:654-662, 906-919).
+  Writers who want the trailing line as dialogue have no supported syntax here; document this.
+- **D11: `FADE IN:` and `FADE OUT.` as natural transitions.** The spec's natural rule requires ending in `TO:`; fountain-py special-cases both (src/fountain/parser.py:108; pinned by tests/test_parser.py:57-58 and tests/test_edge_cases.py:739-740).
+  This is a deliberate extension and must be documented as such.
+- **E9: mid-line notes are removed without a trace.** Inline `[[note]]` content is stripped and unrecoverable from the parse, while a standalone `[[note]]` line becomes a NOTE element (src/fountain/parser.py:614-619).
+  Document the asymmetry.
+
+## Carried-Forward Code Review Findings
+
+The March 2026 code review (the previous content of this file, preserved in git history at commit b9c6827) listed 14 findings.
+Checked against today's code: findings 2 through 8, 11, 13, and 14 are fixed (dead code removed; `html.escape` at src/fountain/renderer.py:646; theme machinery gone; single-pass `Counter` at src/fountain/document.py:299; shared `TITLE_PAGE_FIELD_ORDER` at src/fountain/renderer.py:199; `STRUCTURAL_PATTERNS` at src/fountain/parser.py:164; `FormatType` at src/fountain/elements.py:30; fragment/page/CSS split at src/fountain/renderer.py:280-373; `fountain-` CSS namespacing throughout).
+Finding 9 (non-empty `__init__.py`) and finding 12 (if/elif element dispatch) were accepted as deliberate; they stand as documented deviations.
+Two findings carry forward:
+
+- **CR-1 (low, residue of finding 1).** The ABOUTME header rule says only the first line starts with `ABOUTME:`.
+  src/fountain/parser.py:1-2, src/fountain/elements.py:1-2, src/fountain/document.py:1-2, and tests/test_edge_cases.py:2-3 start both lines with `ABOUTME:` inside the module docstring.
+  Acceptance: every source file's header has `ABOUTME:` on line one only, as plain comments matching src/fountain/renderer.py:1-2.
+- **CR-2 (medium, residue of finding 10).** `MetadataValue` is defined and exported (src/fountain/elements.py:31, src/fountain/__init__.py:20) but `FountainElement.metadata` is still annotated `dict[str, Any] | None` (src/fountain/elements.py:209), as are the metadata locals in src/fountain/parser.py:667, 703, 759.
+  Acceptance: `FountainElement.metadata` is `dict[str, MetadataValue] | None` (or the alias is deliberately dropped from the public API); mypy strict passes.
+- **CR-3 (low, found during spec verification).** The justfile keeps `pre-commit-install` and `pre-commit-all` recipes (justfile:78-84) and CONTRIBUTING.md:23-24 still tells contributors to run `pre-commit install`, although pre-commit is neither a dependency nor configured anywhere.
+  Acceptance: `just --list` shows no pre-commit recipes and `grep -ri pre-commit` over the tracked tree matches nothing outside git history.
+
+## Quality Metrics
+
+Current state, which the release must not regress:
+
+- 241 tests pass (`uv run pytest`), including module doctests via `--doctest-modules` over `src/`.
+- Coverage target is 99%+ per the previous review's verification bar (`just unit-test-cov`).
+- `just test` runs, in order: tests with coverage, doctests, ruff lint, mypy, `just fix` (ruff auto-fix, which can modify files; see Open Question 11), and ruff format check.
+  It must pass clean.
+  The pyproject mypy config stops short of `strict = true`, but `mypy --strict src/` passes today (verified by probe) and must keep passing per CR-2.
+- CI runs the suite plus lint and type check across Python 3.9 through 3.13.
+- Every compliance requirement above lands with a failing-first test that encodes its acceptance criterion.
+
+## Available Tooling
+
+Python work in this repository uses the `python:python` skill (mmegger-plugins marketplace).
+It is the source of truth for typing standards, ruff/mypy/pytest configuration, uv workflows, and the TDD loop; load it before writing or reviewing any Python in this repo.
+Project commands are wrapped in the `justfile` (`just dev`, `just test`, `just unit-test-cov`, `just docs`); dependency management is uv with `[dependency-groups]`.
+
+## Path to PyPI
+
+Release contract for the first publish:
+
+- **Version: 0.1.0**, matching pyproject.toml:3 and todo.md ("staying at 0.1.0 for first publish").
+  Note the contradiction with plan.md, which targets 0.2.0 throughout; see Open Questions.
+- **CHANGELOG and README** are already reconciled for 0.1.0 (todo.md steps 1 through 3 checked off), except for the accuracy findings recorded in Open Questions below.
+- **Publish workflow hardening** (todo.md step 4): the current `.github/workflows/publish.yml` builds from a fresh checkout and publishes with no test gate, authenticating with `UV_PUBLISH_TOKEN` from `secrets.PYPI_API_TOKEN` even though the job already grants `id-token: write`, the one permission trusted publishing needs.
+  Required: a test job before publish, build artifact upload/download so the tested wheel is the published wheel, a GitHub `environment:` declaration for deployment protection, and a decision between API token and trusted publishing (trusted publishing preferred; no secret to manage, and the permission is already declared).
+- **TestPyPI workflow** (todo.md step 5): a `workflow_dispatch`-triggered `.github/workflows/test-publish.yml` targeting TestPyPI, used to validate install, README rendering, and metadata before the real publish.
+- **Build verification in CI** (todo.md step 6): `uv build` plus wheel-contents verification (must include `fountain/__init__.py`, `parser.py`, `renderer.py`, `py.typed`) and the Sphinx doctest build added to ci.yml.
+- **CI dependency install fix** (found during spec verification): ci.yml:29 runs `uv pip install -e ".[dev]"`, but pyproject.toml defines the dev tools under `[dependency-groups]`, not a `dev` extra, so uv warns `does not have an extra named 'dev'` and installs no dev tools (verified by probe).
+  The jobs pass only because the later `uv run` commands re-sync the environment with the dev dependency group.
+  Replace the install step with `uv sync --dev` so it does what it says.
+- **Docs workflow**: `.github/workflows/docs.yml` builds Sphinx HTML (`sphinx-build -b html`, Python 3.12, dev and docs groups) on push to `main` and deploys to GitHub Pages behind a `github-pages` environment.
+  It is currently untracked and must be committed for Pages deploys to run; it does not run the Sphinx doctest build, so todo step 6 remains the only path for doctests into CI.
+- **Local end-to-end verification** (todo.md step 7): build, install the wheel in a clean venv, import-and-parse smoke test, full `just test`, then clean up `dist/`.
+
+Production ready for this library means: all high-severity compliance requirements (A4, A4b, B1, C1, D4, D6, E2, E3) fixed with pinned tests, medium/low items fixed or explicitly waived, the documentation gaps in Open Questions resolved so every published claim is true, the publish pipeline gated as above, a TestPyPI dry run verified, and `pip install fountain-py` on a clean 3.9 through 3.13 interpreter parsing a screenplay and rendering HTML without errors.
+Release mechanics: merge to `main` (Mason merges; agents never do), tag `v0.1.0`, create the GitHub Release, let the gated workflow publish, verify the PyPI page.
+
+## Out of Scope
+
+Items from the June 2026 audit's roadmap phase that are explicitly not part of 0.1.0: the mkdocs-fountain plugin and PDF export.
+They remain future phases and impose no requirements here beyond the renderer's fragment/CSS split, which was designed for that embedding use case.
+
+## Open Questions
+
+Findings where documented behavior disagrees with actual behavior, plus decisions only Mason can make.
+No side has been silently picked; each needs a ruling.
+
+1. **Version number: 0.1.0 or 0.2.0?** pyproject.toml:3 and todo.md step 2 say 0.1.0; plan.md says 0.2.0 everywhere (target version, changelog section, tag, wheel names).
+   The dist/ folder currently holds 0.1.0 artifacts.
+   This spec assumes 0.1.0; plan.md needs updating or the version needs bumping.
+2. **README claims "Full Fountain Spec Compliance" (README.md:13)** while the verified audit confirms 34 gaps.
+   Either the claim softens ("parses all Fountain element types") or it waits until the requirements above are closed.
+   The same claim appears in CHANGELOG.md:14.
+3. **Renderer docstring says notes and synopses are "hidden by default" (src/fountain/renderer.py:247, 250)** but `DEFAULT_CSS` styles both visibly (src/fountain/renderer.py:128-132, 145-149).
+   docs/source/user-guide/rendering.rst:167 makes the boneyard "hidden by default" claim, which is true only in `render_page()` mode since fragments carry no CSS (audit E11 and E5).
+   Decide the intended visibility and make code, CSS, and docs agree.
+4. **`FountainElement.text` is documented as "Clean text content with Fountain markup removed" (src/fountain/elements.py:146, 153)** but emphasis delimiters remain in the text (audit D4) and BONEYARD/NOTE elements keep their delimiters verbatim.
+   Fixing D4 resolves the emphasis half; the docstring still needs to state what BONEYARD and NOTE carry.
+5. **FountainRenderer round-trip claims** (README.md:81-89 "Round-Trip Conversion"; docstring at src/fountain/renderer.py:656-672) overstate today's fidelity: blank lines are dropped, dual dialogue vanishes, and emphasis markup is not re-emitted (A4, A4b, and the documented `_apply_formatting_removal` limitation).
+   Fix A4/A4b, then rewrite the round-trip docs to state the remaining limitation precisely.
+6. **CHANGELOG.md claims "Tab-to-spaces conversion verified in HTML output"** but tabs survive in element text and are converted to `&nbsp;` only at render time, and space indentation collapses in browsers (audit A5/D10).
+   Reword after the A5 fix or before publishing the changelog.
+7. **`HTMLRenderer` and `FountainRenderer` are absent from the top-level `__all__`** (src/fountain/__init__.py:14-21) while README.md:32 and the quickstart treat them as primary API via `from fountain.renderer import ...`.
+   Decide whether to promote them to `fountain.__all__` before 0.1.0, since adding them later is easy but users will cargo-cult whatever the first README shows.
+8. **Validation API.** The June 2026 audit (origin/main audit.md, commit 1b71ea2) carried a P4 item to implement `FountainParser.validate() -> list[ValidationError]` because the then-current plan.md promised it.
+   That plan.md is gone and no code or doc promises validation today, so this spec treats the item as superseded rather than carrying it as a requirement.
+   Confirm: is a validation API wanted for 0.1.0 or deferred?
+9. **Python 3.9 support.** Python 3.9 reached end of life in October 2025, yet it is the declared floor (pyproject.toml:9) and the mypy/ruff target.
+   Keeping it costs `Optional`/`Union` syntax throughout; dropping to 3.10 would allow `X | None` per the python skill's standards.
+   Decide before publish, since the floor is part of the public contract.
+10. **`author` versus `authors` on the title page.** With both keys present, `HTMLRenderer` renders only `author` (src/fountain/renderer.py:403-404) while `FountainRenderer` emits both, so the two renderers disagree about the same document (verified by probe).
+   Decide whether the keys are aliases and make both renderers agree.
+11. **`just test` runs the mutating `just fix`.** The quality gate's recipe order is `unit-test-cov doctest lint type-check fix check`, so running the gate can rewrite source files via `ruff check --fix` before the format check.
+   Keep the auto-fix inside the gate or split it out so `just test` is read-only?
+
+### Reconciliation of origin/main audit.md (commit 1b71ea2)
+
+For the record, the June 2026 remediation plan's items against today's code: P1 directory flattening is done (package lives at `src/fountain/` from the repo root).
+P2 CI is done (`.github/workflows/ci.yml`, 3.9 through 3.13); its pre-commit sub-item is superseded (pre-commit is no longer a dev dependency and no config exists, though dangling recipes remain; see CR-3).
+P3 README and docs are done (Sphinx/furo instead of the mkdocs stack the audit referenced; the dangling mkdocs references it flagged are gone).
+P4 validation is superseded pending Mason's ruling (Open Question 8); P4 spec-completeness verification was executed as the compliance audit and its output is the Spec Compliance Requirements section above.
+P5 roadmap items (mkdocs plugin, PDF export) are out of scope; P5 PyPI publication is this spec's Path to PyPI.
