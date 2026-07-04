@@ -1,6 +1,7 @@
 # fountain-py Product Spec
 
 Date: 2026-07-02.
+Reviewed by Mason on 2026-07-03 via `/bpe:review`; his rulings are folded in below, each marked "Ruling (2026-07-03)".
 This document states the behavior of fountain-py as it exists in this working tree, and the requirements that separate today's behavior from a publishable 0.1.0.
 Actual behavior is the contract: where this spec describes parsing or rendering, it describes what the code does today, verified by the test suite (241 tests passing) and the compliance audit in `.ai-sessions/fountain-compliance-audit.md`.
 Full compliance with the Fountain syntax specification at https://fountain.io/syntax/ is a stated product requirement.
@@ -26,12 +27,17 @@ The 0.1.0 release ships when the library is spec-compliant per the requirements 
 
 `HTMLRenderer`, `FountainRenderer`, `DEFAULT_CSS`, and `TITLE_PAGE_FIELD_ORDER` are public in `fountain.renderer` but are not re-exported at the package top level.
 `FormatSpan` is public in `fountain.elements` but is likewise not in the top-level `__all__`.
-See Open Questions on whether the renderer classes belong in the top-level API.
+
+Ruling (2026-07-03, resolving Open Question 7): promote `HTMLRenderer` and `FountainRenderer` to the top-level `__all__` before 0.1.0.
+A populated `__init__.py` is the accepted library exception to the python skill's empty-`__init__` rule: published libraries (requests, httpx, attrs) re-export their public API there to give users a stable flat import path decoupled from internal module layout, and the README and quickstart already teach the renderers as primary API.
+The exception is narrow: `__init__.py` stays restricted to imports and `__all__`, no logic.
+Acceptance: `from fountain import HTMLRenderer, FountainRenderer` works, and `fountain/__init__.py` contains nothing but re-exports, `__all__`, and the module docstring.
 
 ### FountainParser
 
 `FountainParser()` takes no constructor arguments.
-Parser instances hold mutable parse state (`lines`, `current_line`, `elements`, boneyard and note flags) that is reset at the top of every `parse()` call, so an instance can be reused sequentially but is not thread-safe.
+Parser instances hold mutable parse state (`lines`, `current_line`, `elements`, boneyard and note flags) that is reset at the top of every `parse()` call.
+An instance can be reused for sequential parses; code that parses from multiple threads should construct one parser per thread, which costs nothing since the constructor takes no arguments.
 
 `parse(text: str) -> FountainDocument` runs a two-pass parse: pass 1 extracts title page metadata, pass 2 classifies body lines, then a post-pass pairs dual dialogue.
 It never raises on malformed markup; unclassifiable lines fall back to ACTION elements.
@@ -40,8 +46,24 @@ The known exceptions to that promise are the boneyard truncation defects E2 and 
 `parse_file(filepath: str) -> FountainDocument` reads the file as UTF-8 and delegates to `parse()`.
 It propagates `FileNotFoundError`, `OSError`, and `UnicodeDecodeError` from the underlying `open()` and `read()`.
 
-There is no validation API.
-`parse()` reports no warnings or errors; the only diagnostics available are the element types and line numbers on the parsed output.
+Today `parse()` reports no warnings or errors; the only diagnostics available are the element types and line numbers on the parsed output.
+Ruling (2026-07-03, resolving Open Question 8): a validation API is required for 0.1.0; it is specced in the next section.
+
+### Validation API (Required for 0.1.0)
+
+`parse()` stays lenient and non-raising; `validate()` is the diagnostic channel that makes silent degradation visible instead of swallowed.
+
+- `FountainParser.validate(text: str) -> list[ValidationIssue]` runs the same two-pass analysis as `parse()` but collects diagnostics instead of discarding them.
+- `ValidationIssue` is a frozen dataclass with `line_number: int` (1-based), `severity: Literal["error", "warning"]`, `code: str` (a stable machine-readable identifier), and `message: str` (human-readable).
+- Initial diagnostic set:
+  - `unclosed-boneyard` (error): `/*` with no closing `*/` before EOF.
+  - `unclosed-note` (error): `[[` with no closing `]]` before EOF.
+  - `orphan-character-cue` (warning): an uppercase line that looks like a character cue but was demoted to ACTION because no dialogue follows.
+  - `empty-document` (warning): no elements parsed.
+- The code set is expected to grow as compliance fixes land; once shipped, each code string is contract.
+- `ValidationIssue` is exported from the package top level alongside the other public types.
+
+Acceptance: validating a document with an unclosed boneyard returns one `unclosed-boneyard` error carrying the opening line's number; a well-formed script returns `[]`; `parse()` output is byte-identical with or without a prior `validate()` call.
 
 ### Title Page Parsing Rules (Pass 1)
 
@@ -94,12 +116,20 @@ This lookahead is the source of defects C3, C4, and C6 below.
 After line classification, `_process_dual_dialogue()` (src/fountain/parser.py:1123-1222) finds CHARACTER elements with `dual_dialogue` metadata, pairs each with the immediately preceding character block (no scene heading or action between them), and replaces both blocks with one DUAL_DIALOGUE element.
 The DUAL_DIALOGUE element has empty text and carries `left_character`, `left_dialogue`, `right_character`, and `right_dialogue` in its metadata, where the dialogue values are lists of DIALOGUE and PARENTHETICAL elements.
 
+Ruling (2026-07-03): evaluate whether this pairing should stay a hard-coded post-pass or become a stage in a formal processing pipeline.
+Mason's planned expanded-markdown library composes parsers with pre- and post-processor stages, and fountain-py needs to fit that model; some transforms may belong before line classification and some after.
+The design question is tracked as Open Question 12; no refactor happens before that design pass.
+
 ### Inline Formatting Extraction
 
 `_extract_formatting()` (src/fountain/parser.py:1026-1121) returns `FormatSpan` entries for `***bold italic***`, `**bold**`, `*italic*`, and `_underline_`, with precedence in that order.
 Overlap suppression is partial: bold is suppressed only inside bold-italic spans, italic inside bold-italic and bold spans, and underline is never suppressed, so `**_word_**` yields overlapping bold and underline spans (src/fountain/parser.py:1074-1101; verified by probe; this feeds defect D6).
 The italic pattern has whitespace guards (no space adjacent to the delimiters); bold and underline do not (defect D7).
 Span positions cover the full match including the delimiter characters, and the delimiters remain in the element text (defect D4).
+
+Ruling (2026-07-03): suppression is not a Fountain concept at all.
+The spec lets bold, italic, and underline combine freely (its own example underlines a phrase containing an italic span), so the partial-suppression behavior above is an implementation artifact, not contract.
+The required end state is composable nested spans with delimiters stripped, delivered by requirements D4, D6, and D7.
 
 ### FountainDocument
 
@@ -120,7 +150,7 @@ Span positions cover the full match including the delimiter characters, and the 
 - `FormatSpan` (src/fountain/elements.py:94-133) is a NamedTuple of `start: int`, `end: int` (exclusive), `format_type: FormatType`.
 - `FormatType` is `Literal["bold", "italic", "underline", "bold_italic"]`.
 - `MetadataValue` is `Union[str, int, bool, list["FountainElement"], "FountainElement", None]`, the value union that element metadata actually holds.
-  It is exported but not yet applied to the `FountainElement.metadata` annotation; see requirement CR-2.
+  It is exported but not yet applied to the `FountainElement.metadata` annotation; applying it is required per CR-2 (ruling 2026-07-03: fix it).
 
 ### HTMLRenderer
 
@@ -151,15 +181,21 @@ Known limitations, stated in the code and confirmed by probe:
 
 ### Error Behavior Summary
 
-- Malformed markup never raises; it degrades to ACTION.
+- Malformed markup never raises from `parse()`; it degrades to ACTION.
+  Ruling (2026-07-03): degrading silently with no diagnostic channel is swallowing errors, and that is bad practice.
+  The Validation API above is the required remedy: `parse()` stays lenient, and every degradation the parser can detect must be reportable through `validate()`.
 - `parse_file` propagates file system and decoding errors unchanged.
 - Boneyard edge cases E2 and E3 silently truncate the document, which violates the library's own degrade-to-action philosophy and the Fountain spec's error-handling guidance; they are the highest-priority fixes in this spec.
 
 ### Supported Python Versions
 
-Per pyproject.toml: `requires-python = ">=3.9"`, classifiers for 3.9 through 3.13, ruff `target-version = "py39"`, mypy `python_version = "3.9"`.
-CI (`.github/workflows/ci.yml:14`) tests the 3.9, 3.10, 3.11, 3.12, 3.13 matrix.
-The package ships zero runtime dependencies and includes `py.typed`.
+Ruling (2026-07-03, resolving Open Question 9): the floor moves to 3.10 and the ceiling tracks current CPython releases.
+
+- Target state: `requires-python = ">=3.10"`, classifiers for 3.10 through 3.14, ruff `target-version = "py310"`, mypy `python_version = "3.10"`.
+- Code modernizes to the 3.10 floor: `X | None` over `Optional[X]`/`Union` throughout, per the python skill's standards (ruff UP007 enforces it).
+- CI tests every supported version: 3.10 through 3.14 now, with 3.15 added when it releases (October 2026).
+- Current state, which this ruling changes: pyproject declares `>=3.9` with a `py39` ruff target and CI runs the 3.9 through 3.13 matrix (`.github/workflows/ci.yml:14`).
+- The package ships zero runtime dependencies and includes `py.typed`; that does not change.
 
 ## Spec Compliance Requirements
 
@@ -167,7 +203,8 @@ Full compliance with https://fountain.io/syntax/ is a product requirement.
 The verified audit (`.ai-sessions/fountain-compliance-audit.md`, dated 2026-07-02, all probes re-run against this tree) confirmed 34 gaps.
 Each is a numbered requirement below; IDs match the audit for traceability, and the items tagged "found during spec verification" (A4b, A4c, E13) are additions from this review, not audit items.
 Each acceptance criterion is written so a failing test can encode it today and pass after the fix.
-Severities come from the audit: high items block 0.1.0; medium and low items should be fixed or explicitly waived by Mason before release.
+Severities come from the audit and order the work, but they no longer gate differently.
+Ruling (2026-07-03): everything gets fixed before we ship; high, medium, and low items are all fixed before 0.1.0, and nothing is waived.
 
 ### Group A: Title Page and Whitespace
 
@@ -291,7 +328,8 @@ Two findings carry forward:
   src/fountain/parser.py:1-2, src/fountain/elements.py:1-2, src/fountain/document.py:1-2, and tests/test_edge_cases.py:2-3 start both lines with `ABOUTME:` inside the module docstring.
   Acceptance: every source file's header has `ABOUTME:` on line one only, as plain comments matching src/fountain/renderer.py:1-2.
 - **CR-2 (medium, residue of finding 10).** `MetadataValue` is defined and exported (src/fountain/elements.py:31, src/fountain/__init__.py:20) but `FountainElement.metadata` is still annotated `dict[str, Any] | None` (src/fountain/elements.py:209), as are the metadata locals in src/fountain/parser.py:667, 703, 759.
-  Acceptance: `FountainElement.metadata` is `dict[str, MetadataValue] | None` (or the alias is deliberately dropped from the public API); mypy strict passes.
+  Ruling (2026-07-03): fix the annotation; dropping the alias is off the table.
+  Acceptance: `FountainElement.metadata` is `dict[str, MetadataValue] | None`; mypy strict passes.
 - **CR-3 (low, found during spec verification).** The justfile keeps `pre-commit-install` and `pre-commit-all` recipes (justfile:78-84) and CONTRIBUTING.md:23-24 still tells contributors to run `pre-commit install`, although pre-commit is neither a dependency nor configured anywhere.
   Acceptance: `just --list` shows no pre-commit recipes and `grep -ri pre-commit` over the tracked tree matches nothing outside git history.
 
@@ -304,7 +342,7 @@ Current state, which the release must not regress:
 - `just test` runs, in order: tests with coverage, doctests, ruff lint, mypy, `just fix` (ruff auto-fix, which can modify files; see Open Question 11), and ruff format check.
   It must pass clean.
   The pyproject mypy config stops short of `strict = true`, but `mypy --strict src/` passes today (verified by probe) and must keep passing per CR-2.
-- CI runs the suite plus lint and type check across Python 3.9 through 3.13.
+- CI runs the suite plus lint and type check on every push to `main` and on every pull request against `main` (already wired in ci.yml; pinned here as contract per the 2026-07-03 ruling), across every supported Python version (3.10 through 3.14 after the floor/ceiling ruling above; 3.15 added on release).
 - Every compliance requirement above lands with a failing-first test that encodes its acceptance criterion.
 
 ## Available Tooling
@@ -331,46 +369,66 @@ Release contract for the first publish:
   It is currently untracked and must be committed for Pages deploys to run; it does not run the Sphinx doctest build, so todo step 6 remains the only path for doctests into CI.
 - **Local end-to-end verification** (todo.md step 7): build, install the wheel in a clean venv, import-and-parse smoke test, full `just test`, then clean up `dist/`.
 
-Production ready for this library means: all high-severity compliance requirements (A4, A4b, B1, C1, D4, D6, E2, E3) fixed with pinned tests, medium/low items fixed or explicitly waived, the documentation gaps in Open Questions resolved so every published claim is true, the publish pipeline gated as above, a TestPyPI dry run verified, and `pip install fountain-py` on a clean 3.9 through 3.13 interpreter parsing a screenplay and rendering HTML without errors.
+Production ready for this library means: every compliance requirement fixed with pinned tests regardless of severity (ruling 2026-07-03: no waivers), the Validation API shipped, the rulings in Open Questions carried out so every published claim is true, the publish pipeline gated as above, a TestPyPI dry run verified, and `pip install fountain-py` on a clean 3.10 through 3.14 interpreter parsing a screenplay and rendering HTML without errors.
 Release mechanics: merge to `main` (Mason merges; agents never do), tag `v0.1.0`, create the GitHub Release, let the gated workflow publish, verify the PyPI page.
 
-## Out of Scope
+## Out of Scope and Scoped Futures
 
-Items from the June 2026 audit's roadmap phase that are explicitly not part of 0.1.0: the mkdocs-fountain plugin and PDF export.
-They remain future phases and impose no requirements here beyond the renderer's fragment/CSS split, which was designed for that embedding use case.
+The mkdocs-fountain plugin remains fully out of scope; it imposes no requirements here beyond the renderer's fragment/CSS split, which was designed for that embedding use case.
+
+Ruling (2026-07-03): the following output modes are scoped as post-0.1.0 phases; they are defined now so the 0.1.0 architecture does not paint them into a corner, but none blocks the release.
+
+- **PDF export.** Render a `FountainDocument` to screenplay-formatted PDF: Courier 12pt, standard margins and per-element indents.
+  Requires a dependency decision first, since the zero-dependency core is contract; PDF support likely lands as an optional extra or a companion package.
+- **JSON output mode.** `to_json()` already exists; the work is formalizing its schema (element fields, metadata value shapes) as a documented, versioned contract that external tools can consume.
+- **XML output mode.** A renderer emitting the parsed document as XML with the same fidelity as the JSON form: element types as tags, text as content, metadata as attributes or child nodes.
+
+Each mode gets its own spec pass before implementation.
 
 ## Open Questions
 
-Findings where documented behavior disagrees with actual behavior, plus decisions only Mason can make.
-No side has been silently picked; each needs a ruling.
+Findings where documented behavior disagreed with actual behavior, plus decisions only Mason could make.
+Mason ruled on these in the 2026-07-03 review; each ruling is recorded inline, and Question 12 is new from that review.
 
 1. **Version number: 0.1.0 or 0.2.0?** pyproject.toml:3 and todo.md step 2 say 0.1.0; plan.md says 0.2.0 everywhere (target version, changelog section, tag, wheel names).
    The dist/ folder currently holds 0.1.0 artifacts.
-   This spec assumes 0.1.0; plan.md needs updating or the version needs bumping.
+   Ruling (2026-07-03): stay at 0.1.0; update plan.md to match.
 2. **README claims "Full Fountain Spec Compliance" (README.md:13)** while the verified audit confirms 34 gaps.
    Either the claim softens ("parses all Fountain element types") or it waits until the requirements above are closed.
    The same claim appears in CHANGELOG.md:14.
+   Ruling (2026-07-03): the claim stands, because 0.1.0 does not ship until it is true; full compliance before release, no waivers.
 3. **Renderer docstring says notes and synopses are "hidden by default" (src/fountain/renderer.py:247, 250)** but `DEFAULT_CSS` styles both visibly (src/fountain/renderer.py:128-132, 145-149).
    docs/source/user-guide/rendering.rst:167 makes the boneyard "hidden by default" claim, which is true only in `render_page()` mode since fragments carry no CSS (audit E11 and E5).
-   Decide the intended visibility and make code, CSS, and docs agree.
+   Ruling (2026-07-03): the Fountain spec decides.
+   The spec says notes, sections, synopses, and boneyard are tools for the writer and are omitted from formatted output, so all four are hidden by default; make `DEFAULT_CSS`, the fragment-mode docs, and the docstrings agree (E5 and E11 cover the mechanics).
 4. **`FountainElement.text` is documented as "Clean text content with Fountain markup removed" (src/fountain/elements.py:146, 153)** but emphasis delimiters remain in the text (audit D4) and BONEYARD/NOTE elements keep their delimiters verbatim.
    Fixing D4 resolves the emphasis half; the docstring still needs to state what BONEYARD and NOTE carry.
+   Ruling (2026-07-03): fix it; land D4, then rewrite the docstring so it is accurate about BONEYARD and NOTE contents.
 5. **FountainRenderer round-trip claims** (README.md:81-89 "Round-Trip Conversion"; docstring at src/fountain/renderer.py:656-672) overstate today's fidelity: blank lines are dropped, dual dialogue vanishes, and emphasis markup is not re-emitted (A4, A4b, and the documented `_apply_formatting_removal` limitation).
    Fix A4/A4b, then rewrite the round-trip docs to state the remaining limitation precisely.
 6. **CHANGELOG.md claims "Tab-to-spaces conversion verified in HTML output"** but tabs survive in element text and are converted to `&nbsp;` only at render time, and space indentation collapses in browsers (audit A5/D10).
    Reword after the A5 fix or before publishing the changelog.
+   Ruling (2026-07-03): just update the changelog; nothing has shipped yet.
 7. **`HTMLRenderer` and `FountainRenderer` are absent from the top-level `__all__`** (src/fountain/__init__.py:14-21) while README.md:32 and the quickstart treat them as primary API via `from fountain.renderer import ...`.
    Decide whether to promote them to `fountain.__all__` before 0.1.0, since adding them later is easy but users will cargo-cult whatever the first README shows.
+   Ruling (2026-07-03): promote them; the library re-export pattern is the accepted exception to the empty-`__init__` rule, and the file stays logic-free (see Package Exports).
 8. **Validation API.** The June 2026 audit (origin/main audit.md, commit 1b71ea2) carried a P4 item to implement `FountainParser.validate() -> list[ValidationError]` because the then-current plan.md promised it.
-   That plan.md is gone and no code or doc promises validation today, so this spec treats the item as superseded rather than carrying it as a requirement.
-   Confirm: is a validation API wanted for 0.1.0 or deferred?
+   That plan.md is gone and no code or doc promises validation today.
+   Ruling (2026-07-03): wanted for 0.1.0; specced above as the Validation API section under the Public API Contract.
 9. **Python 3.9 support.** Python 3.9 reached end of life in October 2025, yet it is the declared floor (pyproject.toml:9) and the mypy/ruff target.
    Keeping it costs `Optional`/`Union` syntax throughout; dropping to 3.10 would allow `X | None` per the python skill's standards.
-   Decide before publish, since the floor is part of the public contract.
+   Ruling (2026-07-03): drop to 3.10 and modernize the code; support runs through 3.14 with 3.15 added on release (see Supported Python Versions).
 10. **`author` versus `authors` on the title page.** With both keys present, `HTMLRenderer` renders only `author` (src/fountain/renderer.py:403-404) while `FountainRenderer` emits both, so the two renderers disagree about the same document (verified by probe).
-   Decide whether the keys are aliases and make both renderers agree.
+   Ruling (2026-07-03): render all authors.
+   Both renderers emit both keys; `HTMLRenderer` renders `author` and `authors` each as its own author paragraph.
+   Acceptance: a title page carrying both keys produces both values in HTML and in Fountain output, and the two renderers agree on the same document.
 11. **`just test` runs the mutating `just fix`.** The quality gate's recipe order is `unit-test-cov doctest lint type-check fix check`, so running the gate can rewrite source files via `ruff check --fix` before the format check.
    Keep the auto-fix inside the gate or split it out so `just test` is read-only?
+   Ruling (2026-07-03): keep the auto-fix inside the gate.
+12. **Parser pipeline architecture: pre- versus post-processing.** Dual dialogue pairing is a hard-coded post-pass today (see Dual Dialogue Post-Processing).
+   Mason's planned expanded-markdown library composes parsers with pre- and post-processor stages, and fountain-py should fit that model.
+   Open: which transforms belong before line classification and which after, and whether the parser should expose formal pipeline stages.
+   Needs a design pass against that library's processor model before any refactor; raised in the 2026-07-03 review.
 
 ### Reconciliation of origin/main audit.md (commit 1b71ea2)
 
