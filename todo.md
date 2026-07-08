@@ -48,7 +48,7 @@ Each step is TDD: failing test first, then the minimal fix, then `just test` cle
 - [x] 7.1 C1: punctuated uppercase cues recognized
 - [x] 7.2 C2: digit-first cues with at least one letter
 - [x] 7.3 C3: a blank line immediately after a cue disqualifies it
-- [ ] 7.4 C4: an all-caps line after a cue is dialogue
+- [x] 7.4 C4: an all-caps line after a cue is dialogue
 - [ ] 7.5 C5: trailing caret on a forced character creates dual dialogue
 - [ ] 7.6 C6: `@` forces CHARACTER unconditionally
 - [ ] 7.7 C7: forced characters get extension extraction

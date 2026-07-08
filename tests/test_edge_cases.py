@@ -1370,6 +1370,32 @@ Hello /* hidden */ world."""
         assert doc.elements[0].text == "JOHN"
         assert doc.elements[1].text == "I SAID NO"
 
+    def test_allcaps_line_after_cue_is_dialogue(self):
+        """An all-caps line after a cue is that cue's dialogue (C4, plan Step 7.4).
+
+        This is the plan's canonically-named pin for defect C4. The behavior was
+        already delivered by Step 7.1's cue-lookahead rework: a shouted, all-caps
+        follow line matches the character-cue pattern but is not itself followed by
+        its own dialogue, so the lookahead must attribute it to the preceding cue as
+        DIALOGUE rather than treat it as a rival CHARACTER. This test pins that
+        contract explicitly under the plan's name.
+        """
+        doc = FountainParser().parse("JOHN\nI SAID NO")
+        element_types = [element.type for element in doc.elements]
+        assert element_types == [ElementType.CHARACTER, ElementType.DIALOGUE], (
+            f"'JOHN' / 'I SAID NO' should parse as CHARACTER + DIALOGUE, got {element_types}"
+        )
+        assert doc.elements[0].text == "JOHN"
+        assert doc.elements[1].text == "I SAID NO"
+
+        shout_doc = FountainParser().parse("JOHN\nGET OUT NOW")
+        shout_types = [element.type for element in shout_doc.elements]
+        assert shout_types == [ElementType.CHARACTER, ElementType.DIALOGUE], (
+            f"'JOHN' / 'GET OUT NOW' should parse as CHARACTER + DIALOGUE, got {shout_types}"
+        )
+        assert shout_doc.elements[0].text == "JOHN"
+        assert shout_doc.elements[1].text == "GET OUT NOW"
+
     def test_digit_first_character_cue(self):
         """A digit-first cue with at least one letter parses as CHARACTER (C2).
 
