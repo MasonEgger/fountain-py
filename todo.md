@@ -54,7 +54,7 @@ Each step is TDD: failing test first, then the minimal fix, then `just test` cle
 - [x] 7.7 C7: forced characters get extension extraction
 
 ## Section 8: Compliance Group D: Transitions and Emphasis
-- [ ] 8.1 D1: trailing spaces after the colon defeat a transition
+- [x] 8.1 D1: trailing spaces after the colon defeat a transition
 - [ ] 8.2 D2: uppercase lines ending in `TO:` with punctuation are transitions
 - [ ] 8.3 D4: emphasis delimiters stripped and spans cover only the content
 - [ ] 8.4 D5: the keypad escape example renders correctly

@@ -1654,3 +1654,28 @@ Hello /* hidden */ world."""
         assert not any(element.type == ElementType.DIALOGUE and element.text == "Hi." for element in doc.elements), (
             "'Hi.' after a blank line must not be DIALOGUE"
         )
+
+    # -- Step 8.1: D1 Trailing Space After the Colon Defeats a Transition --
+
+    def test_trailing_space_defeats_transition(self):
+        """D1: a trailing space after the colon makes ``CUT TO:`` action, not a transition.
+
+        The natural transition rule is end-anchored, so trailing whitespace on an
+        otherwise-transition line must fall through to action.
+        """
+        doc = self.parser.parse("Action.\n\nCUT TO: \n\nINT. HOUSE - DAY")
+        transitions = [element for element in doc.elements if element.type == ElementType.TRANSITION]
+        assert len(transitions) == 0, (
+            f"'CUT TO: ' with a trailing space must not parse as a transition, got {[t.text for t in transitions]}"
+        )
+        actions = [element for element in doc.elements if element.type == ElementType.ACTION]
+        assert any("CUT TO:" in action.text for action in actions), (
+            "'CUT TO: ' with a trailing space must parse as action, "
+            f"got {[(element.type.value, element.text) for element in doc.elements]}"
+        )
+
+        # Guard: the clean form (no trailing space) is still a transition.
+        clean_doc = self.parser.parse("Action.\n\nCUT TO:\n\nINT. HOUSE - DAY")
+        clean_transitions = [element for element in clean_doc.elements if element.type == ElementType.TRANSITION]
+        assert len(clean_transitions) == 1
+        assert clean_transitions[0].text == "CUT TO:"

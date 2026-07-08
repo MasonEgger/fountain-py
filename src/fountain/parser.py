@@ -417,7 +417,7 @@ class FountainParser:
                 self.current_line += 1
                 continue
 
-            element = self._parse_line(line, previous_line_was_blank)
+            element = self._parse_line(line, previous_line_was_blank, raw_line)
             if element:
                 element.text = self._strip_escapes(element.text)
                 self.elements.append(element)
@@ -665,7 +665,9 @@ class FountainParser:
             element.text = self._strip_escapes(element.text)
             self.elements.append(element)
 
-    def _parse_line(self, line: str, had_blank_line_before: bool = False) -> FountainElement | None:
+    def _parse_line(
+        self, line: str, had_blank_line_before: bool = False, raw_line: str | None = None
+    ) -> FountainElement | None:
         """Parse a single line and return the appropriate FountainElement.
 
         Classifies a single line of Fountain text into the appropriate element type using
@@ -683,6 +685,9 @@ class FountainParser:
             line: The text line to parse (may include leading/trailing whitespace)
             had_blank_line_before: Whether there was a blank line before this one,
                                   affects dialogue continuation detection
+            raw_line: The untrimmed source line, when available. Used so the natural
+                     transition rule can see trailing whitespace (D1); recursive
+                     callers that pass a stripped remainder omit it.
 
         Returns:
             FountainElement instance for the parsed line, or None if line should be skipped
@@ -966,9 +971,14 @@ class FountainParser:
                 metadata=scene_metadata,
             )
 
-        # Check for transition (requires blank line before and after, or first/last element)
+        # Check for transition (requires blank line before and after, or first/last element).
+        # D1: trailing whitespace after the colon defeats a natural transition. The pattern
+        # is end-anchored, so matching it against the raw (leading-stripped only) line makes
+        # `CUT TO: ` fall through to action. Recursive remainders carry no raw line and use
+        # the already-stripped `line`.
         has_blank_before = had_blank_line_before or not self.elements
-        if self.TRANSITION_PATTERN.match(line) and has_blank_before and self._is_blank_line_after():
+        transition_source = raw_line.lstrip() if raw_line is not None else line
+        if self.TRANSITION_PATTERN.match(transition_source) and has_blank_before and self._is_blank_line_after():
             return FountainElement(
                 type=ElementType.TRANSITION,
                 text=line,
