@@ -31,7 +31,7 @@ class TestSceneHeadingEdgeCases:
             ("EXTERIOR. PARK - NIGHT", True),  # full word
             ("INT/EXT. HOUSE - DAY", True),  # slash variation
             ("INT./EXT. HOUSE - DAY", True),  # period slash variation
-            ("INT HOUSE - DAY", False),  # missing period - should fail per spec
+            ("INT HOUSE - DAY", True),  # space form recognized per spec (B1)
             (".CUSTOM SCENE HEADING", True),  # forced
             ("INT. CAFÉ - DAY", True),  # unicode
             ("EXT. 中文 LOCATION - DAY", True),  # unicode
@@ -557,6 +557,30 @@ class TestSpecCompliance:
         doc = self.parser.parse(".2nd Floor")
         assert doc.elements[0].type == ElementType.SCENE_HEADING
         assert doc.elements[0].text == "2nd Floor"
+
+    # -- Step 6.1: Space-Form Scene Heading Prefixes (B1) --
+
+    def test_scene_heading_space_forms(self):
+        """Space-form scene heading prefixes parse as SCENE_HEADING (B1).
+
+        `INT HOUSE - DAY` and the space forms of EXT, EST, I/E, and INT/EXT are
+        scene headings alongside the dot forms. A prefix boundary keeps
+        `INTERNAL AFFAIRS INVESTIGATES.` as ACTION so `INT` does not match the
+        start of `INTERNAL`.
+        """
+        space_forms = [
+            "INT HOUSE - DAY",
+            "EXT PARK - NIGHT",
+            "EST FIELD - DAY",
+            "I/E CAR - DAY",
+            "INT/EXT DINER - NIGHT",
+        ]
+        for scene_line in space_forms:
+            doc = self.parser.parse(scene_line)
+            assert doc.elements[0].type == ElementType.SCENE_HEADING, scene_line
+
+        doc = self.parser.parse("INTERNAL AFFAIRS INVESTIGATES.")
+        assert doc.elements[0].type == ElementType.ACTION
 
     # -- Step 3: Tab Conversion Verification --
 
