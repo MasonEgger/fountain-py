@@ -839,9 +839,9 @@ class FountainRenderer:
                 and metadata.
 
         Returns:
-            Fountain markup string for the element. Returns empty string for
-            DUAL_DIALOGUE elements as they are handled through CHARACTER
-            elements with dual_dialogue metadata.
+            Fountain markup string for the element. A DUAL_DIALOGUE element is
+            rendered as its paired left and right character blocks with the
+            caret restored on the right cue (see ``_render_dual_dialogue``).
 
         Example:
             >>> from fountain.elements import FountainElement, ElementType
@@ -923,9 +923,7 @@ class FountainRenderer:
             return f"= {text}"
 
         elif element.type == ElementType.DUAL_DIALOGUE:
-            # Dual dialogue is handled by rendering the individual character elements
-            # with dual_dialogue metadata, so we return empty here
-            return ""
+            return self._render_dual_dialogue(element)
 
         elif element.type == ElementType.PAGE_BREAK:
             return "==="
@@ -939,6 +937,44 @@ class FountainRenderer:
         else:
             # Fallback for unknown element types
             return text
+
+    def _render_dual_dialogue(self, element: FountainElement) -> str:
+        """Render a DUAL_DIALOGUE element back to Fountain markup.
+
+        Emits the left character block followed by a blank line and the right
+        character block, with the caret (``^``) restored on the right cue. The
+        parser detects dual dialogue by that caret on the second character, so
+        re-parsing the output reproduces a DUAL_DIALOGUE element (requirement
+        A4b). The caret itself is emitted by ``_render_element`` because the
+        right character carries ``dual_dialogue`` metadata; this method only
+        arranges the two columns and their blank-line separation.
+
+        Each column is rendered through ``_render_body`` so the character cue
+        stays contiguous with its dialogue and parentheticals (single newline),
+        matching the single-column A4 round-trip behavior.
+
+        Args:
+            element: A DUAL_DIALOGUE element whose metadata carries
+                ``left_character``, ``left_dialogue``, ``right_character``, and
+                ``right_dialogue``.
+
+        Returns:
+            Fountain markup for the paired dual dialogue block, or an empty
+            string when the dual dialogue metadata is missing.
+        """
+        metadata = element.metadata
+        if not metadata:
+            return ""
+
+        left_character = cast(FountainElement, metadata["left_character"])
+        left_dialogue = cast("list[FountainElement]", metadata["left_dialogue"])
+        right_character = cast(FountainElement, metadata["right_character"])
+        right_dialogue = cast("list[FountainElement]", metadata["right_dialogue"])
+
+        left_block = self._render_body([left_character, *left_dialogue])
+        right_block = self._render_body([right_character, *right_dialogue])
+
+        return f"{left_block}\n\n{right_block}"
 
     def _apply_formatting_removal(self, text: str, formatting: list[FormatSpan]) -> str:
         """Remove HTML formatting and restore Fountain markup formatting.

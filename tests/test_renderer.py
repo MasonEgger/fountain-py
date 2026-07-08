@@ -919,6 +919,51 @@ That was lovely!"""
         reparsed_types = [element.type for element in reparsed.elements]
         assert reparsed_types == original_types
 
+    def test_dual_dialogue_survives_round_trip(self):
+        """A4b: a DUAL_DIALOGUE element survives the Fountain round trip.
+
+        Rendering a document containing a DUAL_DIALOGUE element must emit both
+        character blocks with the caret on the second cue, so re-parsing the
+        output reproduces a DUAL_DIALOGUE element instead of losing the pair.
+        """
+        from fountain.parser import FountainParser
+
+        parser = FountainParser()
+        source = "INT. BAR - NIGHT\n\nBRICK\nDrink up.\n\nSTEEL^\nCheers.\n"
+        document = parser.parse(source)
+        # Sanity: the parser must actually produce a dual dialogue element to round-trip.
+        assert any(element.type == ElementType.DUAL_DIALOGUE for element in document.elements)
+
+        rendered = self.renderer.render(document)
+        reparsed = parser.parse(rendered)
+
+        dual_elements = [element for element in reparsed.elements if element.type == ElementType.DUAL_DIALOGUE]
+        assert len(dual_elements) == 1
+        right_character = dual_elements[0].metadata["right_character"]
+        assert right_character.text == "STEEL"
+
+    def test_dual_dialogue_interleaved_roundtrip_contiguity(self):
+        """A4b: a DUAL_DIALOGUE next to normal dialogue blocks round-trips cleanly.
+
+        When a dual dialogue element sits between single-column dialogue blocks,
+        rendering must separate the (previously empty) dual block from its
+        neighbors with a blank line so re-parsing preserves the surrounding block
+        types and introduces no stray element.
+        """
+        from fountain.parser import FountainParser
+
+        parser = FountainParser()
+        source = "INT. BAR - NIGHT\n\nJOHN\nEvening, all.\n\nBRICK\nDrink up.\n\nSTEEL^\nCheers.\n\nMARY\nGood night.\n"
+        document = parser.parse(source)
+        original_types = [element.type for element in document.elements]
+        assert ElementType.DUAL_DIALOGUE in original_types
+
+        rendered = self.renderer.render(document)
+        reparsed = parser.parse(rendered)
+
+        reparsed_types = [element.type for element in reparsed.elements]
+        assert reparsed_types == original_types
+
     def test_empty_document(self):
         """Test rendering an empty document."""
         document = FountainDocument([])
