@@ -88,6 +88,13 @@ fountain_renderer = FountainRenderer()
 fountain_text = fountain_renderer.render(document)
 ```
 
+The round trip preserves element structure.
+Scene headings, action, character cues, parentheticals, dialogue, transitions, dual dialogue, lyrics, sections, synopses, and notes all keep their element types through `parse(render(parse(text)))`, and the blank lines that separate structural blocks survive so blocks are not merged on re-parse.
+
+One limitation remains: inline emphasis markers are not re-emitted.
+The parser strips the bold (`**`), italic (`*`), and underline (`_`) delimiters from element text and records their positions as formatting spans, but `FountainRenderer` does not restore those delimiters.
+A `**bold**` word round-trips to plain `bold` with the emphasis lost.
+
 ## Documentation
 
 Full documentation is available at [masonegger.github.io/fountain-py](https://masonegger.github.io/fountain-py/).

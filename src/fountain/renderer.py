@@ -651,15 +651,25 @@ class FountainRenderer:
     manipulation of screenplays, formatting cleanup, or conversion workflows.
 
     Round-Trip Capabilities:
-        - Preserves all Fountain element types and structure
+        - Preserves every element type and its order through
+          parse -> render -> parse: scene headings, action, character cues,
+          parentheticals, dialogue, transitions, dual dialogue, lyrics,
+          sections, synopses, and notes all keep their types
+        - Preserves the blank-line boundaries between structural blocks, so a
+          character cue is not merged into the preceding action on re-parse
+          (requirements A4, A4b, A4c)
         - Maintains title page metadata fields
         - Handles forced elements (scenes, action, transitions)
         - Preserves scene numbers and character extensions
-        - Supports special elements (notes, sections, synopses)
 
     Round-Trip Limitations:
+        - Inline emphasis markers are not re-emitted: the parser strips the
+          bold (``**``), italic (``*``), and underline (``_``) delimiters from
+          element text and records their positions as formatting spans, but the
+          renderer does not restore those delimiters (see
+          ``_apply_formatting_removal``), so a ``**bold**`` word round-trips to
+          plain ``bold`` with the emphasis lost
         - Exact whitespace formatting may differ from original
-        - Original formatting markup positions are not preserved
         - Comments in boneyard sections are maintained but may be reformatted
         - Line breaks within elements are preserved but spacing may normalize
         - Original capitalization in scene headings is preserved
