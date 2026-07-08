@@ -227,13 +227,18 @@ class FountainParser:
 
     # Bold + Italic: ***text*** - three asterisks on each side
     # Highest precedence formatting, captures text between triple asterisks
+    # The (?<!\*)/(?!\*) guards keep runs of four or more asterisks from matching, and the
+    # inner [^*\s]...[^*\s] guard mirrors ITALIC_PATTERN: a space adjacent to either
+    # delimiter defeats the emphasis (defect D7), so "*** word***" produces no span.
     # Example: "***very important***" renders as bold and italic
-    BOLD_ITALIC_PATTERN = re.compile(r"\*\*\*([^*]+)\*\*\*")
+    BOLD_ITALIC_PATTERN = re.compile(r"\*\*\*([^*\s](?:[^*]*[^*\s])?)\*\*\*")
 
     # Bold: **text** - two asterisks on each side
     # Captures text between double asterisks, excludes if part of triple asterisks
+    # The inner [^*\s]...[^*\s] guard mirrors ITALIC_PATTERN so a space adjacent to either
+    # delimiter defeats the emphasis (defect D7): "** word**" produces no span.
     # Example: "**important**" renders as bold text
-    BOLD_PATTERN = re.compile(r"\*\*([^*]+)\*\*")
+    BOLD_PATTERN = re.compile(r"\*\*([^*\s](?:[^*]*[^*\s])?)\*\*")
 
     # Italic: *text* - single asterisks, with complex lookahead/lookbehind
     # Negative lookbehind (?<!\*) ensures not preceded by asterisk (avoids **text** collision)
@@ -244,8 +249,10 @@ class FountainParser:
 
     # Underline: _text_ - underscores on each side
     # Captures text between underscores for underline formatting
+    # The inner [^_\s]...[^_\s] guard mirrors ITALIC_PATTERN so a space adjacent to either
+    # delimiter defeats the emphasis (defect D7): "_ kilos_" produces no span.
     # Example: "_underlined_" renders as underlined text
-    UNDERLINE_PATTERN = re.compile(r"_([^_]+)_")
+    UNDERLINE_PATTERN = re.compile(r"_([^_\s](?:[^_]*[^_\s])?)_")
 
     # Delimiter width (characters on each side) per format type. Used by D4 to strip
     # the delimiters from stored text and re-index spans onto the emphasized content.

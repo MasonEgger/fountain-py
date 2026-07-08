@@ -1240,6 +1240,44 @@ class TestSpecCompliance:
         for word in ("bold", "with", "underline", "inside"):
             assert nested_html.count(word) == 1, f"word {word!r} should appear exactly once"
 
+    # -- Step 8.6: D7 Bold and Underline Get the Italic Space Guards --
+
+    def test_bold_underline_space_guards(self):
+        r"""D7: a delimiter-adjacent space defeats bold and underline emphasis.
+
+        The italic pattern already refuses to match when a whitespace character sits
+        immediately inside the delimiters (``* italic *`` produces no span). Before D7 the
+        bold (``**``) and underline (``_``) patterns lacked that guard, so ``** word**``
+        emitted a bold span over `` word`` and ``_ kilos_`` emitted an underline span over
+        `` kilos``. D7 mirrors the italic guard onto bold, underline, and bold-italic so a
+        space right after the opening delimiter or right before the closing delimiter
+        suppresses the emphasis, while valid delimiter-adjacent-non-space runs still match.
+        """
+
+        def spans_of(source: str, format_type: str) -> list:
+            element = self.parser.parse(source).elements[0]
+            return [span for span in element.formatting if span.format_type == format_type]
+
+        # Space immediately after the opening delimiter: no span.
+        assert spans_of("_ kilos_", "underline") == []
+        assert spans_of("** word**", "bold") == []
+        assert spans_of("*** word***", "bold_italic") == []
+
+        # Space immediately before the closing delimiter: no span.
+        assert spans_of("_kilos _", "underline") == []
+        assert spans_of("**word **", "bold") == []
+        assert spans_of("***word ***", "bold_italic") == []
+
+        # Regression guard: valid delimiter-adjacent-non-space runs still produce spans.
+        underline_valid = spans_of("_kilos_", "underline")
+        assert len(underline_valid) == 1
+        bold_valid = spans_of("**word**", "bold")
+        assert len(bold_valid) == 1
+        bold_italic_valid = spans_of("***word***", "bold_italic")
+        assert len(bold_italic_valid) == 1
+        italic_valid = spans_of("*word*", "italic")
+        assert len(italic_valid) == 1
+
     def test_dialogue_not_broken_by_regular_text(self):
         """Regular text following a character name should be dialogue, not action."""
         doc = self.parser.parse("JOHN\nHello.\nMore dialogue.")
