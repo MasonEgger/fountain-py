@@ -125,29 +125,6 @@ DEFAULT_CSS = """\
     margin-bottom: 1em;
 }
 
-.fountain-note {
-    font-style: italic;
-    color: #666;
-    margin: 0.5em 0;
-}
-
-.fountain-boneyard {
-    display: none;
-}
-
-.fountain-section {
-    font-weight: bold;
-    font-size: 14pt;
-    margin: 2em 0 1em 0;
-    text-transform: uppercase;
-}
-
-.fountain-synopsis {
-    font-style: italic;
-    color: #666;
-    margin: 0.5em 0;
-}
-
 .fountain-scene-number {
     font-weight: normal;
     color: #888;
@@ -244,14 +221,14 @@ class HTMLRenderer:
         - fountain-dialogue: Spoken dialogue text
         - fountain-parenthetical: Stage directions within dialogue
         - fountain-transition: Scene transitions (CUT TO:, etc.)
-        - fountain-note: Production notes (hidden by default)
-        - fountain-boneyard: Deleted content (hidden)
-        - fountain-section: Section headers for organization
-        - fountain-synopsis: Scene synopsis (hidden by default)
         - fountain-dual-dialogue: Container for simultaneous dialogue
         - fountain-page-break: Page break markers
         - fountain-centered: Centered text
         - fountain-lyrics: Song lyrics with special formatting
+
+    Notes, sections, synopses, and boneyard are writer tools. They are hidden
+    from the formatted output by default and emit no markup, so no CSS classes
+    are generated for them.
 
     Example:
         Render a simple screenplay to HTML:
@@ -482,7 +459,9 @@ class HTMLRenderer:
         elif element.type == ElementType.TRANSITION:
             return f'<div class="fountain-transition">{text}</div>'
         elif element.type == ElementType.NOTE:
-            return f'<div class="fountain-note">{text}</div>'
+            # Notes are a writer-only tool omitted from formatted output entirely,
+            # so they never ship in either the fragment or the standalone page (E5).
+            return ""
         elif element.type == ElementType.BONEYARD:
             # Boneyard is a writer-only tool; its content is omitted from formatted
             # output entirely so it never ships in the CSS-free HTML fragment (E11).
@@ -490,9 +469,11 @@ class HTMLRenderer:
             # interior lines the parser already drops.
             return ""
         elif element.type == ElementType.SECTION:
-            return f'<div class="fountain-section">{text}</div>'
+            # Sections are a writer-only structural tool omitted from formatted output (E5).
+            return ""
         elif element.type == ElementType.SYNOPSIS:
-            return f'<div class="fountain-synopsis">{text}</div>'
+            # Synopses are a writer-only tool omitted from formatted output (E5).
+            return ""
         elif element.type == ElementType.DUAL_DIALOGUE:
             return self._render_dual_dialogue(element)
         elif element.type == ElementType.PAGE_BREAK:

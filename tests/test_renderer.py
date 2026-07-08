@@ -64,14 +64,16 @@ class TestHTMLRenderer:
         document = FountainDocument(elements)
         html = self.renderer.render(document)
 
-        # Check that all element types are rendered with appropriate CSS classes
+        # Check that all rendered element types carry appropriate CSS classes.
         assert '<div class="fountain-scene-heading">' in html
         assert '<div class="fountain-action">' in html
         assert '<div class="fountain-character">' in html
         assert '<div class="fountain-dialogue">' in html
         assert '<div class="fountain-parenthetical">' in html
         assert '<div class="fountain-transition">' in html
-        assert '<div class="fountain-note">' in html
+        # Notes are a writer tool, hidden by default in formatted output (E5, Q3).
+        assert '<div class="fountain-note">' not in html
+        assert "This is a note" not in html
 
     def test_html_escaping(self):
         elements = [
@@ -305,21 +307,23 @@ class TestHTMLRenderer:
         assert '<p class="fountain-created">Created: 2023-12-01</p>' in html
 
     def test_special_elements_rendering(self):
-        """Test rendering of special element types (lines 170, 172, 174)."""
+        """Special writer-only elements are omitted from formatted output (E5, E11, Q3)."""
         elements = [
-            FountainElement(ElementType.BONEYARD, "/* comment */", [], 1),  # line 170
-            FountainElement(ElementType.SECTION, "ACT ONE", [], 2),  # line 172
-            FountainElement(ElementType.SYNOPSIS, "What happens", [], 3),  # line 174
+            FountainElement(ElementType.BONEYARD, "/* comment */", [], 1),
+            FountainElement(ElementType.SECTION, "ACT ONE", [], 2),
+            FountainElement(ElementType.SYNOPSIS, "What happens", [], 3),
         ]
 
         document = FountainDocument(elements)
         html = self.renderer.render(document)
 
-        # Boneyard content is a writer tool and must never ship in the fragment (E11).
+        # Boneyard, section, and synopsis are writer tools omitted from the fragment.
         assert "fountain-boneyard" not in html
         assert "comment" not in html
-        assert '<div class="fountain-section">ACT ONE</div>' in html
-        assert '<div class="fountain-synopsis">What happens</div>' in html
+        assert '<div class="fountain-section">' not in html
+        assert "ACT ONE" not in html
+        assert '<div class="fountain-synopsis">' not in html
+        assert "What happens" not in html
 
     def test_boneyard_single_line_omitted_from_fragment(self):
         """A single-line boneyard's text must not appear in the HTML fragment (E11)."""
@@ -361,6 +365,33 @@ class TestHTMLRenderer:
         # Both still render the real action element.
         assert "Action." in single
         assert "Action." in multi
+
+    def test_sections_synopses_notes_hidden_by_default(self):
+        """Sections, synopses, and notes are writer tools omitted from formatted output (E5, Q3).
+
+        Under the Open Question 3 ruling, notes, sections, synopses, and boneyard are
+        all writer-only tools that do not appear in default formatted output. This holds
+        for both the CSS-free fragment (``render``) and the standalone page
+        (``render_page``). Real elements like action still render.
+        """
+        parser = FountainParser()
+        source = "# Act I\n\n= He meets her.\n\n[[remember to fix]]\n\nShe walks into the room."
+        doc = parser.parse(source)
+
+        for html in (self.renderer.render(doc), self.renderer.render_page(doc)):
+            # Section is hidden: no section div and no section text.
+            assert '<div class="fountain-section">' not in html
+            assert "Act I" not in html
+            # Synopsis is hidden: no synopsis div and no synopsis text.
+            assert '<div class="fountain-synopsis">' not in html
+            assert "He meets her" not in html
+            # Note is hidden: no note div, no note text, and no literal brackets.
+            assert '<div class="fountain-note">' not in html
+            assert "remember to fix" not in html
+            assert "[[" not in html
+            assert "]]" not in html
+            # A real action element still renders.
+            assert "She walks into the room." in html
 
     def test_unknown_element_type(self):
         """Test fallback rendering for unknown types (line 182)."""
