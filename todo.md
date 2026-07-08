@@ -14,7 +14,7 @@ Each step is TDD: failing test first, then the minimal fix, then `just test` cle
 
 ## Section 3: Validation API (Required for 0.1.0)
 - [x] 3.1 Add the `ValidationIssue` frozen dataclass
-- [ ] 3.2 Implement `FountainParser.validate()` with the four initial diagnostics
+- [x] 3.2 Implement `FountainParser.validate()` with the four initial diagnostics
 - [ ] 3.3 Export `ValidationIssue` from the package top level
 
 ## Section 4: Compliance Group E: Boneyard, Notes, Sections

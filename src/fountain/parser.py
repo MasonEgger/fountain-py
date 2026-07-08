@@ -36,7 +36,15 @@ Fountain's unique title page format followed by screenplay body content:
 import re
 
 from fountain.document import FountainDocument
-from fountain.elements import ElementType, FormatSpan, FountainElement, MetadataValue
+from fountain.elements import ElementType, FormatSpan, FountainElement, MetadataValue, ValidationIssue
+
+# Diagnostic codes emitted by FountainParser.validate(). Each string is a stable
+# machine-readable contract; keep them here as the single source of truth so the
+# growing diagnostic set stays consistent across the parser and its consumers.
+CODE_UNCLOSED_BONEYARD = "unclosed-boneyard"
+CODE_UNCLOSED_NOTE = "unclosed-note"
+CODE_ORPHAN_CHARACTER_CUE = "orphan-character-cue"
+CODE_EMPTY_DOCUMENT = "empty-document"
 
 
 class FountainParser:
@@ -208,9 +216,15 @@ class FountainParser:
         self.current_line = 0
         self.elements: list[FountainElement] = []
         self.in_boneyard = False
+        self.boneyard_start_line = 0
         self.in_note = False
         self.note_buffer: list[str] = []
         self.note_start_line = 0
+        # Diagnostics collected during a validate() scan. parse() leaves this
+        # untouched (it only records when _validating is True), so a plain
+        # parse() call never depends on or mutates validation state.
+        self._validating = False
+        self.diagnostics: list[ValidationIssue] = []
 
     def parse(self, text: str) -> FountainDocument:
         """Parse Fountain text and return a FountainDocument.
@@ -318,9 +332,11 @@ class FountainParser:
         self.current_line = 0
         self.elements = []
         self.in_boneyard = False
+        self.boneyard_start_line = 0
         self.in_note = False
         self.note_buffer = []
         self.note_start_line = 0
+        self.diagnostics = []
 
         # First pass: extract title page
         metadata = self._parse_title_page()
@@ -402,6 +418,85 @@ class FountainParser:
         with open(filepath, encoding="utf-8") as f:
             text = f.read()
         return self.parse(text)
+
+    def validate(self, text: str) -> list[ValidationIssue]:
+        """Validate Fountain text and return a list of diagnostics.
+
+        Runs the same two-pass analysis as :meth:`parse`, but collects diagnostics
+        about structural problems instead of discarding the information. :meth:`parse`
+        stays lenient and non-raising; :meth:`validate` reports what a lenient parse
+        silently tolerated. Calling validate() does not change what a later parse()
+        of the same text returns, because parse() fully resets parser state on entry.
+
+        The initial diagnostic set covers:
+
+        - ``unclosed-boneyard`` (error): a ``/*`` comment opened but never closed
+        - ``unclosed-note`` (error): a ``[[`` note opened but never closed
+        - ``orphan-character-cue`` (warning): an uppercase cue demoted to action
+          because no dialogue follows it
+        - ``empty-document`` (warning): input that parses to zero elements
+
+        Args:
+            text: Raw Fountain markup text to validate
+
+        Returns:
+            List of :class:`~fountain.elements.ValidationIssue` diagnostics. Empty
+            when the document is well formed.
+
+        Examples:
+            >>> parser = FountainParser()
+            >>> parser.validate("INT. HOUSE - DAY\\n\\nJOHN\\nHello.")
+            []
+            >>> issues = parser.validate("INT. HOUSE - DAY\\n\\n/* open")
+            >>> issues[0].code
+            'unclosed-boneyard'
+            >>> issues[0].severity
+            'error'
+        """
+        self._validating = True
+        try:
+            document = self.parse(text)
+        finally:
+            self._validating = False
+
+        # Diagnostics recorded mid-scan (orphan character cues) come first, in
+        # document order. End-of-document diagnostics are derived from the parser
+        # state left over after the scan completes.
+        issues = list(self.diagnostics)
+
+        if self.in_boneyard:
+            issues.append(
+                ValidationIssue(
+                    line_number=self.boneyard_start_line,
+                    severity="error",
+                    code=CODE_UNCLOSED_BONEYARD,
+                    message="Boneyard comment opened with '/*' but never closed",
+                )
+            )
+
+        if self.in_note:
+            issues.append(
+                ValidationIssue(
+                    line_number=self.note_start_line,
+                    severity="error",
+                    code=CODE_UNCLOSED_NOTE,
+                    message="Note opened with '[[' but never closed",
+                )
+            )
+
+        # Only report an empty document when nothing else already explains the
+        # emptiness (e.g. an unclosed boneyard that swallowed the whole body).
+        if not document.elements and not issues:
+            issues.append(
+                ValidationIssue(
+                    line_number=1,
+                    severity="warning",
+                    code=CODE_EMPTY_DOCUMENT,
+                    message="Document parsed to zero elements",
+                )
+            )
+
+        return issues
 
     def _parse_title_page(self) -> dict[str, str]:
         """Parse title page metadata from the beginning of the document.
@@ -569,6 +664,7 @@ class FountainParser:
         if self.MULTILINE_BONEYARD_START.match(line):
             if not self.MULTILINE_BONEYARD_END.search(line):
                 self.in_boneyard = True
+                self.boneyard_start_line = self.current_line + 1
             return None  # Skip boneyard start line
 
         # Handle multi-line notes
@@ -784,6 +880,18 @@ class FountainParser:
                     formatting=[],
                     line_number=self.current_line + 1,
                     metadata=metadata if metadata else None,
+                )
+            # An uppercase line that looks like a character cue but has no dialogue
+            # following is demoted to action below. During validation, flag it: a
+            # writer who meant it as a cue has an orphaned character with no lines.
+            if self._validating:
+                self.diagnostics.append(
+                    ValidationIssue(
+                        line_number=self.current_line + 1,
+                        severity="warning",
+                        code=CODE_ORPHAN_CHARACTER_CUE,
+                        message=f"Character cue '{line}' has no dialogue following it",
+                    )
                 )
 
         # Check if this is dialogue (follows character or parenthetical)
