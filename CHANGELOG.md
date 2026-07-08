@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Parser — Full Fountain Spec Compliance
 - Two-pass parser: title page metadata extraction, then line-by-line element classification
-- All 15 Fountain element types: scene headings, action, character, dialogue, parenthetical, transitions, notes, boneyard, sections, synopses, dual dialogue, page breaks, centered text, lyrics
+- All 14 body element types emitted by the parser: scene headings, action, character, dialogue, parenthetical, transitions, notes, boneyard, sections, synopses, dual dialogue, page breaks, centered text, lyrics (the `ElementType` enum has 15 members; the 15th, `TITLE_PAGE`, is not emitted as an element: title page data is parsed into `FountainDocument.metadata`)
 - Forced element prefixes (`.`, `!`, `@`, `>`) override natural detection rules
 - Scene number extraction (`#1#`, `#2A#`)
 - Character extensions (`V.O.`, `O.S.`, `CONT'D`) and automatic continuation detection
