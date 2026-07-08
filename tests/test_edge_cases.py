@@ -972,3 +972,25 @@ More action here."""
         # The boneyard interior is still dropped.
         assert "This interior should be cut" not in texts
         assert "and this line too" not in texts
+
+    # -- Step 4.2: Single-Line Boneyard with Trailing Text (E3) --
+
+    def test_single_line_boneyard_keeps_trailing_text(self):
+        """A `/* ... */` span with trailing text keeps the remainder; the document is not swallowed (E3)."""
+        text = """/* cut this */ keep this
+
+The scene continues.
+
+More action here."""
+
+        doc = self.parser.parse(text)
+        texts = [element.text for element in doc.elements]
+
+        # The trailing text after the closed span survives as an element.
+        assert "keep this" in texts
+        # Every following action line survives; nothing is swallowed.
+        assert "The scene continues." in texts
+        assert "More action here." in texts
+        # The boneyard interior is dropped.
+        assert "cut this" not in texts
+        assert not any("cut this" in element_text for element_text in texts)

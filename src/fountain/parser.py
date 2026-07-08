@@ -659,7 +659,8 @@ class FountainParser:
                     return self._parse_line(remainder, had_blank_line_before)
             return None  # Skip all lines inside boneyard
 
-        # Check for single-line boneyard (block comments) - handle before multiline start
+        # Check for single-line boneyard (block comments) - handle before multiline start.
+        # A whole-line /* ... */ stays a BONEYARD element.
         if self.BONEYARD_PATTERN.match(line):
             return FountainElement(
                 type=ElementType.BONEYARD,
@@ -667,6 +668,20 @@ class FountainParser:
                 formatting=[],
                 line_number=self.current_line + 1,
             )
+
+        # A line that both opens and closes a boneyard span but carries text
+        # outside it (e.g. "/* cut */ keep this"). Strip the /* ... */ span and
+        # reprocess the surrounding remainder as body so trailing or leading
+        # content is not swallowed. Checked before MULTILINE_BONEYARD_START so
+        # such a line never enters open-boneyard state and truncates the document.
+        open_index = line.find("/*")
+        if open_index != -1:
+            close_index = line.find("*/", open_index + 2)
+            if close_index != -1:
+                remainder = (line[:open_index] + line[close_index + 2 :]).strip()
+                if remainder:
+                    return self._parse_line(remainder, had_blank_line_before)
+                return None
 
         if self.MULTILINE_BONEYARD_START.match(line):
             if not self.MULTILINE_BONEYARD_END.search(line):
