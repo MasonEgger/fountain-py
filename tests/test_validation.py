@@ -8,8 +8,17 @@ import dataclasses
 
 import pytest
 
+import fountain
 from fountain.elements import ValidationIssue
 from fountain.parser import FountainParser
+
+
+def test_validation_issue_exported() -> None:
+    """ValidationIssue is importable from the package top level and listed in __all__."""
+    from fountain import ValidationIssue as ExportedValidationIssue
+
+    assert ExportedValidationIssue is ValidationIssue
+    assert "ValidationIssue" in fountain.__all__
 
 
 def test_validation_issue_is_frozen_dataclass() -> None:

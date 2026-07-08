@@ -8,7 +8,7 @@ it to various output formats including HTML and structured data.
 """
 
 from fountain.document import FountainDocument
-from fountain.elements import ElementType, FormatType, FountainElement, MetadataValue
+from fountain.elements import ElementType, FormatType, FountainElement, MetadataValue, ValidationIssue
 from fountain.parser import FountainParser
 from fountain.renderer import FountainRenderer, HTMLRenderer
 
@@ -21,4 +21,5 @@ __all__ = [
     "MetadataValue",
     "HTMLRenderer",
     "FountainRenderer",
+    "ValidationIssue",
 ]
