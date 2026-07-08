@@ -541,7 +541,8 @@ class FountainParser:
         current_key = None
 
         while self.current_line < len(self.lines):
-            line = self.lines[self.current_line].strip()
+            raw_line = self.lines[self.current_line]
+            line = raw_line.strip()
 
             if not line:
                 # Empty line ends title page when we have at least one key
@@ -551,7 +552,28 @@ class FountainParser:
                 self.current_line += 1
                 continue
 
-            # Check for title page key-value pairs
+            # Indentation is tested on the raw (unstripped) line so we can see it:
+            # a leading tab or 3+ leading spaces marks a continuation (A2). The
+            # stripped ``line`` used above cannot carry this information.
+            leading_spaces = len(raw_line) - len(raw_line.lstrip(" "))
+            is_indented = raw_line.startswith("\t") or leading_spaces >= 3
+
+            # An indented line is always a value/continuation of the current key,
+            # even when it contains a colon (A2): an indented ``Draft 3: final``
+            # stays the current key's value rather than opening a ``draft 3`` key.
+            # Join with a newline (not a space) so a multi-line value keeps its
+            # line structure (A1); the HTML renderer converts these newlines to
+            # <br> for multiline fields like contact and notes.
+            if is_indented and current_key is not None:
+                if metadata[current_key]:
+                    metadata[current_key] += "\n" + line
+                else:
+                    metadata[current_key] = line
+                self.current_line += 1
+                continue
+
+            # A non-indented line with a colon (and not a scene heading) starts a
+            # new key.
             if ":" in line and not line.startswith(("INT.", "EXT.", "EST.", "I/E.")):
                 key, value = line.split(":", 1)
                 key = key.strip().lower()
@@ -566,21 +588,8 @@ class FountainParser:
                 self.current_line += 1
                 continue
 
-            # Check if this is a continuation of multi-line value
-            elif current_key and not line.startswith(("INT.", "EXT.", "EST.", "I/E.", ".")):
-                # This is a continuation line for the current key. Join with a
-                # newline (not a space) so a multi-line value keeps its line
-                # structure (A1); the HTML renderer converts these newlines to
-                # <br> for multiline fields like contact and notes. Single-line
-                # values never reach here, so they stay plain strings.
-                if metadata[current_key]:
-                    metadata[current_key] += "\n" + line
-                else:
-                    metadata[current_key] = line
-                self.current_line += 1
-                continue
-
-            # If we hit a non-title-page line, stop parsing title page
+            # Any other non-indented line ends the title page (A2): an unindented
+            # non-key line is body content, not a continuation of the prior value.
             break
 
         # Clean up any trailing multi-line value

@@ -649,6 +649,24 @@ class TestSpecCompliance:
         assert doc.metadata.get("title") == "Big Fish"
         assert "\n" not in doc.metadata.get("title", "")
 
+    # -- Step 5.2: A2 Title Page Continuation Requires Indentation --
+
+    def test_title_page_continuation_requires_indent(self):
+        """An indented colon-bearing line stays a value of the current key rather than starting a new key (A2)."""
+        script = "Notes:\n    Draft 3: final revisions\n\nINT. HOUSE - DAY"
+        doc = self.parser.parse(script)
+        assert doc.metadata.get("notes") == "Draft 3: final revisions"
+        assert "draft 3" not in doc.metadata
+
+    def test_title_page_unindented_line_ends_page(self):
+        """An unindented non-key line ends the title page and becomes a body element, not a value (A2)."""
+        script = "Title: X\nUnindented body line\n\nINT. HOUSE - DAY"
+        doc = self.parser.parse(script)
+        assert doc.metadata.get("title") == "X"
+        assert "\n" not in doc.metadata.get("title", "")
+        action_texts = [element.text for element in doc.elements if element.type == ElementType.ACTION]
+        assert "Unindented body line" in action_texts
+
     # -- Step 5: Scene Headings Require Blank Line Before --
 
     def test_scene_heading_with_blank_line_before(self):

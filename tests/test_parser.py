@@ -675,11 +675,11 @@ Hello there."""
         assert result is False
 
     def test_title_page_empty_lines(self):
-        """Test title page with empty lines (lines 121-122, 130, 173)."""
+        """Test title page multi-line values with indented continuation lines."""
         text = """Title: My Script
 Notes:
     Line 1
-      # noqa: W293 - intentional whitespace to test empty line handling in title page
+      Sub-note: a colon-bearing continuation line
     Line 2 after empty line
 Contact: John Doe
 
@@ -687,12 +687,15 @@ INT. HOUSE - DAY"""
 
         document = self.parser.parse(text)
 
-        # The current implementation may not continue multi-line values across empty lines
-        # The empty line in the Notes field causes title page parsing to stop early
-        # This test verifies that the empty line handling code paths are hit
+        # Every indented line under Notes is a continuation value of the notes key,
+        # including the colon-bearing "Sub-note:" line, which is NOT a new key (A2).
         assert "notes" in document.metadata
         assert document.metadata.get("title") == "My Script"
-        assert document.metadata.get("notes") == "Line 1"  # Line 2 is not included due to empty line
+        assert document.metadata.get("notes") == (
+            "Line 1\nSub-note: a colon-bearing continuation line\nLine 2 after empty line"
+        )
+        assert "sub-note" not in document.metadata
+        assert document.metadata.get("contact") == "John Doe"
 
     def test_empty_line_parsing(self):
         """Test parsing empty lines (line 194)."""
