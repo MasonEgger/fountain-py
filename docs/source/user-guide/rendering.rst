@@ -141,7 +141,7 @@ The renderer handles all Fountain element types with appropriate formatting:
 CSS Classes and Styling
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-The HTMLRenderer generates CSS classes for each element type:
+The HTMLRenderer generates CSS classes for each element type it renders:
 
 ============== ====================================== ================================================
 Element Type   CSS Class                              Description
@@ -163,16 +163,16 @@ Dialogue       ``.fountain-character``                Character names (centered,
                ``.fountain-dual-dialogue-right``      Right column for dual dialogue
 Action/Other   ``.fountain-action``                   Narrative text (left-aligned)
                ``.fountain-transition``               Scene transitions (right-aligned, bold, uppercase)
-               ``.fountain-note``                     Production notes (italic, gray)
-               ``.fountain-boneyard``                 Deleted content (hidden by default)
-               ``.fountain-section``                  Section headers (bold, 14pt, uppercase)
-               ``.fountain-synopsis``                 Scene synopsis (italic, gray)
                ``.fountain-page-break``               Forced page breaks
                ``.fountain-centered``                 Centered text
                ``.fountain-lyrics``                   Song lyrics (centered, italic)
 ============== ====================================== ================================================
 
 The default theme uses Courier New font with traditional screenplay spacing and can be customized through CSS.
+
+Notes, sections, synopses, and boneyard are writer tools, so they are omitted from the formatted output by default.
+Both ``render()`` (the HTML fragment) and ``render_page()`` (the standalone page) drop them entirely: they emit no markup and generate no CSS class, so there is no ``.fountain-note``, ``.fountain-section``, ``.fountain-synopsis``, or ``.fountain-boneyard`` rule to style.
+The parser still records these elements on the :class:`~fountain.document.FountainDocument`, so you can read them from ``document.elements`` even though they never reach the rendered screenplay.
 
 Understanding the Rendering Pipeline
 -------------------------------------
