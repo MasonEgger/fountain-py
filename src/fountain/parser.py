@@ -971,13 +971,20 @@ class FountainParser:
         # Check for forced character (@character)
         if self.FORCED_CHARACTER_PATTERN.match(line):
             character_name = self.FORCED_CHARACTER_PATTERN.sub(r"\1", line).strip()
+            # A trailing caret marks dual dialogue (C5), mirroring natural NAME^ cues.
+            # Strip the caret and the whitespace between the name and it, then flag the
+            # cue so _process_dual_dialogue pairs it with the preceding character block.
+            forced_metadata: dict[str, MetadataValue] = {"forced": True}
+            if character_name.endswith("^"):
+                character_name = character_name[:-1].strip()
+                forced_metadata["dual_dialogue"] = True
             if self._is_dialogue_following():
                 return FountainElement(
                     type=ElementType.CHARACTER,
                     text=character_name,
                     formatting=[],
                     line_number=self.current_line + 1,
-                    metadata={"forced": True},
+                    metadata=forced_metadata,
                 )
 
         # Check for dual dialogue character (CHARACTER^) — requires blank line before or first element.

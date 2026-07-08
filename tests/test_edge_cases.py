@@ -1451,3 +1451,49 @@ Hello /* hidden */ world."""
         )
         assert guard.elements[0].text == "JOHN"
         assert guard.elements[1].text == "He walks to the door."
+
+    # -- Step 7.5: Trailing Caret on a Forced Character Creates Dual Dialogue (C5) --
+
+    def test_forced_character_caret_dual_dialogue(self):
+        """A trailing caret on a forced ``@`` cue creates dual dialogue (C5).
+
+        A natural ``NAME^`` cue already pairs into a DUAL_DIALOGUE block via the
+        post-pass. A forced ``@McClane ^`` cue carries the same intent: the caret
+        marks simultaneous speech with the preceding character. The forced-``@``
+        branch must honor the trailing caret by stripping it (and the surrounding
+        whitespace) and setting ``dual_dialogue`` so the existing pairing pass runs.
+
+        A ``BRICK`` block followed by ``@McClane ^`` therefore yields one
+        DUAL_DIALOGUE element whose right character text is ``McClane`` (no ``@``,
+        no ``^``, no trailing space).
+
+        Two guards keep the behavior scoped: a forced ``@name`` without a caret is
+        a plain forced CHARACTER (never dual), and a natural ``NAME^`` cue still
+        pairs as before.
+        """
+        doc = FountainParser().parse("BRICK\nHere we go.\n\n@McClane ^\nRight behind you.")
+        dual_elements = [element for element in doc.elements if element.type == ElementType.DUAL_DIALOGUE]
+        assert len(dual_elements) == 1, (
+            f"'BRICK' block + '@McClane ^' should yield one DUAL_DIALOGUE element, got {[e.type for e in doc.elements]}"
+        )
+        dual = dual_elements[0]
+        assert dual.metadata["left_character"].text == "BRICK"
+        right_text = dual.metadata["right_character"].text
+        assert right_text == "McClane", (
+            f"right character text should be 'McClane' (caret and @ stripped), got {right_text!r}"
+        )
+
+        # Guard: a forced @name WITHOUT a caret is a plain forced CHARACTER, not dual.
+        no_caret = FountainParser().parse("BRICK\nHere we go.\n\n@McClane\nRight behind you.")
+        assert not any(element.type == ElementType.DUAL_DIALOGUE for element in no_caret.elements), (
+            "a forced '@McClane' without a caret must not become dual dialogue"
+        )
+        forced_chars = [element for element in no_caret.elements if element.type == ElementType.CHARACTER]
+        assert forced_chars[-1].text == "McClane"
+        assert forced_chars[-1].metadata["forced"] is True
+
+        # Guard: a natural NAME^ dual cue still pairs as before.
+        natural = FountainParser().parse("BRICK\nHere we go.\n\nMCCLANE^\nRight behind you.")
+        natural_dual = [element for element in natural.elements if element.type == ElementType.DUAL_DIALOGUE]
+        assert len(natural_dual) == 1
+        assert natural_dual[0].metadata["right_character"].text == "MCCLANE"
