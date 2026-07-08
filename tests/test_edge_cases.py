@@ -1025,3 +1025,30 @@ More action here."""
         assert "And we are back." in texts
         assert "The scene continues." in texts
         assert "More action here." in texts
+
+    # -- Step 4.4: Mid-Line Boneyard Stripped from Text (E1) --
+
+    def test_midline_boneyard_stripped_from_text(self):
+        """A complete mid-line `/* ... */` span is stripped and the seam collapses to one space (E1)."""
+        doc = self.parser.parse("Hello /* hidden */ world.")
+
+        action_elements = [element for element in doc.elements if element.type == ElementType.ACTION]
+        assert len(action_elements) == 1
+        # The span is removed and the whitespace left behind collapses to a single space.
+        assert action_elements[0].text == "Hello world."
+        # The interior never leaks into any element.
+        assert not any("hidden" in element.text for element in doc.elements)
+
+    def test_midline_boneyard_stripped_from_dialogue(self):
+        """A mid-line `/* ... */` span inside a dialogue line strips to the collapsed text (E1)."""
+        text = """INT. HOUSE - DAY
+
+JOHN
+Hello /* hidden */ world."""
+
+        doc = self.parser.parse(text)
+        dialogue = next((element for element in doc.elements if element.type == ElementType.DIALOGUE), None)
+
+        assert dialogue is not None
+        assert dialogue.text == "Hello world."
+        assert not any("hidden" in element.text for element in doc.elements)

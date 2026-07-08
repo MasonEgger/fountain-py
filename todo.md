@@ -21,7 +21,7 @@ Each step is TDD: failing test first, then the minimal fix, then `just test` cle
 - [x] 4.1 E2: boneyard close with trailing text ends the boneyard
 - [x] 4.2 E3: single-line boneyard with trailing text does not swallow the document
 - [x] 4.3 E4: mid-line boneyard opener does not leak interior lines
-- [ ] 4.4 E1: mid-line `/* ... */` stripped from action and dialogue text
+- [x] 4.4 E1: mid-line `/* ... */` stripped from action and dialogue text
 - [ ] 4.5 E11: boneyard content never ships in HTML fragments
 - [ ] 4.6 E5: sections, synopses, and notes hidden by default (Open Question 3, mechanics)
 - [ ] 4.7 E13: a `[[ ]]`-bounded line with middle text is not one NOTE

@@ -671,7 +671,15 @@ class FountainParser:
         if open_index != -1:
             close_index = line.find("*/", open_index + 2)
             if close_index != -1:
-                remainder = (line[:open_index] + line[close_index + 2 :]).strip()
+                # Strip the span and rejoin. When both sides carry text the removed
+                # span leaves a whitespace seam ("Hello  world."); collapse just that
+                # seam to a single space without touching internal whitespace elsewhere.
+                before = line[:open_index]
+                after = line[close_index + 2 :]
+                if before.strip() and after.strip():
+                    remainder = f"{before.rstrip()} {after.lstrip()}".strip()
+                else:
+                    remainder = (before + after).strip()
                 if remainder:
                     return self._parse_line(remainder, had_blank_line_before)
                 return None
