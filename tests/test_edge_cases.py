@@ -2064,3 +2064,19 @@ Hello /* hidden */ world."""
         assert doc.elements[1].text == "Willy Wonka!"
         # The trailing line is action, not dialogue.
         assert doc.elements[2].text == "Wasn't that great?"
+
+    # -- Step 9.3: D11 FADE IN: and FADE OUT. Are Natural Transitions (deliberate extension) --
+
+    def test_fade_in_out_are_transitions(self):
+        """``FADE IN:`` and ``FADE OUT.`` parse as TRANSITION (D11 deliberate extension).
+
+        The Fountain spec's natural-transition rule requires a line to end in ``TO:``.
+        fountain-py deliberately extends that rule to also recognize ``FADE IN:`` and
+        ``FADE OUT.`` as transitions, since neither ends in ``TO:`` yet both are the
+        canonical opening and closing transitions of a screenplay. This pins that
+        extension so the behavior is not lost to a future tightening of the rule.
+        """
+        doc = self.parser.parse("The screen is black.\n\nFADE IN:\n\nINT. HOUSE - DAY\n\nFADE OUT.")
+
+        transitions = [element for element in doc.elements if element.type == ElementType.TRANSITION]
+        assert [transition.text for transition in transitions] == ["FADE IN:", "FADE OUT."]

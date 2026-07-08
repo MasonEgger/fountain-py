@@ -210,6 +210,39 @@ If you need the character to keep speaking after singing, repeat the character c
 
 The blank line and second ``JOHN`` cue open a fresh dialogue block, so ``Wasn't that great?`` is parsed as dialogue.
 
+FADE IN: and FADE OUT. as Transitions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The Fountain spec's natural-transition rule recognizes a line as a transition only when it ends in ``TO:`` (for example ``CUT TO:`` or ``SMASH-CUT TO:``).
+fountain-py deliberately extends that rule to also recognize ``FADE IN:`` and ``FADE OUT.`` as transitions, even though neither ends in ``TO:``.
+These two are the canonical opening and closing transitions of a screenplay, so treating them as transitions matches what writers expect.
+
+This is a deliberate extension, not a spec requirement:
+
+.. doctest::
+
+    >>> from fountain.parser import FountainParser
+    >>> from fountain.elements import ElementType
+    >>>
+    >>> script = """The screen is black.
+    ...
+    ... FADE IN:
+    ...
+    ... INT. HOUSE - DAY
+    ...
+    ... FADE OUT."""
+    >>>
+    >>> parser = FountainParser()
+    >>> document = parser.parse(script)
+    >>> [element.text for element in document.elements if element.type == ElementType.TRANSITION]
+    ['FADE IN:', 'FADE OUT.']
+
+A leading ``FADE IN:`` is a special case, because of its trailing colon.
+On the very first line, ``FADE IN:`` is consumed as a title-page key (yielding ``{'fade in': ''}`` and no body element), under the line-one title-page rule described in the "Line-One Title Page Detection" section above.
+A leading ``>`` does not rescue it: ``> FADE IN:`` on line one is captured as the metadata key ``> fade in`` for the same reason, and a leading blank line does not help either.
+To keep a first-line ``FADE IN:`` in the body, precede it with an action line, as the doctest above does.
+Because ``FADE OUT.`` has no colon, a first-line ``FADE OUT.`` is not claimed by the title page and is classified as a transition.
+
 Working with Parsed Documents
 -----------------------------
 

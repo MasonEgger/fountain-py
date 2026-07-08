@@ -66,7 +66,7 @@ Each step is TDD: failing test first, then the minimal fix, then `just test` cle
 ## Section 9: Documented Contract Ambiguities
 - [x] 9.1 A3: title page detection heuristic pinned and documented
 - [x] 9.2 C8: lyrics inside a dialogue block end the block, pinned and documented
-- [ ] 9.3 D11: FADE IN/FADE OUT natural transitions documented as a deliberate extension
+- [x] 9.3 D11: FADE IN/FADE OUT natural transitions documented as a deliberate extension
 - [ ] 9.4 E9: mid-line notes removed without a trace, documented
 
 ## Section 10: Documentation Truth-Up
