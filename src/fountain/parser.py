@@ -342,6 +342,21 @@ class FountainParser:
             if not line:  # Empty after rstrip
                 # Check for whitespace-only line in dialogue context (spec: two spaces continues dialogue)
                 is_whitespace_only = bool(raw_line) and raw_line != raw_line.lstrip()
+                if self.in_note:
+                    if is_whitespace_only:
+                        # E6: a two-space connector line keeps an open note open and
+                        # preserves an empty interior line, so the note text carries a
+                        # blank line (a "\n\n") between its surrounding lines.
+                        self.note_buffer.append("")
+                        self.current_line += 1
+                        continue
+                    # E7: a genuinely blank line breaks an open note. The buffered
+                    # bracket lines never closed, so they fall back to action text
+                    # rather than surviving as one NOTE.
+                    self._flush_open_note_as_text()
+                    previous_line_was_blank = True
+                    self.current_line += 1
+                    continue
                 in_dialogue_context = self.elements and self.elements[-1].type in (
                     ElementType.DIALOGUE,
                     ElementType.PARENTHETICAL,
@@ -565,6 +580,34 @@ class FountainParser:
             metadata[current_key] = metadata[current_key].strip()
 
         return metadata
+
+    def _flush_open_note_as_text(self) -> None:
+        """Break an open multi-line note and re-emit its buffered lines as action.
+
+        When a genuinely blank line interrupts a note that opened with ``[[`` but never
+        closed, the note does not survive as a single NOTE element (E7). The buffered
+        bracket lines fall back to action text instead. Empty buffered lines (left by
+        two-space connector lines under E6) carry no content and are dropped, so only
+        real bracket text is re-emitted.
+
+        This mutates parser state: it clears the open-note flag and buffer, then appends
+        one ACTION element per non-empty buffered line to :attr:`elements`.
+        """
+        buffered_lines = self.note_buffer
+        note_start = self.note_start_line
+        self.in_note = False
+        self.note_buffer = []
+        for line_offset, buffered_line in enumerate(buffered_lines):
+            if not buffered_line.strip():
+                continue
+            element = FountainElement(
+                type=ElementType.ACTION,
+                text=buffered_line,
+                formatting=self._extract_formatting(buffered_line),
+                line_number=note_start + line_offset,
+            )
+            element.text = self._strip_escapes(element.text)
+            self.elements.append(element)
 
     def _parse_line(self, line: str, had_blank_line_before: bool = False) -> FountainElement | None:
         """Parse a single line and return the appropriate FountainElement.

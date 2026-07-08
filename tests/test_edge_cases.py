@@ -1088,3 +1088,35 @@ Hello /* hidden */ world."""
         assert dialogue is not None
         assert dialogue.text == "Hello world."
         assert not any("hidden" in element.text for element in doc.elements)
+
+    # -- Step 4.8: Two-Space vs Blank Line Inside a Note (E6, E7) --
+
+    def test_two_space_line_inside_note_keeps_empty_line(self):
+        """A two-space connector line inside a note preserves an empty interior line (E6).
+
+        A multi-line note whose middle line is exactly two spaces stays open and keeps
+        that line as an empty interior line, so the resulting single NOTE carries a blank
+        line (a ``\\n\\n``) between its surrounding lines.
+        """
+        doc = self.parser.parse("[[Start of note\n  \nEnd of note]]")
+        notes = [element for element in doc.elements if element.type == ElementType.NOTE]
+        assert len(notes) == 1
+        assert "\n\n" in notes[0].text
+
+    def test_blank_line_breaks_open_note(self):
+        """A genuinely blank line breaks an open note; the bracket lines fall back to text (E7).
+
+        The same note structure as the two-space case, but with a truly empty middle line,
+        does not survive as a single NOTE. The buffered bracket lines fall back to action
+        text, so the E6 and E7 inputs produce distinguishable outputs.
+        """
+        two_space_doc = self.parser.parse("[[Start of note\n  \nEnd of note]]")
+        blank_doc = self.parser.parse("[[Start of note\n\nEnd of note]]")
+
+        blank_notes = [element for element in blank_doc.elements if element.type == ElementType.NOTE]
+        # The blank line breaks the note: no single NOTE spans both bracket lines.
+        assert not any("Start of note" in note.text and "End of note" in note.text for note in blank_notes)
+        # The E6 (two-space) and E7 (blank) inputs must be distinguishable.
+        two_space_types = [element.type for element in two_space_doc.elements]
+        blank_types = [element.type for element in blank_doc.elements]
+        assert two_space_types != blank_types
