@@ -145,14 +145,20 @@ class FountainElement:
 
     Args:
         type: The ElementType classification for this element
-        text: The textual content of the element (without Fountain markup)
+        text: The textual content of the element. For most element types the
+            emphasis and forcing markers are removed. BONEYARD elements keep
+            their /* ... */ delimiters and NOTE elements keep their [[ ... ]]
+            delimiters, so their text is verbatim including the delimiters.
         formatting: List of FormatSpan objects describing inline formatting
         line_number: Source line number where this element was found (1-based)
         metadata: Optional dictionary for element-specific metadata
 
     Attributes:
         type: ElementType enum value indicating the element's role
-        text: Clean text content with Fountain markup removed
+        text: Text content with Fountain emphasis and forcing markers removed
+            for most element types. Two exceptions carry their markup verbatim:
+            BONEYARD elements retain their /* ... */ delimiters and NOTE
+            elements retain their [[ ... ]] delimiters.
         formatting: Zero or more FormatSpan objects for inline styles
         line_number: Original line number from source document
         metadata: Dictionary containing element-specific data and attributes
