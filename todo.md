@@ -81,7 +81,7 @@ Each step is TDD: failing test first, then the minimal fix, then `just test` cle
 
 ## Section 12: Path to PyPI
 - [x] 12.1 CI dependency install fix (`uv sync --dev`) and build verification (wheel contents, Sphinx doctest)
-- [ ] 12.2 Harden the publish workflow (test gate, artifact upload/download, environment, trusted publishing)
+- [x] 12.2 Harden the publish workflow (test gate, artifact upload/download, environment, trusted publishing)
 - [ ] 12.3 Add the TestPyPI dry-run workflow (`test-publish.yml`, workflow_dispatch)
 - [ ] 12.4 Local end-to-end verification (build, clean-venv install, smoke test, `just test`, cleanup)
 
