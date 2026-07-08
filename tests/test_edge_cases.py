@@ -1369,3 +1369,28 @@ Hello /* hidden */ world."""
         )
         assert doc.elements[0].text == "JOHN"
         assert doc.elements[1].text == "I SAID NO"
+
+    def test_digit_first_character_cue(self):
+        """A digit-first cue with at least one letter parses as CHARACTER (C2).
+
+        The Fountain spec allows a cue to begin with a digit, as in ``23 SKIDOO``,
+        provided the cue still contains at least one alphabetic letter. Such a line,
+        followed by a dialogue line, must parse as CHARACTER plus DIALOGUE. A purely
+        numeric line like ``23``, ``007``, or ``42`` has no letter and must stay
+        ACTION even when a following line could otherwise be dialogue.
+        """
+        doc = FountainParser().parse("23 SKIDOO\nHello there.")
+        element_types = [element.type for element in doc.elements]
+        assert element_types == [ElementType.CHARACTER, ElementType.DIALOGUE], (
+            f"'23 SKIDOO' should parse as CHARACTER + DIALOGUE, got {element_types}"
+        )
+        assert doc.elements[0].text == "23 SKIDOO"
+        assert doc.elements[1].text == "Hello there."
+
+        for numeric_line in ["23", "007", "42"]:
+            parser = FountainParser()
+            numeric_doc = parser.parse(f"{numeric_line}\nHello there.")
+            numeric_types = [element.type for element in numeric_doc.elements]
+            assert numeric_types == [ElementType.ACTION, ElementType.ACTION], (
+                f"{numeric_line!r} has no letter and should stay ACTION, got {numeric_types}"
+            )

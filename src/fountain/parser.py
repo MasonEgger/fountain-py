@@ -98,17 +98,22 @@ class FountainParser:
     # Character Name Patterns
     # Standard character names: ALL CAPS, may include numbers, spaces, underscores, and
     # cue punctuation (C1): a period, apostrophe, or hyphen, plus ``#`` for numbered
-    # extras. Must start with an uppercase letter so lowercase action lines never match.
-    # The class deliberately excludes lowercase letters so a cue stays recognizably
-    # uppercase; recognition is further gated by a blank line before and a dialogue
-    # lookahead after, so an all-caps action sentence still falls through to action.
-    # Examples: "JOHN", "MARY JANE", "ROBOT_1", "MR. SMITH", "O'BRIEN", "JEAN-CLAUDE", "DEALER #2"
-    CHARACTER_PATTERN = re.compile(r"^[A-Z][A-Z0-9\s_.'#-]*$")
+    # extras. The first character may be a letter or a digit so a digit-first cue like
+    # "23 SKIDOO" is recognized (C2), but the leading ``(?=...)`` lookahead requires at
+    # least one uppercase letter somewhere in the cue so a purely numeric line such as
+    # "23", "007", or "42" stays ACTION. The class deliberately excludes lowercase
+    # letters so a cue stays recognizably uppercase; recognition is further gated by a
+    # blank line before and a dialogue lookahead after, so an all-caps action sentence
+    # still falls through to action.
+    # Examples: "JOHN", "MARY JANE", "ROBOT_1", "MR. SMITH", "O'BRIEN", "JEAN-CLAUDE",
+    # "DEALER #2", "23 SKIDOO"
+    CHARACTER_PATTERN = re.compile(r"^(?=[A-Z0-9\s_.'#-]*[A-Z])[A-Z0-9][A-Z0-9\s_.'#-]*$")
 
     # Dual dialogue character: standard character name followed by caret (^)
     # Indicates this character speaks simultaneously with previous character
+    # Shares the C1/C2 name rules: digit-first allowed, at least one letter required.
     # Example: "MARY^" for dual dialogue with preceding character
-    DUAL_CHARACTER_PATTERN = re.compile(r"^[A-Z][A-Z0-9\s_.'#-]*\^\s*$")
+    DUAL_CHARACTER_PATTERN = re.compile(r"^(?=[A-Z0-9\s_.'#-]*[A-Z])[A-Z0-9][A-Z0-9\s_.'#-]*\^\s*$")
 
     # Forced character name: prefixed with @ to override natural character detection
     # Captures the character name after the @ symbol
@@ -117,8 +122,12 @@ class FountainParser:
 
     # Character with extensions: CHARACTER_NAME (extension) with optional dual dialogue caret
     # Captures character name, extension (V.O., O.S., CONT'D, etc.), and dual dialogue marker
+    # The name portion shares the C1/C2 rules: digit-first allowed, at least one letter
+    # required (the lookahead scans the name, stopping at the extension's open paren).
     # Examples: "JOHN (V.O.)", "MARY (O.S.)^", "NARRATOR (CONT'D)", "MR. SMITH (V.O.)"
-    CHARACTER_EXTENSION_PATTERN = re.compile(r"^([A-Z][A-Z0-9\s_.'#-]*)\s*\(([^)]+)\)\s*(\^)?\s*$")
+    CHARACTER_EXTENSION_PATTERN = re.compile(
+        r"^(?=[A-Z0-9\s_.'#-]*[A-Z])([A-Z0-9][A-Z0-9\s_.'#-]*)\s*\(([^)]+)\)\s*(\^)?\s*$"
+    )
     # Transition Patterns
     # Standard transitions: ALL CAPS ending with colon, or specific fade patterns
     # Matches common screenplay transitions like "CUT TO:", "FADE IN:", "FADE OUT."
