@@ -83,7 +83,7 @@ Each step is TDD: failing test first, then the minimal fix, then `just test` cle
 - [x] 12.1 CI dependency install fix (`uv sync --dev`) and build verification (wheel contents, Sphinx doctest)
 - [x] 12.2 Harden the publish workflow (test gate, artifact upload/download, environment, trusted publishing)
 - [x] 12.3 Add the TestPyPI dry-run workflow (`test-publish.yml`, workflow_dispatch)
-- [ ] 12.4 Local end-to-end verification (build, clean-venv install, smoke test, `just test`, cleanup)
+- [x] 12.4 Local end-to-end verification (build, clean-venv install, smoke test, `just test`, cleanup)
 
 ## Release Mechanics (Human-Gated, Mason only)
 - [ ] Merge `init-version` to `main` (Mason merges; agents never do)

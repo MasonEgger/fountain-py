@@ -36,6 +36,20 @@ packages = ["src/fountain"]
 [tool.hatch.build.targets.wheel.force-include]
 "src/fountain/py.typed" = "fountain/py.typed"
 
+[tool.hatch.build.targets.sdist]
+exclude = [
+    ".ai-sessions",
+    "CLAUDE.md",
+    "handoff.md",
+    "plan.md",
+    "todo.md",
+    "spec.md",
+    "commit-msg.md",
+    "goal.md",
+    ".github",
+    "justfile",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
