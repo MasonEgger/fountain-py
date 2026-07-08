@@ -626,6 +626,29 @@ class TestSpecCompliance:
         assert doc.metadata.get("author") == "Jane"
         assert doc.metadata.get("network") == "HBO"
 
+    # -- Step 5.1: A1 Multi-line Title Page Values Preserve Line Structure --
+
+    def test_title_page_multiline_value_preserved(self):
+        """A multi-line title page value keeps each line instead of flattening to one space-joined string."""
+        from fountain.renderer import HTMLRenderer
+
+        script = "Contact:\n    Next Level\n    1588 Mission Dr.\n    Solvang, CA\n\nINT. HOUSE - DAY"
+        doc = self.parser.parse(script)
+
+        contact = doc.metadata.get("contact", "")
+        assert contact == "Next Level\n1588 Mission Dr.\nSolvang, CA"
+        assert contact.count("\n") == 2
+        assert contact.split("\n") == ["Next Level", "1588 Mission Dr.", "Solvang, CA"]
+
+        html = HTMLRenderer().render_page(doc)
+        assert "Next Level<br>1588 Mission Dr.<br>Solvang, CA" in html
+
+    def test_title_page_single_line_value_stays_plain(self):
+        """A single-line title page value stays a plain string with no trailing newline (A1 regression guard)."""
+        doc = self.parser.parse("Title: Big Fish\n\nINT. HOUSE - DAY")
+        assert doc.metadata.get("title") == "Big Fish"
+        assert "\n" not in doc.metadata.get("title", "")
+
     # -- Step 5: Scene Headings Require Blank Line Before --
 
     def test_scene_heading_with_blank_line_before(self):

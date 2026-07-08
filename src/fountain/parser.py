@@ -568,9 +568,13 @@ class FountainParser:
 
             # Check if this is a continuation of multi-line value
             elif current_key and not line.startswith(("INT.", "EXT.", "EST.", "I/E.", ".")):
-                # This is a continuation line for the current key
+                # This is a continuation line for the current key. Join with a
+                # newline (not a space) so a multi-line value keeps its line
+                # structure (A1); the HTML renderer converts these newlines to
+                # <br> for multiline fields like contact and notes. Single-line
+                # values never reach here, so they stay plain strings.
                 if metadata[current_key]:
-                    metadata[current_key] += " " + line
+                    metadata[current_key] += "\n" + line
                 else:
                     metadata[current_key] = line
                 self.current_line += 1
