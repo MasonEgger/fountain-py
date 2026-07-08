@@ -1023,7 +1023,10 @@ class FountainParser:
         # Default to action
         return FountainElement(
             type=ElementType.ACTION,
-            text=original_line.rstrip(),  # Preserve leading tabs/spaces
+            # Preserve leading indentation, converting each tab to four spaces (A5)
+            # so the stored text carries spaces rather than a raw tab. This keeps
+            # indentation consistent with the space-based offsets D8 computes.
+            text=original_line.rstrip().replace("\t", "    "),
             formatting=self._extract_formatting(line),
             line_number=self.current_line + 1,
         )

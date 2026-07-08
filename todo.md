@@ -35,7 +35,7 @@ Each step is TDD: failing test first, then the minimal fix, then `just test` cle
 - [x] 5.3 A4: blank lines survive parse and FountainRenderer round trip
 - [x] 5.4 A4b: dual dialogue survives the Fountain round trip
 - [x] 5.5 A4c: lyrics round-trip without accreting delimiters
-- [ ] 5.6 A5 and D10: tabs and space indentation visible in HTML
+- [x] 5.6 A5 and D10: tabs and space indentation visible in HTML
 - [ ] 5.7 Open Question 10: both author and authors render; the two renderers agree
 
 ## Section 6: Compliance Group B: Scene Headings

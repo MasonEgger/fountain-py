@@ -316,8 +316,8 @@ Hi there!
         assert elements[5].type == ElementType.ACTION
         assert elements[5].text == "Even after dialogue, this is forced action."
 
-    def test_action_tab_preservation(self):
-        """Test that leading tabs in action text are preserved."""
+    def test_action_tab_converted_to_spaces(self):
+        """Test that leading tabs in action text convert to four spaces each (A5)."""
         text = """JOHN
 Hello!
 
@@ -334,12 +334,12 @@ Regular action without tabs."""
         assert elements[0].type == ElementType.CHARACTER
         assert elements[1].type == ElementType.DIALOGUE
 
-        # Check tab preservation
+        # Each tab becomes four spaces in the stored text
         assert elements[2].type == ElementType.ACTION
-        assert elements[2].text == "\tThis action is indented with a tab."
+        assert elements[2].text == "    This action is indented with a tab."
 
         assert elements[3].type == ElementType.ACTION
-        assert elements[3].text == "\t\tThis action is indented with two tabs."
+        assert elements[3].text == "        This action is indented with two tabs."
 
         assert elements[4].type == ElementType.ACTION
         assert elements[4].text == "Regular action without tabs."

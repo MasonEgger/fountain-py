@@ -158,6 +158,30 @@ class TestHTMLRenderer:
         expected += "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Indented with two tabs.</div>"
         assert expected in html
 
+    def test_action_css_preserves_leading_whitespace(self):
+        """The .fountain-action CSS carries white-space: pre-wrap so leading spaces render (D10).
+
+        Without a white-space rule a browser collapses leading spaces even though they
+        are present in the action div's text. pre-wrap keeps them visible.
+        """
+        css = self.renderer.get_css()
+        action_rule = css.split(".fountain-action", 1)[1].split("}", 1)[0]
+        assert "white-space: pre-wrap" in action_rule
+
+    def test_space_indented_action_preserves_indentation(self):
+        """A ten-space-indented action line renders with its leading spaces intact (D10)."""
+        parser = FountainParser()
+        document = parser.parse("INT. HOUSE - DAY\n\n          Deep indent card.")
+        html = self.renderer.render(document)
+        assert '<div class="fountain-action">          Deep indent card.</div>' in html
+
+    def test_tab_indented_action_renders_four_space_indentation(self):
+        """A tab-indented action line renders with its (parse-time) four-space indent present (A5/D10)."""
+        parser = FountainParser()
+        document = parser.parse("INT. HOUSE - DAY\n\n\tTabbed card.")
+        html = self.renderer.render(document)
+        assert '<div class="fountain-action">    Tabbed card.</div>' in html
+
     def test_scene_number_rendering(self):
         """Test that scene numbers are rendered correctly."""
         metadata = {"scene_number": "1"}

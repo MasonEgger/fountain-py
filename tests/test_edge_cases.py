@@ -560,17 +560,30 @@ class TestSpecCompliance:
 
     # -- Step 3: Tab Conversion Verification --
 
-    def test_tab_preserved_in_action(self):
-        """Parser preserves tab character in action element text."""
+    def test_tab_converted_to_four_spaces_in_action(self):
+        """Parser converts a leading tab in action text to four spaces (A5)."""
         doc = self.parser.parse("\tIndented action")
         assert doc.elements[0].type == ElementType.ACTION
-        assert doc.elements[0].text == "\tIndented action"
+        assert doc.elements[0].text == "    Indented action"
 
-    def test_double_tab_preserved_in_action(self):
-        """Parser preserves multiple tabs in action element text."""
+    def test_double_tab_converted_to_eight_spaces_in_action(self):
+        """Parser converts each tab in action text to four spaces (A5)."""
         doc = self.parser.parse("\t\tDouble indented")
         assert doc.elements[0].type == ElementType.ACTION
-        assert doc.elements[0].text == "\t\tDouble indented"
+        assert doc.elements[0].text == "        Double indented"
+
+    def test_tab_action_yields_four_spaces(self):
+        """A tab-indented action line yields text starting with four spaces (A5).
+
+        Tabs in Action convert to four spaces in the stored element text at parse
+        time, so downstream consumers (and formatting-span offsets under D8) see the
+        indentation as spaces rather than a raw tab.
+        """
+        doc = self.parser.parse("\tIndented action line")
+        assert doc.elements[0].type == ElementType.ACTION
+        assert doc.elements[0].text.startswith("    ")
+        assert doc.elements[0].text == "    Indented action line"
+        assert "\t" not in doc.elements[0].text
 
     def test_tab_stripped_from_character_name(self):
         """Tabs in character names are stripped by .strip()."""
@@ -846,14 +859,15 @@ class TestSpecCompliance:
         """An indented action line with a trailing inline note keeps its leading indent.
 
         The inline note sits at the END of the line, so removing it must not disturb the
-        deliberate leading tab/spaces (the tab-preservation behavior). Only the seam a
-        FRONT note leaves is dropped; a trailing note leaves the leading indent intact.
+        deliberate leading indent. Only the seam a FRONT note leaves is dropped; a
+        trailing note leaves the leading indent intact. The retained tab indent is
+        converted to four spaces in the stored text (A5).
         """
         tab_doc = self.parser.parse("\tIndented action [[note]]")
         tab_actions = [e for e in tab_doc.elements if e.type == ElementType.ACTION]
         assert len(tab_actions) == 1
-        assert tab_actions[0].text.startswith("\t")
-        assert tab_actions[0].text == "\tIndented action"
+        assert tab_actions[0].text.startswith("    ")
+        assert tab_actions[0].text == "    Indented action"
         assert "[[" not in tab_actions[0].text
 
         space_doc = self.parser.parse("    Spaced action [[note]]")

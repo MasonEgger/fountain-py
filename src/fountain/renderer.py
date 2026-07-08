@@ -96,6 +96,7 @@ DEFAULT_CSS = """\
 .fountain-action {
     margin-bottom: 1em;
     text-align: left;
+    white-space: pre-wrap;
 }
 
 .fountain-character {
