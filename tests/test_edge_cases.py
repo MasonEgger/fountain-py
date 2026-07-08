@@ -911,3 +911,15 @@ class TestSpecCompliance:
         assert "Any" not in annotation
         # The MetadataValue alias is exported and usable as the metadata value type.
         assert MetadataValue is not None
+
+    # -- Step 2.1: Renderers in top-level __all__ --
+
+    def test_renderers_importable_from_package(self):
+        """HTMLRenderer and FountainRenderer are importable from the top-level package (Open Question 7)."""
+        import fountain
+        from fountain import FountainRenderer, HTMLRenderer
+
+        assert HTMLRenderer is not None
+        assert FountainRenderer is not None
+        assert "HTMLRenderer" in fountain.__all__
+        assert "FountainRenderer" in fountain.__all__
