@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi-line note support (`[[note\nspanning\nlines]]`)
 - Dialogue continuation with whitespace-only lines (two spaces preserves blank line in dialogue)
 - Backslash escaping for emphasis markers (`\*` → literal `*`, `\_` → literal `_`)
-- Tab preservation in action elements (rendered as 4 spaces in HTML)
+- Tabs in action elements are converted to four spaces in the element text at parse time; indentation is preserved in HTML via `white-space: pre-wrap` on `.fountain-action`
 - Inline formatting: bold (`**`), italic (`*`), underline (`_`), bold-italic (`***`)
 
 #### Renderers

@@ -73,7 +73,7 @@ Each step is TDD: failing test first, then the minimal fix, then `just test` cle
 - [x] 10.1 Open Question 2: the compliance claim stands because it is now true
 - [x] 10.2 Open Question 4: `FountainElement.text` docstring made accurate
 - [x] 10.3 Open Question 5: round-trip docs state the real fidelity
-- [ ] 10.4 Open Question 6: CHANGELOG tab claim reworded
+- [x] 10.4 Open Question 6: CHANGELOG tab claim reworded
 - [ ] 10.5 Open Question 3: hidden-by-default docs and docstrings agree
 
 ## Section 11: Tooling Cleanup
