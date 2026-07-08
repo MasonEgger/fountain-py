@@ -724,8 +724,14 @@ class FountainParser:
 
         # Check for notes [[note]]
         note_matches = list(self.NOTE_PATTERN.finditer(line))
-        if note_matches and line.strip().startswith("[[") and line.strip().endswith("]]"):
-            # Line is entirely a note
+        # A whole-line note is a single complete [[...]] span covering the entire
+        # line. Testing only startswith("[[")/endswith("]]") is too loose: a line
+        # like "[[a]] middle [[b]]" also passes it while carrying real text between
+        # two separate notes. Requiring a fullmatch keeps that case out so it falls
+        # through to inline-note stripping (body rule 8) and the interior text
+        # classifies normally (E13).
+        if self.NOTE_PATTERN.fullmatch(line):
+            # Line is entirely a single note
             return FountainElement(
                 type=ElementType.NOTE,
                 text=line,
@@ -743,7 +749,16 @@ class FountainParser:
         # Strip inline notes from the line text
         if note_matches:
             line = self.NOTE_PATTERN.sub("", line).strip()
+            # Removing a note leaves a whitespace seam. Always drop the trailing
+            # seam. Only drop the leading seam when a note began the line (col 0 of
+            # the stripped line): a front note (e.g. "[[a]] middle") leaves a leading
+            # seam that is an artifact of the note. A line whose note is at the END
+            # (e.g. "\tIndented action [[note]]") must keep its deliberate leading
+            # indentation, so lstrip only when the first note starts the content.
+            note_starts_line = note_matches[0].start() == 0
             original_line = self.NOTE_PATTERN.sub("", original_line).rstrip()
+            if note_starts_line:
+                original_line = original_line.lstrip()
             if not line:
                 return None
 

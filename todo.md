@@ -24,7 +24,7 @@ Each step is TDD: failing test first, then the minimal fix, then `just test` cle
 - [x] 4.4 E1: mid-line `/* ... */` stripped from action and dialogue text
 - [x] 4.5 E11: boneyard content never ships in HTML fragments
 - [x] 4.6 E5: sections, synopses, and notes hidden by default (Open Question 3, mechanics)
-- [ ] 4.7 E13: a `[[ ]]`-bounded line with middle text is not one NOTE
+- [x] 4.7 E13: a `[[ ]]`-bounded line with middle text is not one NOTE
 - [ ] 4.8 E6 and E7: two-space vs blank line inside a note
 - [ ] 4.9 E8: a two-space note line injects no empty DIALOGUE element
 - [ ] 4.10 E10: a lone `]` inside a note does not break recognition

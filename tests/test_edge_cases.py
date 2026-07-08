@@ -770,6 +770,42 @@ class TestSpecCompliance:
         notes = [e for e in doc.elements if e.type == ElementType.NOTE]
         assert len(notes) == 1
 
+    def test_bracketed_line_with_middle_text_not_single_note(self):
+        """A line bounded by [[ ]] but with text between two notes is not one NOTE (E13).
+
+        ``[[a]] middle [[b]]`` starts with ``[[`` and ends with ``]]`` but carries
+        real text between two separate notes. The inline notes strip per body rule 8
+        and the remaining ``middle`` classifies as ACTION, rather than the whole line
+        being swallowed verbatim as a single NOTE.
+        """
+        doc = self.parser.parse("[[a]] middle [[b]]")
+        notes = [e for e in doc.elements if e.type == ElementType.NOTE]
+        actions = [e for e in doc.elements if e.type == ElementType.ACTION]
+        assert notes == []
+        assert len(actions) == 1
+        assert actions[0].text == "middle"
+
+    def test_indented_action_with_trailing_note_keeps_indent(self):
+        """An indented action line with a trailing inline note keeps its leading indent.
+
+        The inline note sits at the END of the line, so removing it must not disturb the
+        deliberate leading tab/spaces (the tab-preservation behavior). Only the seam a
+        FRONT note leaves is dropped; a trailing note leaves the leading indent intact.
+        """
+        tab_doc = self.parser.parse("\tIndented action [[note]]")
+        tab_actions = [e for e in tab_doc.elements if e.type == ElementType.ACTION]
+        assert len(tab_actions) == 1
+        assert tab_actions[0].text.startswith("\t")
+        assert tab_actions[0].text == "\tIndented action"
+        assert "[[" not in tab_actions[0].text
+
+        space_doc = self.parser.parse("    Spaced action [[note]]")
+        space_actions = [e for e in space_doc.elements if e.type == ElementType.ACTION]
+        assert len(space_actions) == 1
+        assert space_actions[0].text.startswith("    ")
+        assert space_actions[0].text == "    Spaced action"
+        assert "[[" not in space_actions[0].text
+
     def test_multiple_inline_notes_stripped(self):
         """Multiple inline notes on one line should all be stripped."""
         doc = self.parser.parse("He [[first note]] walked [[second note]] away.")
