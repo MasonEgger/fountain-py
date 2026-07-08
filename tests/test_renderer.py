@@ -330,6 +330,61 @@ class TestHTMLRenderer:
         assert '<p class="fountain-format">Format: Screenplay</p>' in html
         assert '<p class="fountain-created">Created: 2023-12-01</p>' in html
 
+    def test_both_author_and_authors_render_in_html(self):
+        """Both `author` and `authors` render, each as its own author paragraph (Q10)."""
+        metadata = {
+            "title": "Two Bylines",
+            "author": "Alice",
+            "authors": "Bob and Carol",
+        }
+
+        document = FountainDocument([], metadata)
+        html = self.renderer.render(document)
+
+        # Each key renders as its own fountain-author paragraph; neither is dropped.
+        assert '<p class="fountain-author">by Alice</p>' in html
+        assert '<p class="fountain-author">by Bob and Carol</p>' in html
+        # Ordering: author paragraph precedes authors paragraph.
+        assert html.index("by Alice") < html.index("by Bob and Carol")
+
+    def test_renderers_agree_on_author_keys(self):
+        """HTML and Fountain renderers both represent every author key (Q10)."""
+        metadata = {
+            "title": "Two Bylines",
+            "author": "Alice",
+            "authors": "Bob and Carol",
+        }
+        document = FountainDocument([], metadata)
+
+        html = self.renderer.render(document)
+        fountain = FountainRenderer().render(document)
+
+        # Both author values appear in both renderers' output; the two agree.
+        assert "Alice" in html
+        assert "Bob and Carol" in html
+        assert "Alice" in fountain
+        assert "Bob and Carol" in fountain
+
+    def test_only_author_renders_single_paragraph(self):
+        """A title page with only `author` renders exactly one author paragraph (Q10 guard)."""
+        metadata = {"title": "Solo", "author": "Alice"}
+
+        document = FountainDocument([], metadata)
+        html = self.renderer.render(document)
+
+        assert html.count('<p class="fountain-author">') == 1
+        assert '<p class="fountain-author">by Alice</p>' in html
+
+    def test_only_authors_renders_single_paragraph(self):
+        """A title page with only `authors` renders exactly one author paragraph (Q10 guard)."""
+        metadata = {"title": "Solo", "authors": "Bob and Carol"}
+
+        document = FountainDocument([], metadata)
+        html = self.renderer.render(document)
+
+        assert html.count('<p class="fountain-author">') == 1
+        assert '<p class="fountain-author">by Bob and Carol</p>' in html
+
     def test_special_elements_rendering(self):
         """Special writer-only elements are omitted from formatted output (E5, E11, Q3)."""
         elements = [

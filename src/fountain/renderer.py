@@ -377,9 +377,8 @@ class HTMLRenderer:
         for key, css_class, tag, prefix, multiline in TITLE_PAGE_FIELD_ORDER:
             if key not in metadata:
                 continue
-            # Skip 'authors' if 'author' was already rendered (they share a slot)
-            if key == "authors" and "author" in metadata:
-                continue
+            # Render 'author' and 'authors' each as its own author paragraph (Q10);
+            # the two renderers agree that both keys are represented.
             rendered_keys.add(key)
             value_html = self._escape_html(metadata[key])
             if multiline:

@@ -2,6 +2,7 @@
 
 ## Recent
 <!-- 10 most recent lessons, newest first -->
+- Ruff F841 does not flag a write-only collection: a `set()` that is assigned and `.add()`-ed but never read counts the `.add()` as a use, so dead accumulator sets slip past lint. Flag write-only collections in review by hand. (2026-07-08)
 - Spec acceptance criteria can contradict earlier spec rules; E10 asked for bracket-stripped NOTE text while body rule 6 mandates verbatim brackets. Resolve toward the established contract (and its passing round-trip test) rather than the newer criterion's literal wording, and record the mismatch for the docs step. (2026-07-08)
 - During a BPE run, a plan step can be non-atomic: the Python 3.10 floor bump coupled requires-python + ruff-target (which forces the Optional->X|None sweep) + the CI matrix into one commit, because just test runs lint before fix and would hard-fail otherwise. When a config bump surfaces a deferred sweep, fold the coupled pieces into one commit rather than shipping a broken intermediate (2026-07-08)
 - When a `/bpe:plan` re-run finds plan.md already complete and spec-consistent, verify-and-report instead of regenerating; only rewrite on explicit format or scope direction (2026-07-08)
@@ -18,6 +19,9 @@ lesson belongs to it. Use the most specific applicable category.
 
 ## Spec
 - Spec acceptance criteria can contradict earlier spec rules; E10 asked for bracket-stripped NOTE text while body rule 6 mandates verbatim brackets. Resolve toward the established contract (and its passing round-trip test) rather than the newer criterion's literal wording, and record the mismatch for the docs step. (2026-07-08)
+
+## Tooling
+- Ruff F841 does not flag a write-only collection: a `set()` that is assigned and `.add()`-ed but never read counts the `.add()` as a use, so dead accumulator sets slip past lint. Flag write-only collections in review by hand. (2026-07-08)
 
 ## BPE Workflow
 - During a BPE run, a plan step can be non-atomic: the Python 3.10 floor bump coupled requires-python + ruff-target (which forces the Optional->X|None sweep) + the CI matrix into one commit, because just test runs lint before fix and would hard-fail otherwise. When a config bump surfaces a deferred sweep, fold the coupled pieces into one commit rather than shipping a broken intermediate (2026-07-08)
