@@ -233,3 +233,53 @@ class FountainElement:
         """
         if self.metadata is None:
             self.metadata = {}
+
+
+@dataclass(frozen=True)
+class ValidationIssue:
+    """Represents a single diagnostic issue found while validating a Fountain document.
+
+    ValidationIssue is emitted by the validation API to report problems detected in
+    a Fountain source document, such as an unclosed boneyard comment or an orphaned
+    character cue. Instances are frozen (immutable and hashable) so that collections
+    of issues can be deduplicated and safely shared.
+
+    Args:
+        line_number: Source line number where the issue was detected (1-based)
+        severity: Diagnostic severity, either 'error' or 'warning'
+        code: Stable machine-readable identifier for the diagnostic (e.g. 'unclosed-boneyard')
+        message: Human-readable description of the issue
+
+    Attributes:
+        line_number: 1-based source line number the issue points at
+        severity: Either 'error' or 'warning'
+        code: Stable diagnostic code used to identify the issue programmatically
+        message: Human-readable explanation of the issue
+
+    Example:
+        Creating and inspecting a validation issue::
+
+            >>> from fountain.elements import ValidationIssue
+            >>> issue = ValidationIssue(
+            ...     line_number=3,
+            ...     severity="error",
+            ...     code="unclosed-boneyard",
+            ...     message="Boneyard comment opened but never closed",
+            ... )
+            >>> issue.line_number
+            3
+            >>> issue.severity
+            'error'
+            >>> issue.code
+            'unclosed-boneyard'
+
+        Issues are immutable and hashable::
+
+            >>> hash(issue) == hash(issue)
+            True
+    """
+
+    line_number: int
+    severity: Literal["error", "warning"]
+    code: str
+    message: str
