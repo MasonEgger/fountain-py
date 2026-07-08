@@ -1557,6 +1557,70 @@ Hello /* hidden */ world."""
             "a natural cue with a blank line after it must not become a CHARACTER (C3 still gates naturals)"
         )
 
+    # -- Step 7.7: Forced Characters Get Extension Extraction (C7) --
+
+    def test_forced_character_extension(self):
+        """A forced ``@`` cue extracts a trailing ``(extension)`` like a natural cue (C7).
+
+        A natural ``MCCLANE (V.O.)`` cue lifts the extension into
+        ``metadata["extension"]`` and keeps only the name in the element text. A forced
+        ``@McClane (O.S.)`` cue must behave the same: text ``McClane`` (no ``@``, no
+        extension), ``metadata["extension"] == "O.S."``, and ``forced`` still True. The
+        forced-``@`` branch owns its own extraction because a forced name may be any case
+        (``@mcclane``), so the uppercase-gated natural pattern cannot apply.
+
+        The extension extraction composes with the C5 caret handling: a combined
+        ``@McClane (O.S.) ^`` cue strips the caret (dual dialogue) AND lifts the
+        extension, yielding text ``McClane`` with both ``extension`` and ``dual_dialogue``
+        set.
+        """
+        # Plain extension: text is the bare name, extension lifted, forced preserved.
+        doc = FountainParser().parse("@McClane (O.S.)\nBehind you.")
+        cues = [element for element in doc.elements if element.type == ElementType.CHARACTER]
+        assert len(cues) == 1, f"expected one forced CHARACTER, got {[element.type for element in doc.elements]}"
+        assert cues[0].text == "McClane", f"forced cue text must be the bare name, got {cues[0].text!r}"
+        assert cues[0].metadata["extension"] == "O.S.", (
+            f"forced cue must lift the extension, got {cues[0].metadata.get('extension')!r}"
+        )
+        assert cues[0].metadata["forced"] is True
+
+        # Combined extension + caret: both handled. The caret pairs into DUAL_DIALOGUE.
+        combined = FountainParser().parse("BRICK\nHere we go.\n\n@McClane (O.S.) ^\nRight behind you.")
+        dual_elements = [element for element in combined.elements if element.type == ElementType.DUAL_DIALOGUE]
+        assert len(dual_elements) == 1, (
+            f"'@McClane (O.S.) ^' should pair into one DUAL_DIALOGUE, got {[e.type for e in combined.elements]}"
+        )
+        right = dual_elements[0].metadata["right_character"]
+        assert right.text == "McClane", f"combined cue text must be the bare name, got {right.text!r}"
+        assert right.metadata["extension"] == "O.S.", (
+            f"combined cue must lift the extension, got {right.metadata.get('extension')!r}"
+        )
+        assert right.metadata["dual_dialogue"] is True
+
+        # Regression: a forced cue with NO extension gets no extension metadata.
+        plain = FountainParser().parse("@McClane\nBehind you.")
+        plain_cues = [element for element in plain.elements if element.type == ElementType.CHARACTER]
+        assert plain_cues[0].text == "McClane"
+        assert plain_cues[0].metadata["forced"] is True
+        assert "extension" not in plain_cues[0].metadata, (
+            "a forced cue without a trailing '(...)' must not gain extension metadata"
+        )
+
+        # Regression: a forced caret cue with NO extension still pairs as dual, no extension.
+        caret_only = FountainParser().parse("BRICK\nHere we go.\n\n@McClane ^\nRight behind you.")
+        caret_dual = [element for element in caret_only.elements if element.type == ElementType.DUAL_DIALOGUE]
+        assert len(caret_dual) == 1
+        caret_right = caret_dual[0].metadata["right_character"]
+        assert caret_right.text == "McClane"
+        assert caret_right.metadata["dual_dialogue"] is True
+        assert "extension" not in caret_right.metadata
+
+        # Regression: natural extension extraction is unchanged.
+        natural = FountainParser().parse("MCCLANE (V.O.)\nBehind you.")
+        natural_cues = [element for element in natural.elements if element.type == ElementType.CHARACTER]
+        assert natural_cues[0].text == "MCCLANE"
+        assert natural_cues[0].metadata["extension"] == "V.O."
+
     def test_blank_line_ends_parenthetical_dialogue_block(self):
         """A blank line ends a natural CHARACTER/PARENTHETICAL dialogue block.
 

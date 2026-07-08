@@ -120,6 +120,14 @@ class FountainParser:
     # Example: "@john" forces "john" to be treated as character (even lowercase)
     FORCED_CHARACTER_PATTERN = re.compile(r"^@(.+)$")
 
+    # Trailing extension suffix on a forced cue (C7). Lifts a "(extension)" off the end
+    # of a forced ``@`` name so it lands in metadata like a natural cue. The forced path
+    # needs its own regex because a forced name may be any case (``@mcclane``), so the
+    # uppercase-gated CHARACTER_EXTENSION_PATTERN cannot match it. The name group is
+    # non-greedy so the trailing paren group binds to the last "(...)" before end.
+    # Example: "McClane (O.S.)" captures name "McClane" and extension "O.S.".
+    FORCED_EXTENSION_PATTERN = re.compile(r"^(.*?)\s*\(([^)]+)\)$")
+
     # Character with extensions: CHARACTER_NAME (extension) with optional dual dialogue caret
     # Captures character name, extension (V.O., O.S., CONT'D, etc.), and dual dialogue marker
     # The name portion shares the C1/C2 rules: digit-first allowed, at least one letter
@@ -978,6 +986,13 @@ class FountainParser:
             if character_name.endswith("^"):
                 character_name = character_name[:-1].strip()
                 forced_metadata["dual_dialogue"] = True
+            # C7: lift a trailing "(extension)" off the forced name after the caret is
+            # handled, so "@McClane (O.S.)" and "@McClane (O.S.) ^" both keep only the bare
+            # name in the text with the extension in metadata, mirroring natural cues.
+            extension_match = self.FORCED_EXTENSION_PATTERN.match(character_name)
+            if extension_match:
+                character_name = extension_match.group(1).strip()
+                forced_metadata["extension"] = extension_match.group(2).strip()
             # C6: the '@' is an explicit author override, so it forces a CHARACTER cue
             # unconditionally. Unlike natural cues (which stay gated on the dialogue
             # lookahead below), a forced cue is a cue whether dialogue, a blank line,
