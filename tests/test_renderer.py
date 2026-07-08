@@ -754,7 +754,7 @@ class TestFountainRenderer:
         assert "= What happens here" in lines
         assert "===" in lines
         assert ">Centered text<" in lines
-        assert "~Oh what a beautiful morning~" in lines
+        assert "~Oh what a beautiful morning" in lines
 
     def test_render_formatting(self):
         """Test that text with formatting is preserved."""
@@ -889,9 +889,27 @@ That was lovely!"""
 
         assert "SARAH" in rendered
         assert "(singing)" in rendered
-        assert "~Oh what a beautiful morning~" in rendered
-        assert "~Oh what a beautiful day~" in rendered
+        assert "~Oh what a beautiful morning" in rendered
+        assert "~Oh what a beautiful day" in rendered
         assert "That was lovely!" in rendered
+
+    def test_lyrics_round_trip_no_trailing_tilde(self):
+        """A4c: lyrics round-trip without accreting a trailing tilde.
+
+        The Fountain lyric marker is a leading ``~`` only, and the parser strips
+        only that leading tilde. The renderer must emit ``~text`` (no trailing
+        tilde) so that parse -> render -> parse leaves the lyric text unchanged
+        instead of appending a literal ``~`` on every round trip.
+        """
+        from fountain.parser import FountainParser
+
+        parser = FountainParser()
+        document = parser.parse("~La la la")
+        reparsed = parser.parse(self.renderer.render(document))
+
+        lyric_elements = [element for element in reparsed.elements if element.type == ElementType.LYRICS]
+        assert len(lyric_elements) == 1
+        assert lyric_elements[0].text == "La la la"
 
     def test_blank_lines_survive_round_trip(self):
         """A4: structural blank lines survive parse -> render -> parse.

@@ -932,7 +932,10 @@ class FountainRenderer:
             return f">{text}<"
 
         elif element.type == ElementType.LYRICS:
-            return f"~{text}~"
+            # The Fountain lyric marker is a leading ``~`` only; the parser strips
+            # just that leading tilde. Emitting a trailing ``~`` would accrete a
+            # literal tilde into the text on every round trip (requirement A4c).
+            return f"~{text}"
 
         else:
             # Fallback for unknown element types
