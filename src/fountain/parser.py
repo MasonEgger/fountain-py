@@ -978,14 +978,17 @@ class FountainParser:
             if character_name.endswith("^"):
                 character_name = character_name[:-1].strip()
                 forced_metadata["dual_dialogue"] = True
-            if self._is_dialogue_following():
-                return FountainElement(
-                    type=ElementType.CHARACTER,
-                    text=character_name,
-                    formatting=[],
-                    line_number=self.current_line + 1,
-                    metadata=forced_metadata,
-                )
+            # C6: the '@' is an explicit author override, so it forces a CHARACTER cue
+            # unconditionally. Unlike natural cues (which stay gated on the dialogue
+            # lookahead below), a forced cue is a cue whether dialogue, a blank line,
+            # action, or EOF follows — never demote it back to ACTION with the '@' kept.
+            return FountainElement(
+                type=ElementType.CHARACTER,
+                text=character_name,
+                formatting=[],
+                line_number=self.current_line + 1,
+                metadata=forced_metadata,
+            )
 
         # Check for dual dialogue character (CHARACTER^) — requires blank line before or first element.
         # A scene-heading form (INT./EXT. …) that degraded to here is action, never a cue (C1 guard).
@@ -1241,8 +1244,15 @@ class FountainParser:
 
         prev_element = self.elements[-1]
 
-        # Always dialogue after CHARACTER or PARENTHETICAL
-        if prev_element.type in (ElementType.CHARACTER, ElementType.PARENTHETICAL):
+        # Dialogue follows a CHARACTER or PARENTHETICAL cue, but only when it comes
+        # immediately after (no blank line between). Per the Fountain spec a blank line
+        # ends the dialogue block, so the not-had_blank_line_before guard applies to any
+        # CHARACTER/PARENTHETICAL block, natural or forced. A natural cue can reach here
+        # with a blank line after (e.g. JOHN / (softly) / blank / Hi.: prev is
+        # PARENTHETICAL and had_blank_line_before is True), and Hi. correctly classifies
+        # as action. It also covers forced '@' cues (C6), which force a CHARACTER even
+        # with no dialogue after them: a line past the blank is action, not dialogue.
+        if prev_element.type in (ElementType.CHARACTER, ElementType.PARENTHETICAL) and not had_blank_line_before:
             return True
 
         # Dialogue continuation: follows DIALOGUE with NO blank line separation

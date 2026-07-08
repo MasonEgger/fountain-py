@@ -50,7 +50,7 @@ Each step is TDD: failing test first, then the minimal fix, then `just test` cle
 - [x] 7.3 C3: a blank line immediately after a cue disqualifies it
 - [x] 7.4 C4: an all-caps line after a cue is dialogue
 - [x] 7.5 C5: trailing caret on a forced character creates dual dialogue
-- [ ] 7.6 C6: `@` forces CHARACTER unconditionally
+- [x] 7.6 C6: `@` forces CHARACTER unconditionally
 - [ ] 7.7 C7: forced characters get extension extraction
 
 ## Section 8: Compliance Group D: Transitions and Emphasis

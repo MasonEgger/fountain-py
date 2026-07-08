@@ -1497,3 +1497,96 @@ Hello /* hidden */ world."""
         natural_dual = [element for element in natural.elements if element.type == ElementType.DUAL_DIALOGUE]
         assert len(natural_dual) == 1
         assert natural_dual[0].metadata["right_character"].text == "MCCLANE"
+
+    def test_at_forces_character_unconditionally(self):
+        """``@`` forces CHARACTER unconditionally, never gated on the dialogue lookahead (C6).
+
+        The ``@`` prefix is an explicit author override. Per the spec it must force a
+        CHARACTER cue regardless of what follows, and the literal ``@`` never survives
+        in the element text. The forced branch must therefore NOT reuse the
+        ``_is_dialogue_following()`` gate that scopes natural cues: a forced cue is a
+        cue whether dialogue, a blank line, action, or EOF comes next.
+
+        Natural (non-``@``) cues stay gated: a natural cue with a blank line after it
+        (C3) is still disqualified, so the ``@`` unconditional force must not leak into
+        natural-cue detection.
+        """
+        # Dialogue follows: forced CHARACTER + DIALOGUE, no literal '@' (already worked).
+        with_dialogue = FountainParser().parse("@McClane\nI SAID NO")
+        cues = [element for element in with_dialogue.elements if element.type == ElementType.CHARACTER]
+        assert len(cues) == 1, (
+            f"expected one forced CHARACTER, got {[element.type for element in with_dialogue.elements]}"
+        )
+        assert cues[0].text == "McClane", f"forced cue text must strip the '@', got {cues[0].text!r}"
+        assert cues[0].metadata["forced"] is True
+        dialogue = [element for element in with_dialogue.elements if element.type == ElementType.DIALOGUE]
+        assert len(dialogue) == 1
+        assert dialogue[0].text == "I SAID NO"
+
+        # Real defect case: a blank line (then action) follows the forced cue. The cue must
+        # STILL be a forced CHARACTER, not demote to ACTION('@McClane').
+        blank_after = FountainParser().parse("@McClane\n\nAction line here.")
+        forced_cues = [element for element in blank_after.elements if element.type == ElementType.CHARACTER]
+        assert len(forced_cues) == 1, (
+            f"'@McClane' before a blank line must remain a forced CHARACTER, got "
+            f"{[(element.type.value, element.text) for element in blank_after.elements]}"
+        )
+        assert forced_cues[0].text == "McClane", f"forced cue text must strip the '@', got {forced_cues[0].text!r}"
+        assert forced_cues[0].metadata["forced"] is True
+        assert not any(element.text == "@McClane" for element in blank_after.elements), (
+            "no element may retain a literal '@McClane'"
+        )
+        # The following line still classifies correctly as ACTION.
+        actions = [element for element in blank_after.elements if element.type == ElementType.ACTION]
+        assert any(element.text == "Action line here." for element in actions)
+
+        # Guard: a bare '@McClane' at EOF (nothing after) is still a forced CHARACTER.
+        at_eof = FountainParser().parse("@McClane")
+        eof_cues = [element for element in at_eof.elements if element.type == ElementType.CHARACTER]
+        assert len(eof_cues) == 1, (
+            f"'@McClane' at EOF must be a forced CHARACTER, got "
+            f"{[(element.type.value, element.text) for element in at_eof.elements]}"
+        )
+        assert eof_cues[0].text == "McClane"
+        assert eof_cues[0].metadata["forced"] is True
+
+        # Regression guard: natural cues stay GATED. A natural cue with a blank line after
+        # it (C3) must NOT be treated as a cue just because '@' became unconditional.
+        natural_blank_after = FountainParser().parse("Some action.\n\nMCCLANE\n\nMore action.")
+        assert not any(element.type == ElementType.CHARACTER for element in natural_blank_after.elements), (
+            "a natural cue with a blank line after it must not become a CHARACTER (C3 still gates naturals)"
+        )
+
+    def test_blank_line_ends_parenthetical_dialogue_block(self):
+        """A blank line ends a natural CHARACTER/PARENTHETICAL dialogue block.
+
+        Pins the natural-cue path through ``_is_dialogue_line``: after ``JOHN`` and a
+        ``(softly)`` parenthetical, a blank line ends the dialogue block, so the ``Hi.``
+        that follows must classify as ACTION, not DIALOGUE. The parenthetical is the
+        previous element and ``had_blank_line_before`` is True on that line, so this is
+        the exact natural-cue + PARENTHETICAL + blank path the guard covers (not just
+        the forced-``@`` case).
+        """
+        doc = FountainParser().parse("JOHN\n(softly)\n\nHi.")
+        types = [element.type for element in doc.elements]
+        assert ElementType.CHARACTER in types, f"'JOHN' should be a CHARACTER cue, got {types}"
+        assert ElementType.PARENTHETICAL in types, f"'(softly)' should be a PARENTHETICAL, got {types}"
+
+        # The block up to the blank is CHARACTER then PARENTHETICAL, in order.
+        character = next(element for element in doc.elements if element.type == ElementType.CHARACTER)
+        parenthetical = next(element for element in doc.elements if element.type == ElementType.PARENTHETICAL)
+        assert character.text == "JOHN"
+        assert parenthetical.text == "(softly)"
+        assert doc.elements.index(character) < doc.elements.index(parenthetical)
+
+        # The blank line ends the dialogue block: 'Hi.' is ACTION, not DIALOGUE.
+        hi_elements = [element for element in doc.elements if element.text == "Hi."]
+        assert len(hi_elements) == 1, (
+            f"expected one 'Hi.' element, got {[(element.type.value, element.text) for element in doc.elements]}"
+        )
+        assert hi_elements[0].type == ElementType.ACTION, (
+            f"a blank line ends the dialogue block, so 'Hi.' must be ACTION, got {hi_elements[0].type.value}"
+        )
+        assert not any(element.type == ElementType.DIALOGUE and element.text == "Hi." for element in doc.elements), (
+            "'Hi.' after a blank line must not be DIALOGUE"
+        )
