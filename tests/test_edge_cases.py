@@ -1120,3 +1120,20 @@ Hello /* hidden */ world."""
         two_space_types = [element.type for element in two_space_doc.elements]
         blank_types = [element.type for element in blank_doc.elements]
         assert two_space_types != blank_types
+
+    def test_two_space_note_line_no_empty_dialogue(self):
+        """A two-space line inside an open note injects no empty DIALOGUE element (E8).
+
+        A dialogue block followed by a multi-line note whose middle line is exactly two
+        spaces must not treat that two-space line as a dialogue continuation. The open note
+        intercepts the line, so the element sequence stays CHARACTER, DIALOGUE, NOTE with no
+        empty-text DIALOGUE injected.
+        """
+        source = "JOHN\nHello there.\n\n[[note line one\n  \nnote line two]]"
+        doc = self.parser.parse(source)
+        element_types = [element.type for element in doc.elements]
+        assert element_types == [ElementType.CHARACTER, ElementType.DIALOGUE, ElementType.NOTE]
+        empty_dialogue = [
+            element for element in doc.elements if element.type == ElementType.DIALOGUE and element.text.strip() == ""
+        ]
+        assert empty_dialogue == []
