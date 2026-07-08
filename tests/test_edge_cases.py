@@ -1317,3 +1317,55 @@ Hello /* hidden */ world."""
             element for element in doc.elements if element.type == ElementType.DIALOGUE and element.text.strip() == ""
         ]
         assert empty_dialogue == []
+
+    # -- Step 7.1: Punctuated Uppercase Character Cues (C1) --
+
+    def test_punctuated_character_cues(self):
+        """Uppercase cues containing ``.``, ``'``, ``-``, or ``#N`` parse as CHARACTER (C1).
+
+        The Fountain spec allows character cues to carry punctuation: ``MR. SMITH``,
+        ``O'BRIEN``, ``JEAN-CLAUDE``, and ``DEALER #2`` are all valid cues. Each, when
+        placed at document start and followed by a dialogue line, must parse as a
+        CHARACTER element followed by a DIALOGUE element.
+        """
+        cues = ["MR. SMITH", "O'BRIEN", "JEAN-CLAUDE", "DEALER #2"]
+        for cue in cues:
+            parser = FountainParser()
+            doc = parser.parse(f"{cue}\nHello there.")
+            element_types = [element.type for element in doc.elements]
+            assert element_types == [ElementType.CHARACTER, ElementType.DIALOGUE], (
+                f"{cue!r} should parse as CHARACTER + DIALOGUE, got {element_types}"
+            )
+            assert doc.elements[0].text == cue
+
+    def test_cue_followed_by_punctuated_shout(self):
+        """A cue followed by a punctuated all-caps line yields CHARACTER + DIALOGUE.
+
+        Widening the character-cue pattern to accept punctuation (C1) means an
+        all-caps dialogue line like ``NO. NEVER.`` now matches the cue pattern too.
+        The lookahead must not let that line masquerade as a competing structural
+        element: since it is not itself followed by its own dialogue, it is dialogue
+        for the preceding ``JOHN`` cue, not a reason to demote ``JOHN`` to action.
+        """
+        doc = FountainParser().parse("JOHN\nNO. NEVER.")
+        element_types = [element.type for element in doc.elements]
+        assert element_types == [ElementType.CHARACTER, ElementType.DIALOGUE], (
+            f"'JOHN' / 'NO. NEVER.' should parse as CHARACTER + DIALOGUE, got {element_types}"
+        )
+        assert doc.elements[0].text == "JOHN"
+        assert doc.elements[1].text == "NO. NEVER."
+
+    def test_cue_followed_by_allcaps_dialogue(self):
+        """An all-caps line after a cue is that cue's dialogue, not a rival cue (C4).
+
+        A shouted line such as ``I SAID NO`` is uppercase and matches the character
+        cue pattern, but it is not itself followed by its own dialogue. The lookahead
+        must treat it as dialogue for the preceding ``JOHN`` cue.
+        """
+        doc = FountainParser().parse("JOHN\nI SAID NO")
+        element_types = [element.type for element in doc.elements]
+        assert element_types == [ElementType.CHARACTER, ElementType.DIALOGUE], (
+            f"'JOHN' / 'I SAID NO' should parse as CHARACTER + DIALOGUE, got {element_types}"
+        )
+        assert doc.elements[0].text == "JOHN"
+        assert doc.elements[1].text == "I SAID NO"

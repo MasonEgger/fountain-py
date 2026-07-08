@@ -45,7 +45,7 @@ Each step is TDD: failing test first, then the minimal fix, then `just test` cle
 - [x] 6.4 B4: scene numbers restricted to alphanumerics, dashes, and periods
 
 ## Section 7: Compliance Group C: Characters and Dialogue
-- [ ] 7.1 C1: punctuated uppercase cues recognized
+- [x] 7.1 C1: punctuated uppercase cues recognized
 - [ ] 7.2 C2: digit-first cues with at least one letter
 - [ ] 7.3 C3: a blank line immediately after a cue disqualifies it
 - [ ] 7.4 C4: an all-caps line after a cue is dialogue

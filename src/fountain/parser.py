@@ -96,15 +96,19 @@ class FountainParser:
     # Example: ".FLASHBACK - 10 YEARS AGO" becomes "FLASHBACK - 10 YEARS AGO"
     FORCED_SCENE_HEADING_PATTERN = re.compile(r"^\.(?!\.)(?=[A-Za-z0-9])")
     # Character Name Patterns
-    # Standard character names: ALL CAPS, may include numbers, spaces, underscores
-    # Must start with letter, prevents false positives from action lines
-    # Examples: "JOHN", "MARY JANE", "ROBOT_1", "DR SMITH"
-    CHARACTER_PATTERN = re.compile(r"^[A-Z][A-Z0-9\s_]*$")
+    # Standard character names: ALL CAPS, may include numbers, spaces, underscores, and
+    # cue punctuation (C1): a period, apostrophe, or hyphen, plus ``#`` for numbered
+    # extras. Must start with an uppercase letter so lowercase action lines never match.
+    # The class deliberately excludes lowercase letters so a cue stays recognizably
+    # uppercase; recognition is further gated by a blank line before and a dialogue
+    # lookahead after, so an all-caps action sentence still falls through to action.
+    # Examples: "JOHN", "MARY JANE", "ROBOT_1", "MR. SMITH", "O'BRIEN", "JEAN-CLAUDE", "DEALER #2"
+    CHARACTER_PATTERN = re.compile(r"^[A-Z][A-Z0-9\s_.'#-]*$")
 
     # Dual dialogue character: standard character name followed by caret (^)
     # Indicates this character speaks simultaneously with previous character
     # Example: "MARY^" for dual dialogue with preceding character
-    DUAL_CHARACTER_PATTERN = re.compile(r"^[A-Z][A-Z0-9\s_]*\^\s*$")
+    DUAL_CHARACTER_PATTERN = re.compile(r"^[A-Z][A-Z0-9\s_.'#-]*\^\s*$")
 
     # Forced character name: prefixed with @ to override natural character detection
     # Captures the character name after the @ symbol
@@ -113,8 +117,8 @@ class FountainParser:
 
     # Character with extensions: CHARACTER_NAME (extension) with optional dual dialogue caret
     # Captures character name, extension (V.O., O.S., CONT'D, etc.), and dual dialogue marker
-    # Examples: "JOHN (V.O.)", "MARY (O.S.)^", "NARRATOR (CONT'D)"
-    CHARACTER_EXTENSION_PATTERN = re.compile(r"^([A-Z][A-Z0-9\s_]*)\s*\(([^)]+)\)\s*(\^)?\s*$")
+    # Examples: "JOHN (V.O.)", "MARY (O.S.)^", "NARRATOR (CONT'D)", "MR. SMITH (V.O.)"
+    CHARACTER_EXTENSION_PATTERN = re.compile(r"^([A-Z][A-Z0-9\s_.'#-]*)\s*\(([^)]+)\)\s*(\^)?\s*$")
     # Transition Patterns
     # Standard transitions: ALL CAPS ending with colon, or specific fade patterns
     # Matches common screenplay transitions like "CUT TO:", "FADE IN:", "FADE OUT."
@@ -170,21 +174,30 @@ class FountainParser:
     LYRICS_PATTERN = re.compile(r"^~(.+)$")
 
     # Structural patterns used by _is_dialogue_following to detect non-dialogue elements.
-    # If the next line matches any of these, it's structural — not dialogue.
-    STRUCTURAL_PATTERNS: tuple[re.Pattern[str], ...] = (
+    # Hard-structural patterns always disqualify a preceding cue: if the next line
+    # matches one of these, it is unambiguously not dialogue.
+    HARD_STRUCTURAL_PATTERNS: tuple[re.Pattern[str], ...] = (
         SCENE_HEADING_PATTERN,
         FORCED_SCENE_HEADING_PATTERN,
         TRANSITION_PATTERN,
         FORCED_TRANSITION_PATTERN,
-        CHARACTER_PATTERN,
-        DUAL_CHARACTER_PATTERN,
-        FORCED_CHARACTER_PATTERN,
-        CHARACTER_EXTENSION_PATTERN,
         SECTION_PATTERN,
         SYNOPSIS_PATTERN,
         PAGE_BREAK_PATTERN,
         CENTERED_PATTERN,
         FORCED_ACTION_PATTERN,
+    )
+
+    # Cue patterns are ambiguous: an all-caps line matching one of these is only a
+    # rival structural element (disqualifying a preceding cue) if it is ITSELF a real
+    # cue — that is, its own next non-empty line is dialogue. Otherwise it is dialogue
+    # for the preceding cue. This keeps punctuated shouts like ``NO. NEVER.`` and
+    # all-caps dialogue like ``I SAID NO`` from demoting the cue above them to action.
+    CUE_PATTERNS: tuple[re.Pattern[str], ...] = (
+        CHARACTER_PATTERN,
+        DUAL_CHARACTER_PATTERN,
+        FORCED_CHARACTER_PATTERN,
+        CHARACTER_EXTENSION_PATTERN,
     )
 
     # Inline Formatting Patterns
@@ -958,8 +971,13 @@ class FountainParser:
                     metadata={"forced": True},
                 )
 
-        # Check for dual dialogue character (CHARACTER^) — requires blank line before or first element
-        if self.DUAL_CHARACTER_PATTERN.match(line) and (had_blank_line_before or not self.elements):
+        # Check for dual dialogue character (CHARACTER^) — requires blank line before or first element.
+        # A scene-heading form (INT./EXT. …) that degraded to here is action, never a cue (C1 guard).
+        if (
+            self.DUAL_CHARACTER_PATTERN.match(line)
+            and (had_blank_line_before or not self.elements)
+            and not self.SCENE_HEADING_PATTERN.match(line)
+        ):
             character_name = line.replace("^", "").strip()
             if self._is_dialogue_following():
                 return FountainElement(
@@ -972,7 +990,11 @@ class FountainParser:
 
         # Check for character with extensions (CHARACTER (V.O.)) — requires blank line before or first element
         char_ext_match = self.CHARACTER_EXTENSION_PATTERN.match(line)
-        if char_ext_match and (had_blank_line_before or not self.elements):
+        if (
+            char_ext_match
+            and (had_blank_line_before or not self.elements)
+            and not self.SCENE_HEADING_PATTERN.match(line)
+        ):
             character_name = char_ext_match.group(1).strip()
             extension = char_ext_match.group(2).strip()
             is_dual = char_ext_match.group(3) is not None
@@ -988,8 +1010,13 @@ class FountainParser:
                     metadata=char_metadata,
                 )
 
-        # Check for regular character (must be all caps) — requires blank line before or first element
-        if self.CHARACTER_PATTERN.match(line) and (had_blank_line_before or not self.elements):
+        # Check for regular character (must be all caps) — requires blank line before or first element.
+        # A scene-heading form (INT./EXT. …) that degraded to here is action, never a cue (C1 guard).
+        if (
+            self.CHARACTER_PATTERN.match(line)
+            and (had_blank_line_before or not self.elements)
+            and not self.SCENE_HEADING_PATTERN.match(line)
+        ):
             # Look ahead to see if next line is dialogue or parenthetical
             if self._is_dialogue_following():
                 metadata = {}
@@ -1084,11 +1111,56 @@ class FountainParser:
         while next_line_idx < len(self.lines):
             next_line = self.lines[next_line_idx].strip()
             if next_line:
-                # It's dialogue if it's not another structural element
-                is_structural = any(p.match(next_line) for p in self.STRUCTURAL_PATTERNS)
+                # A hard-structural line (scene heading, transition, section, etc.)
+                # or standalone note is never this cue's dialogue.
+                is_hard_structural = any(p.match(next_line) for p in self.HARD_STRUCTURAL_PATTERNS)
                 is_standalone_note = next_line.startswith("[[") and next_line.endswith("]]")
-                return not (is_structural or is_standalone_note)
+                if is_hard_structural or is_standalone_note:
+                    return False
+                # An all-caps line that merely looks like a cue is only a rival cue
+                # (and thus not dialogue) if it is itself followed by its own dialogue.
+                # Otherwise it is dialogue for the preceding cue.
+                matches_cue = any(p.match(next_line) for p in self.CUE_PATTERNS)
+                if matches_cue and self._line_is_cue(next_line_idx):
+                    return False
+                return True
             next_line_idx += 1
+        return False
+
+    def _line_is_cue(self, line_idx: int) -> bool:
+        """Check whether the line at ``line_idx`` is itself a real character cue.
+
+        A line is a real cue when its own next non-empty line is dialogue: not a
+        hard-structural element, not a standalone note, and not another line that
+        merely looks like a cue. This lets :meth:`_is_dialogue_following` tell a
+        genuine second cue (``JOHN`` then ``MARY`` then dialogue) apart from an
+        all-caps dialogue line (``JOHN`` then ``NO. NEVER.``).
+
+        Args:
+            line_idx: Index into ``self.lines`` of the candidate cue line.
+
+        Returns:
+            bool: True if the candidate line is followed by its own dialogue.
+
+        Examples:
+            >>> parser = FountainParser()
+            >>> parser.lines = ["JOHN", "MARY", "Hello there"]
+            >>> parser._line_is_cue(1)
+            True
+
+            >>> parser.lines = ["JOHN", "NO. NEVER."]
+            >>> parser._line_is_cue(1)
+            False
+        """
+        scan_idx = line_idx + 1
+        while scan_idx < len(self.lines):
+            candidate = self.lines[scan_idx].strip()
+            if candidate:
+                is_hard_structural = any(p.match(candidate) for p in self.HARD_STRUCTURAL_PATTERNS)
+                is_standalone_note = candidate.startswith("[[") and candidate.endswith("]]")
+                matches_cue = any(p.match(candidate) for p in self.CUE_PATTERNS)
+                return not (is_hard_structural or is_standalone_note or matches_cue)
+            scan_idx += 1
         return False
 
     def _is_blank_line_after(self) -> bool:
