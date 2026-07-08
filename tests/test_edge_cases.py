@@ -1152,6 +1152,48 @@ class TestSpecCompliance:
         assert "<u>under</u>" in underline_html
         assert "_" not in underline_html
 
+    # -- Step 8.4: D5 Keypad Escape Example Renders Correctly --
+
+    def test_keypad_escape_example(self):
+        r"""D5: the spec's keypad escape example renders with ``<strong>*9765*</strong>``.
+
+        The line ``Steel enters the code on the keypad: **\*9765\***`` combines two
+        features from D4: emphasis delimiters are stripped (the ``**`` bold markers) and
+        backslash-escaped asterisks resolve to literal ``*`` characters. D5 pins the
+        combined behavior end to end: the ACTION text carries literal asterisks around
+        ``9765`` with no ``**`` markers, and the HTML renderer emits
+        ``<strong>*9765*</strong>`` with no stray delimiters.
+
+        D5 is subsumed by D4 (Step 8.3), which delivers both the delimiter stripping and
+        the escape resolution. This test pins that the keypad example specifically renders
+        correctly. The keypad line is placed in body context (after a scene heading and a
+        blank line) so it classifies as ACTION rather than being swallowed by title-page
+        detection, which treats a colon-bearing first line as metadata (documented
+        ambiguity A3).
+        """
+        from fountain.renderer import HTMLRenderer
+
+        doc = self.parser.parse("INT. VAULT - NIGHT\n\nSteel enters the code on the keypad: **\\*9765\\***")
+        action_elements = [element for element in doc.elements if element.type == ElementType.ACTION]
+        assert len(action_elements) == 1
+        action = action_elements[0]
+
+        # Escaped asterisks resolve to literal ``*`` and the bold delimiters are stripped.
+        assert action.text == "Steel enters the code on the keypad: *9765*"
+        assert "**" not in action.text
+
+        # One bold span covers the ``*9765*`` content in the clean text.
+        bold_spans = [span for span in action.formatting if span.format_type == "bold"]
+        assert len(bold_spans) == 1
+        bold_span = bold_spans[0]
+        assert action.text[bold_span.start : bold_span.end] == "*9765*"
+
+        # The HTML renders the bold escaped code with no stray delimiters.
+        html = HTMLRenderer().render(doc)
+        assert "<strong>*9765*</strong>" in html
+        assert "**9765**" not in html
+        assert "**" not in html
+
     def test_dialogue_not_broken_by_regular_text(self):
         """Regular text following a character name should be dialogue, not action."""
         doc = self.parser.parse("JOHN\nHello.\nMore dialogue.")
