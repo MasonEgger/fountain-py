@@ -514,44 +514,56 @@ class HTMLRenderer:
         if not formatting:
             return self._escape_html(text)
 
-        # Sort formatting spans by start position (reversed for easier processing)
-        sorted_formatting = sorted(formatting, key=lambda x: x.start, reverse=True)
+        # Spans may overlap or nest (e.g. an underlined phrase containing an italic
+        # span), so a single-pass segment builder that assumes non-overlapping spans
+        # would duplicate the shared content. Instead, sweep character by character,
+        # tracking which format types cover each position, and open/close tags with a
+        # stack so the output is always well-formed and properly nested (D6). Where two
+        # spans only partially overlap, the outer-starting span stays outermost and the
+        # inner is split at the boundary, so no character is duplicated or dropped.
+        text_length = len(text)
+        open_tags = {
+            "bold": "<strong>",
+            "italic": "<em>",
+            "underline": "<u>",
+            "bold_italic": "<strong><em>",
+        }
+        close_tags = {
+            "bold": "</strong>",
+            "italic": "</em>",
+            "underline": "</u>",
+            "bold_italic": "</em></strong>",
+        }
 
-        # Build list of text segments with their formatting
-        segments: list[tuple[str, str | None]] = []
-        last_end = len(text)
+        def active_formats(position: int) -> list[str]:
+            # Sort covering spans outermost-first: earlier start wins, then wider span,
+            # then a stable format order so nesting is deterministic across positions.
+            covering = [span for span in formatting if span.start <= position < span.end]
+            covering.sort(key=lambda span: (span.start, -(span.end - span.start), span.format_type))
+            return [span.format_type for span in covering]
 
-        for span in sorted_formatting:
-            # Add text after this span (if any)
-            if last_end > span.end:
-                segments.append((text[span.end : last_end], None))
+        result_parts: list[str] = []
+        open_stack: list[str] = []
 
-            # Add the formatted span
-            segments.append((text[span.start : span.end], span.format_type))
-            last_end = span.start
+        for position in range(text_length):
+            desired = active_formats(position)
 
-        # Add any remaining text at the beginning
-        if last_end > 0:
-            segments.append((text[:last_end], None))
+            # Keep the longest prefix of already-open tags that still matches the
+            # desired nesting; close everything opened above it.
+            common = 0
+            while common < len(open_stack) and common < len(desired) and open_stack[common] == desired[common]:
+                common += 1
+            while len(open_stack) > common:
+                result_parts.append(close_tags[open_stack.pop()])
 
-        # Reverse to get correct order
-        segments.reverse()
+            for format_type in desired[common:]:
+                result_parts.append(open_tags[format_type])
+                open_stack.append(format_type)
 
-        # Build final HTML
-        result_parts = []
-        for segment_text, format_type in segments:
-            escaped_text = self._escape_html(segment_text)
+            result_parts.append(self._escape_html(text[position]))
 
-            if format_type == "bold":
-                result_parts.append(f"<strong>{escaped_text}</strong>")
-            elif format_type == "italic":
-                result_parts.append(f"<em>{escaped_text}</em>")
-            elif format_type == "underline":
-                result_parts.append(f"<u>{escaped_text}</u>")
-            elif format_type == "bold_italic":
-                result_parts.append(f"<strong><em>{escaped_text}</em></strong>")
-            else:
-                result_parts.append(escaped_text)
+        while open_stack:
+            result_parts.append(close_tags[open_stack.pop()])
 
         return "".join(result_parts)
 

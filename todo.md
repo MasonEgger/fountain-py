@@ -58,7 +58,7 @@ Each step is TDD: failing test first, then the minimal fix, then `just test` cle
 - [x] 8.2 D2: uppercase lines ending in `TO:` with punctuation are transitions
 - [x] 8.3 D4: emphasis delimiters stripped and spans cover only the content
 - [x] 8.4 D5: the keypad escape example renders correctly
-- [ ] 8.5 D6: nested emphasis does not duplicate text
+- [x] 8.5 D6: nested emphasis does not duplicate text
 - [ ] 8.6 D7: bold and underline get the italic delimiter-adjacent-space guards
 - [ ] 8.7 D8: span offsets computed against stored text including indentation
 - [ ] 8.8 D9: forced action retains indentation after the `!`

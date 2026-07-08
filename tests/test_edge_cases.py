@@ -1194,6 +1194,52 @@ class TestSpecCompliance:
         assert "**9765**" not in html
         assert "**" not in html
 
+    # -- Step 8.5: D6 Nested Emphasis Does Not Duplicate Text --
+
+    def test_nested_emphasis_no_duplication(self):
+        """D6: nested emphasis composes into nested tags with each word rendered once.
+
+        The spec underlines a phrase that itself contains an italic span, so bold,
+        italic, and underline must compose freely rather than being flattened. Before
+        D6 the renderer assumed non-overlapping spans and emitted the inner content
+        twice: ``<u>...Leupold Mark 4 scope</u><em>Leupold Mark 4</em> scope.``. D6
+        makes the segment builder handle overlapping and nested spans, producing the
+        underline wrapping the whole phrase with the italic nested inside and every
+        character emitted exactly once.
+
+        The line is placed in body context (after a scene heading and a blank line) so
+        it classifies as ACTION rather than being swallowed by title-page detection,
+        which treats a colon-bearing first line as metadata (documented ambiguity A3).
+        """
+        from fountain.renderer import HTMLRenderer
+
+        doc = self.parser.parse("INT. HOUSE - DAY\n\n_Steel's face FILLS the *Leupold Mark 4* scope_.")
+        action_elements = [element for element in doc.elements if element.type == ElementType.ACTION]
+        assert len(action_elements) == 1
+        action = action_elements[0]
+
+        action_html = HTMLRenderer()._apply_formatting(action.text, action.formatting)
+
+        # The underline wraps the whole phrase with the italic nested inside it.
+        assert "<u>Steel&#x27;s face FILLS the <em>Leupold Mark 4</em> scope</u>" in action_html
+
+        # No delimiters survive and no content is duplicated: each word appears once.
+        assert "_" not in action_html
+        assert "*" not in action_html
+        assert action_html.count("Leupold Mark 4") == 1
+        for word in ("Steel", "face", "FILLS", "the", "Leupold", "Mark", "4", "scope"):
+            assert action_html.count(word) == 1, f"word {word!r} should appear exactly once"
+
+        # A bold phrase containing a nested underline composes the same way.
+        doc = self.parser.parse("Action line\n\n**bold with _underline_ inside**")
+        action_elements = [element for element in doc.elements if element.type == ElementType.ACTION]
+        nested = action_elements[-1]
+        nested_html = HTMLRenderer()._apply_formatting(nested.text, nested.formatting)
+        assert nested_html == "<strong>bold with <u>underline</u> inside</strong>"
+        assert nested_html.count("underline") == 1
+        for word in ("bold", "with", "underline", "inside"):
+            assert nested_html.count(word) == 1, f"word {word!r} should appear exactly once"
+
     def test_dialogue_not_broken_by_regular_text(self):
         """Regular text following a character name should be dialogue, not action."""
         doc = self.parser.parse("JOHN\nHello.\nMore dialogue.")

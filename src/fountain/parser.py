@@ -1440,7 +1440,12 @@ class FountainParser:
         Runs the bold-italic, bold, italic, and underline patterns in precedence order
         against ``formatting_text`` (escapes already replaced by placeholders) and returns
         FormatSpan entries whose start/end bracket the whole match, delimiters included.
-        Overlap suppression keeps bold out of bold-italic ranges and italic out of both.
+
+        Suppression is not a Fountain concept: bold, italic, and underline compose freely
+        so the renderer can nest them (D6). The single guard kept here stops the bold
+        pattern from re-matching the ``**text**`` inside a ``***text***`` bold-italic span,
+        which would otherwise double-count the same run; the bold-italic span already
+        carries that formatting.
 
         Args:
             formatting_text: Text with backslash escapes replaced by placeholder chars.
@@ -1454,27 +1459,21 @@ class FountainParser:
         for match in self.BOLD_ITALIC_PATTERN.finditer(formatting_text):
             spans.append(FormatSpan(match.start(), match.end(), "bold_italic"))
 
-        # Find bold formatting, skipping anything already inside a bold-italic span
+        # Find bold formatting, skipping the ``**text**`` nested inside a bold-italic span.
         for match in self.BOLD_PATTERN.finditer(formatting_text):
-            overlap = any(
+            inside_bold_italic = any(
                 span.start <= match.start() < span.end or span.start < match.end() <= span.end
                 for span in spans
                 if span.format_type == "bold_italic"
             )
-            if not overlap:
+            if not inside_bold_italic:
                 spans.append(FormatSpan(match.start(), match.end(), "bold"))
 
-        # Find italic formatting, skipping anything inside a bold-italic or bold span
+        # Find italic formatting; it composes with bold and underline (no suppression).
         for match in self.ITALIC_PATTERN.finditer(formatting_text):
-            overlap = any(
-                span.start <= match.start() < span.end or span.start < match.end() <= span.end
-                for span in spans
-                if span.format_type in ("bold_italic", "bold")
-            )
-            if not overlap:
-                spans.append(FormatSpan(match.start(), match.end(), "italic"))
+            spans.append(FormatSpan(match.start(), match.end(), "italic"))
 
-        # Find underline formatting (never suppressed; may overlap other spans)
+        # Find underline formatting; it composes with every other span (no suppression).
         for match in self.UNDERLINE_PATTERN.finditer(formatting_text):
             spans.append(FormatSpan(match.start(), match.end(), "underline"))
 
