@@ -179,6 +179,37 @@ After the title page, the parser classifies each line into one of 14 element typ
 - **Lyrics**: Lines starting with ``~``
 - **Dual Dialogue**: Characters marked with ``^`` for simultaneous speech
 
+Lyrics Inside a Dialogue Block
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A lyric line (a line beginning with ``~``) ends the dialogue block it appears in.
+This is a documented contract, not a defect.
+Once a lyric closes the block, the next ordinary line is no longer inside a character's dialogue, so it falls back to action.
+
+Consider this input:
+
+.. code-block:: text
+
+    JOHN
+    ~Willy Wonka!
+    Wasn't that great?
+
+The parser produces three elements: a ``CHARACTER`` (``JOHN``), a ``LYRICS`` element (``Willy Wonka!``, with the tilde stripped), and an ``ACTION`` element (``Wasn't that great?``).
+The trailing line is action because the lyric already closed the dialogue block.
+
+There is no supported syntax that keeps that trailing line as dialogue in this position.
+If you need the character to keep speaking after singing, repeat the character cue:
+
+.. code-block:: text
+
+    JOHN
+    ~Willy Wonka!
+
+    JOHN
+    Wasn't that great?
+
+The blank line and second ``JOHN`` cue open a fresh dialogue block, so ``Wasn't that great?`` is parsed as dialogue.
+
 Working with Parsed Documents
 -----------------------------
 

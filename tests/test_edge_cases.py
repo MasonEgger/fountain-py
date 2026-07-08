@@ -2044,3 +2044,23 @@ Hello /* hidden */ world."""
         transitions = [element for element in with_title.elements if element.type == ElementType.TRANSITION]
         assert len(transitions) == 1
         assert transitions[0].text == "CUT TO:"
+
+    # -- Step 9.2: C8 Lyrics Inside a Dialogue Block End the Block (documented contract) --
+
+    def test_lyrics_end_dialogue_block(self):
+        """A lyric line inside a dialogue block ends the block; the next line is ACTION.
+
+        Documented contract, not a defect. A character cue followed by a lyric line
+        closes the dialogue block, so a following ordinary line falls back to action
+        rather than continuing as dialogue. Writers who want that trailing line spoken
+        have no supported syntax to force it here.
+        """
+        doc = self.parser.parse("JOHN\n~Willy Wonka!\nWasn't that great?")
+
+        types = [element.type for element in doc.elements]
+        assert types == [ElementType.CHARACTER, ElementType.LYRICS, ElementType.ACTION]
+
+        # The tilde is stripped from the stored lyric text.
+        assert doc.elements[1].text == "Willy Wonka!"
+        # The trailing line is action, not dialogue.
+        assert doc.elements[2].text == "Wasn't that great?"
