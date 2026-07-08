@@ -576,8 +576,12 @@ class FountainParser:
                 continue
 
             # A non-indented line with a colon (and not a scene heading) starts a
-            # new key.
-            if ":" in line and not line.startswith(("INT.", "EXT.", "EST.", "I/E.")):
+            # new key. The scene-heading guard reuses SCENE_HEADING_PATTERN so it is
+            # case-insensitive and space-form aware (B3): a line like
+            # "int. house - day - 3:00 pm" contains a colon (from the time) but is a
+            # scene heading, so it must fall through to body classification rather
+            # than opening a bogus "int. house - day - 3" key.
+            if ":" in line and not self.SCENE_HEADING_PATTERN.match(line):
                 key, value = line.split(":", 1)
                 key = key.strip().lower()
                 value = value.strip()

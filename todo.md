@@ -41,7 +41,7 @@ Each step is TDD: failing test first, then the minimal fix, then `just test` cle
 ## Section 6: Compliance Group B: Scene Headings
 - [x] 6.1 B1: space-form scene heading prefixes recognized
 - [x] 6.2 B2: a natural scene heading requires a blank line after it
-- [ ] 6.3 B3: case-insensitive title-page guard that accepts the space form
+- [x] 6.3 B3: case-insensitive title-page guard that accepts the space form
 - [ ] 6.4 B4: scene numbers restricted to alphanumerics, dashes, and periods
 
 ## Section 7: Compliance Group C: Characters and Dialogue

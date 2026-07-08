@@ -730,6 +730,39 @@ class TestSpecCompliance:
         action_texts = [element.text for element in doc.elements if element.type == ElementType.ACTION]
         assert "Unindented body line" in action_texts
 
+    def test_title_page_guard_case_insensitive(self):
+        """A lowercase scene-heading first line is a SCENE_HEADING, not title-page metadata (B3).
+
+        ``int. house - day - 3:00 pm`` contains a colon (from the time), which naively
+        looks like a ``key: value`` title-page line. The guard that stops a scene heading
+        from opening the title page must be case-insensitive, so the lowercase ``int.``
+        form is recognized and the line falls through to body classification.
+        """
+        doc = self.parser.parse("int. house - day - 3:00 pm")
+        assert doc.metadata == {}
+        assert "int. house - day - 3" not in doc.metadata
+        scene_headings = [element for element in doc.elements if element.type == ElementType.SCENE_HEADING]
+        assert len(scene_headings) == 1
+        assert scene_headings[0].text == "int. house - day - 3:00 pm"
+
+    def test_title_page_guard_space_form(self):
+        """The space-form scene-heading prefix also guards against opening the title page (B3).
+
+        ``int house - day - 3:00 pm`` uses the space form (B1) and contains a colon.
+        The guard must recognize the space form too so this parses as a scene heading
+        rather than a ``key: value`` metadata line.
+        """
+        doc = self.parser.parse("int house - day - 3:00 pm")
+        assert doc.metadata == {}
+        scene_headings = [element for element in doc.elements if element.type == ElementType.SCENE_HEADING]
+        assert len(scene_headings) == 1
+        assert scene_headings[0].text == "int house - day - 3:00 pm"
+
+    def test_title_page_real_key_still_opens_page(self):
+        """A genuine non-scene-heading key: value first line still opens the title page (B3 regression)."""
+        doc = self.parser.parse("Author: Alice\n\nINT. HOUSE - DAY")
+        assert doc.metadata.get("author") == "Alice"
+
     # -- Step 5: Scene Headings Require Blank Line Before --
 
     def test_scene_heading_with_blank_line_before(self):
