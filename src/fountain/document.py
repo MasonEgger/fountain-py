@@ -1,5 +1,7 @@
-"""ABOUTME: Complete Fountain document representation and analysis functionality.
-ABOUTME: Provides FountainDocument class for managing parsed screenplay documents with metadata.
+# ABOUTME: Complete Fountain document representation and analysis functionality.
+# Provides FountainDocument class for managing parsed screenplay documents with metadata.
+"""
+Complete Fountain document representation and analysis functionality.
 
 This module contains the FountainDocument class, which serves as the primary container
 for parsed Fountain screenplay content. It provides methods for document analysis,

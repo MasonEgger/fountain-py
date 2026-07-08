@@ -10,7 +10,7 @@ Each step is TDD: failing test first, then the minimal fix, then `just test` cle
 
 ## Section 2: Package API Surface
 - [x] 2.1 Promote `HTMLRenderer` and `FountainRenderer` to the top-level `__all__` (Open Question 7)
-- [ ] 2.2 Fix ABOUTME headers to single-line form (CR-1)
+- [x] 2.2 Fix ABOUTME headers to single-line form (CR-1)
 
 ## Section 3: Validation API (Required for 0.1.0)
 - [ ] 3.1 Add the `ValidationIssue` frozen dataclass

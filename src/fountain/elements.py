@@ -1,5 +1,7 @@
-"""ABOUTME: Core Fountain document element types and data structures.
-ABOUTME: Defines ElementType enum, FormatSpan for inline formatting, and FountainElement dataclass.
+# ABOUTME: Core Fountain document element types and data structures.
+# Defines ElementType enum, FormatSpan for inline formatting, and FountainElement dataclass.
+"""
+Core Fountain document element types and data structures.
 
 This module provides the fundamental building blocks for representing parsed Fountain
 screenplay elements. Each element has a type, text content, formatting information,

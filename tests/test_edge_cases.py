@@ -1,7 +1,8 @@
-"""
-ABOUTME: Edge case tests for Fountain parser covering spec compliance and robustness
-ABOUTME: Tests all the edge cases discovered during implementation and validation
-"""
+# ABOUTME: Edge case tests for Fountain parser covering spec compliance and robustness
+# Tests all the edge cases discovered during implementation and validation
+"""Edge case tests for Fountain parser covering spec compliance and robustness."""
+
+from pathlib import Path
 
 import pytest
 
@@ -923,3 +924,24 @@ class TestSpecCompliance:
         assert FountainRenderer is not None
         assert "HTMLRenderer" in fountain.__all__
         assert "FountainRenderer" in fountain.__all__
+
+    # -- Step 2.2: ABOUTME header single-line form (CR-1) --
+
+    def test_aboutme_header_single_line(self):
+        """Each src/fountain/ module starts with ABOUTME on line one only (CR-1)."""
+        import fountain
+
+        package_dir = Path(fountain.__file__).parent
+        source_files = sorted(package_dir.glob("*.py"))
+        assert source_files, "expected Python source files under src/fountain/"
+        for source_file in source_files:
+            first_two_lines = source_file.read_text(encoding="utf-8").splitlines()[:2]
+            assert len(first_two_lines) >= 2, f"{source_file.name} has fewer than two lines"
+            first_line = first_two_lines[0].lstrip("# ")
+            second_line = first_two_lines[1].lstrip("# ")
+            assert first_line.startswith("ABOUTME:"), (
+                f"{source_file.name} line 1 must start with 'ABOUTME:' (allowing a leading '# ')"
+            )
+            assert not second_line.startswith("ABOUTME:"), (
+                f"{source_file.name} line 2 must not start with 'ABOUTME:' (single-line ABOUTME header)"
+            )

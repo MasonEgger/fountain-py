@@ -1,5 +1,7 @@
-"""ABOUTME: Fountain markup parser for converting Fountain screenwriting format to structured elements.
-ABOUTME: Implements a two-pass parsing strategy with comprehensive regex-based element classification.
+# ABOUTME: Fountain markup parser for converting Fountain screenwriting format to structured elements.
+# Implements a two-pass parsing strategy with comprehensive regex-based element classification.
+"""
+Fountain markup parser for converting Fountain screenwriting format to structured elements.
 
 The parser architecture follows a structured two-pass approach designed to handle
 Fountain's unique title page format followed by screenplay body content:
