@@ -905,8 +905,16 @@ class FountainParser:
                 line_number=self.current_line + 1,
             )
 
-        # Check for scene heading (requires blank line before, or first element)
-        if self.SCENE_HEADING_PATTERN.match(line) and (had_blank_line_before or not self.elements):
+        # Check for scene heading (requires a blank line before and after, or
+        # first/last element). The blank-line-after rule mirrors the transition
+        # branch below (B2): a natural heading immediately followed by a non-blank
+        # line is really action, so it falls through. Forced `.` headings are
+        # handled earlier and stay headings regardless of the following line.
+        if (
+            self.SCENE_HEADING_PATTERN.match(line)
+            and (had_blank_line_before or not self.elements)
+            and self._is_blank_line_after()
+        ):
             scene_metadata: dict[str, MetadataValue] = {}
             text = line
             # Check for scene number

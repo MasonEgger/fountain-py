@@ -582,6 +582,32 @@ class TestSpecCompliance:
         doc = self.parser.parse("INTERNAL AFFAIRS INVESTIGATES.")
         assert doc.elements[0].type == ElementType.ACTION
 
+    def test_scene_heading_requires_blank_after(self):
+        """A natural scene heading requires a blank line after it (B2).
+
+        `EXT. BRICK'S PATIO - DAY` immediately followed by a non-blank line is
+        ACTION, mirroring the transition branch's blank-line-after rule. With a
+        blank line after (or at EOF) it stays SCENE_HEADING. A forced `.` heading
+        is exempt: it stays SCENE_HEADING even with a non-blank line right after.
+        """
+        # No blank line after: the natural heading degrades to ACTION.
+        doc = self.parser.parse("EXT. BRICK'S PATIO - DAY\nThey walk in.")
+        assert doc.elements[0].type == ElementType.ACTION
+        assert not any(element.type == ElementType.SCENE_HEADING for element in doc.elements)
+
+        # Blank line after: still a scene heading.
+        doc = self.parser.parse("EXT. BRICK'S PATIO - DAY\n\nThey walk in.")
+        assert doc.elements[0].type == ElementType.SCENE_HEADING
+
+        # EOF counts as a blank line after: last-line heading stays a heading.
+        doc = self.parser.parse("EXT. BRICK'S PATIO - DAY")
+        assert doc.elements[0].type == ElementType.SCENE_HEADING
+
+        # Forced headings are exempt from the blank-line-after requirement.
+        doc = self.parser.parse(".PATIO\nThey walk in.")
+        assert doc.elements[0].type == ElementType.SCENE_HEADING
+        assert doc.elements[0].text == "PATIO"
+
     # -- Step 3: Tab Conversion Verification --
 
     def test_tab_converted_to_four_spaces_in_action(self):
