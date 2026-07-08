@@ -27,7 +27,7 @@ Each step is TDD: failing test first, then the minimal fix, then `just test` cle
 - [x] 4.7 E13: a `[[ ]]`-bounded line with middle text is not one NOTE
 - [x] 4.8 E6 and E7: two-space vs blank line inside a note
 - [x] 4.9 E8: a two-space note line injects no empty DIALOGUE element
-- [ ] 4.10 E10: a lone `]` inside a note does not break recognition
+- [x] 4.10 E10: a lone `]` inside a note does not break recognition
 
 ## Section 5: Compliance Group A: Title Page and Whitespace
 - [ ] 5.1 A1: multi-line title page values preserve line structure

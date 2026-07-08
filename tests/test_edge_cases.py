@@ -785,6 +785,22 @@ class TestSpecCompliance:
         assert len(actions) == 1
         assert actions[0].text == "middle"
 
+    def test_lone_bracket_inside_note(self):
+        """A lone ``]`` inside a note does not break recognition; only ``]]`` closes (E10).
+
+        ``[[check ref] ok]]`` carries a single ``]`` in the middle of the note text.
+        Only ``]]`` terminates a note, so the lone ``]`` stays part of the content and
+        the whole line is one NOTE (text preserved verbatim, brackets included per body
+        rule 6) rather than falling through to ACTION.
+        """
+        doc = self.parser.parse("[[check ref] ok]]")
+        notes = [e for e in doc.elements if e.type == ElementType.NOTE]
+        actions = [e for e in doc.elements if e.type == ElementType.ACTION]
+        assert actions == []
+        assert len(notes) == 1
+        assert notes[0].text == "[[check ref] ok]]"
+        assert "check ref] ok" in notes[0].text
+
     def test_indented_action_with_trailing_note_keeps_indent(self):
         """An indented action line with a trailing inline note keeps its leading indent.
 

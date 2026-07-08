@@ -133,7 +133,11 @@ class FountainParser:
     # Notes: inline comments in format [[note text]]
     # Can appear anywhere in text, captured for special handling
     # Example: "John walks [[this needs work]] to the door"
-    NOTE_PATTERN = re.compile(r"\[\[[^\]]*\]\]")
+    # Content allows any character except a bare "]]": a single "]" not followed by
+    # another "]" stays part of the note text, so only "]]" closes a note (E10). The
+    # content can never span a "]]", which keeps "[[a]] middle [[b]]" from matching as
+    # one note and preserves the E13 fullmatch guard and per-note inline stripping.
+    NOTE_PATTERN = re.compile(r"\[\[(?:[^\]]|\](?!\]))*\]\]")
 
     # Boneyard (Comment) Patterns
     # Single-line boneyard: /* comment */ on one line (DOTALL allows newlines in content)
