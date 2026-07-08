@@ -648,8 +648,15 @@ class FountainParser:
 
         # Handle multi-line boneyard comments
         if self.in_boneyard:
-            if self.MULTILINE_BONEYARD_END.search(line):
+            close_index = line.find("*/")
+            if close_index != -1:
+                # The first */ closes the boneyard. Everything up to and including
+                # it is comment; the remainder of the line is reprocessed as body so
+                # trailing content on the close line is not dropped.
                 self.in_boneyard = False
+                remainder = line[close_index + 2 :].strip()
+                if remainder:
+                    return self._parse_line(remainder, had_blank_line_before)
             return None  # Skip all lines inside boneyard
 
         # Check for single-line boneyard (block comments) - handle before multiline start

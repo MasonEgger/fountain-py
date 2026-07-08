@@ -945,3 +945,30 @@ class TestSpecCompliance:
             assert not second_line.startswith("ABOUTME:"), (
                 f"{source_file.name} line 2 must not start with 'ABOUTME:' (single-line ABOUTME header)"
             )
+
+    # -- Step 4.1: Boneyard Close with Trailing Text (E2) --
+
+    def test_boneyard_close_with_trailing_text(self):
+        """A `*/` with trailing text ends the boneyard; nothing after the close is dropped (E2)."""
+        text = """FADE IN:
+
+/*
+This interior should be cut
+and this line too
+*/ And we are back.
+
+The scene continues.
+
+More action here."""
+
+        doc = self.parser.parse(text)
+        texts = [element.text for element in doc.elements]
+
+        # The remainder on the close line survives as its own element.
+        assert "And we are back." in texts
+        # Every line after the close survives as its own element.
+        assert "The scene continues." in texts
+        assert "More action here." in texts
+        # The boneyard interior is still dropped.
+        assert "This interior should be cut" not in texts
+        assert "and this line too" not in texts

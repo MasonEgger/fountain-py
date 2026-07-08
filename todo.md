@@ -18,7 +18,7 @@ Each step is TDD: failing test first, then the minimal fix, then `just test` cle
 - [x] 3.3 Export `ValidationIssue` from the package top level
 
 ## Section 4: Compliance Group E: Boneyard, Notes, Sections
-- [ ] 4.1 E2: boneyard close with trailing text ends the boneyard
+- [x] 4.1 E2: boneyard close with trailing text ends the boneyard
 - [ ] 4.2 E3: single-line boneyard with trailing text does not swallow the document
 - [ ] 4.3 E4: mid-line boneyard opener does not leak interior lines
 - [ ] 4.4 E1: mid-line `/* ... */` stripped from action and dialogue text
