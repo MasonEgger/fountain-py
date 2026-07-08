@@ -1278,6 +1278,49 @@ class TestSpecCompliance:
         italic_valid = spans_of("*word*", "italic")
         assert len(italic_valid) == 1
 
+    # -- Step 8.7: D8 Span Offsets Computed Against Stored Text Including Indentation --
+
+    def test_span_offset_includes_indentation(self):
+        """D8: formatting spans index into the stored text, leading indentation included.
+
+        The spec's card-style action lines carry deliberate leading indentation. The stored
+        ACTION text keeps that indentation, so a span must be positioned over the emphasized
+        content in the indented text, not shifted left as if the indentation were absent.
+        Ten spaces then ``*Scott* --`` must yield an italic span over ``Scott`` at offset 10,
+        with the leading whitespace outside the span.
+
+        D8 is subsumed by D4 (Step 8.3): ``_finalize_inline`` re-derives the content spans by
+        re-running the inline pass over the element's stored text, which already carries the
+        leading indentation. The spans therefore land at the correct offsets with no separate
+        D8 fix. This test pins that behavior, including the harder multi-span case where two
+        emphasized runs on one indented line must both land on their content. The lines are
+        placed in body context (after a scene heading and a blank line) so they classify as
+        ACTION rather than title-page metadata (documented ambiguity A3).
+        """
+        # Single span: ten leading spaces, one italic run over ``Scott``.
+        doc = self.parser.parse("INT. OFFICE - DAY\n\n          *Scott* --")
+        action = doc.elements[1]
+        assert action.type == ElementType.ACTION
+        assert action.text == "          Scott --"
+        italic_spans = [span for span in action.formatting if span.format_type == "italic"]
+        assert len(italic_spans) == 1
+        italic_span = italic_spans[0]
+        assert (italic_span.start, italic_span.end) == (10, 15)
+        assert action.text[italic_span.start : italic_span.end] == "Scott"
+
+        # Multiple spans: five leading spaces, a bold run and an italic run on one line.
+        # Each span must land on its own content in the indented stored text.
+        doc = self.parser.parse("INT. OFFICE - DAY\n\n     **bold** and *italic*")
+        action = doc.elements[1]
+        assert action.type == ElementType.ACTION
+        assert action.text == "     bold and italic"
+        bold_spans = [span for span in action.formatting if span.format_type == "bold"]
+        italic_spans = [span for span in action.formatting if span.format_type == "italic"]
+        assert len(bold_spans) == 1
+        assert len(italic_spans) == 1
+        assert action.text[bold_spans[0].start : bold_spans[0].end] == "bold"
+        assert action.text[italic_spans[0].start : italic_spans[0].end] == "italic"
+
     def test_dialogue_not_broken_by_regular_text(self):
         """Regular text following a character name should be dialogue, not action."""
         doc = self.parser.parse("JOHN\nHello.\nMore dialogue.")
