@@ -139,8 +139,13 @@ class FountainParser:
     # Transition Patterns
     # Standard transitions: ALL CAPS ending with colon, or specific fade patterns
     # Matches common screenplay transitions like "CUT TO:", "FADE IN:", "FADE OUT."
-    # Pattern is quite restrictive to avoid false positives
-    TRANSITION_PATTERN = re.compile(r"^[A-Z\s]+TO:$|^FADE IN:$|^FADE OUT\.$|^CUT TO:$")
+    # The ``TO:`` alternative allows internal punctuation (hyphen, period, apostrophe,
+    # slash) so hyphenated transitions like "SMASH-CUT TO:" and "MATCH-CUT TO:" are
+    # recognized (D2). The class deliberately excludes lowercase letters so a line stays
+    # uppercase-oriented, and the literal ``TO:`` suffix keeps it end-anchored, so a
+    # mixed-case line like "Smash-Cut TO:" or an arbitrary punctuated line falls through
+    # to action. Pattern stays restrictive to avoid false positives.
+    TRANSITION_PATTERN = re.compile(r"^[A-Z\s.'/-]+TO:$|^FADE IN:$|^FADE OUT\.$|^CUT TO:$")
 
     # Forced transition: prefixed with > to override natural transition detection
     # Example: ">SPECIAL TRANSITION" forces transition treatment

@@ -1679,3 +1679,46 @@ Hello /* hidden */ world."""
         clean_transitions = [element for element in clean_doc.elements if element.type == ElementType.TRANSITION]
         assert len(clean_transitions) == 1
         assert clean_transitions[0].text == "CUT TO:"
+
+    # -- Step 8.2: D2 Punctuated Uppercase TO: Lines Are Transitions --
+
+    def test_punctuated_transition(self):
+        """D2: an uppercase line ending in ``TO:`` with internal punctuation is a transition.
+
+        The natural transition pattern must allow punctuation (a hyphen and similar
+        marks) before ``TO:`` so ``SMASH-CUT TO:`` is recognized, while staying
+        uppercase-oriented and end-anchored on ``TO:``.
+        """
+        # Primary acceptance: a hyphenated transition parses as TRANSITION.
+        doc = self.parser.parse("Action.\n\nSMASH-CUT TO:\n\nINT. HOUSE - DAY")
+        transitions = [element for element in doc.elements if element.type == ElementType.TRANSITION]
+        assert len(transitions) == 1, (
+            "'SMASH-CUT TO:' with surrounding blank lines must parse as a transition, "
+            f"got {[(element.type.value, element.text) for element in doc.elements]}"
+        )
+        assert transitions[0].text == "SMASH-CUT TO:"
+
+        # A second hyphenated example must also work.
+        match_doc = self.parser.parse("Action.\n\nMATCH-CUT TO:\n\nINT. HOUSE - DAY")
+        match_transitions = [element for element in match_doc.elements if element.type == ElementType.TRANSITION]
+        assert len(match_transitions) == 1
+        assert match_transitions[0].text == "MATCH-CUT TO:"
+
+        # Regression: an unpunctuated transition still parses as a transition.
+        dissolve_doc = self.parser.parse("Action.\n\nDISSOLVE TO:\n\nINT. HOUSE - DAY")
+        dissolve_transitions = [element for element in dissolve_doc.elements if element.type == ElementType.TRANSITION]
+        assert len(dissolve_transitions) == 1
+        assert dissolve_transitions[0].text == "DISSOLVE TO:"
+
+        # D1 still holds: a trailing space on the punctuated form defeats the transition.
+        spaced_doc = self.parser.parse("Action.\n\nSMASH-CUT TO: \n\nINT. HOUSE - DAY")
+        spaced_transitions = [element for element in spaced_doc.elements if element.type == ElementType.TRANSITION]
+        assert len(spaced_transitions) == 0, (
+            "'SMASH-CUT TO: ' with a trailing space must not parse as a transition, "
+            f"got {[element.text for element in spaced_transitions]}"
+        )
+
+        # Guard: a mixed-case punctuated line is not a transition (stays action).
+        mixed_doc = self.parser.parse("Action.\n\nSmash-Cut TO:\n\nINT. HOUSE - DAY")
+        mixed_transitions = [element for element in mixed_doc.elements if element.type == ElementType.TRANSITION]
+        assert len(mixed_transitions) == 0
