@@ -264,7 +264,8 @@ class TestLyricsSpecCompliance:
 
         lyrics = [el for el in doc.elements if el.type == ElementType.LYRICS]
         assert len(lyrics) == 1
-        assert lyrics[0].text == "This has **bold** and *italic* formatting"
+        # D4: emphasis delimiters are stripped from the stored text; spans cover content.
+        assert lyrics[0].text == "This has bold and italic formatting"
         assert len(lyrics[0].formatting) == 2
 
     def test_empty_tilde_not_lyrics(self):
@@ -1100,6 +1101,56 @@ class TestSpecCompliance:
         bold_spans = [s for s in elem.formatting if s.format_type == "bold"]
         assert len(bold_spans) == 1
         assert "Normal" in elem.text
+
+    # -- Step 8.3: D4 Emphasis Delimiters Stripped, Spans Cover Content --
+
+    def test_emphasis_delimiters_stripped(self):
+        """D4: emphasis delimiters are removed from element text and spans cover only content.
+
+        Before D4 the parser kept the delimiters in ``element.text`` (``This is **bold**
+        text.``) and its FormatSpan covered the delimiters too. D4 strips the delimiters
+        from the stored text and indexes the span into that clean text, over the emphasized
+        content only. The HTML renderer then emits ``<strong>bold</strong>`` with no
+        asterisks.
+        """
+        from fountain.renderer import HTMLRenderer
+
+        # Bold: delimiters stripped, one bold span over the clean-text content.
+        doc = self.parser.parse("This is **bold** text.")
+        elem = doc.elements[0]
+        assert elem.text == "This is bold text."
+        bold_spans = [span for span in elem.formatting if span.format_type == "bold"]
+        assert len(bold_spans) == 1
+        bold_span = bold_spans[0]
+        assert (bold_span.start, bold_span.end) == (8, 12)
+        assert elem.text[bold_span.start : bold_span.end] == "bold"
+        bold_html = HTMLRenderer().render(doc)
+        assert "<strong>bold</strong>" in bold_html
+        assert "**" not in bold_html
+
+        # Italic: delimiters stripped, span over the content, <em> with no asterisks.
+        doc = self.parser.parse("This is *italic* text.")
+        elem = doc.elements[0]
+        assert elem.text == "This is italic text."
+        italic_spans = [span for span in elem.formatting if span.format_type == "italic"]
+        assert len(italic_spans) == 1
+        italic_span = italic_spans[0]
+        assert elem.text[italic_span.start : italic_span.end] == "italic"
+        italic_html = HTMLRenderer().render(doc)
+        assert "<em>italic</em>" in italic_html
+        assert "*" not in italic_html
+
+        # Underline: delimiters stripped, span over the content, <u> with no underscores.
+        doc = self.parser.parse("This is _under_ text.")
+        elem = doc.elements[0]
+        assert elem.text == "This is under text."
+        underline_spans = [span for span in elem.formatting if span.format_type == "underline"]
+        assert len(underline_spans) == 1
+        underline_span = underline_spans[0]
+        assert elem.text[underline_span.start : underline_span.end] == "under"
+        underline_html = HTMLRenderer().render(doc)
+        assert "<u>under</u>" in underline_html
+        assert "_" not in underline_html
 
     def test_dialogue_not_broken_by_regular_text(self):
         """Regular text following a character name should be dialogue, not action."""

@@ -247,6 +247,28 @@ class FountainParser:
     # Example: "_underlined_" renders as underlined text
     UNDERLINE_PATTERN = re.compile(r"_([^_]+)_")
 
+    # Delimiter width (characters on each side) per format type. Used by D4 to strip
+    # the delimiters from stored text and re-index spans onto the emphasized content.
+    DELIMITER_WIDTHS = {"bold_italic": 3, "bold": 2, "italic": 1, "underline": 1}
+
+    # Element types whose text carries inline emphasis. For these, D4 strips the
+    # emphasis delimiters from the stored text and keeps content-only spans. Verbatim
+    # types (BONEYARD, NOTE, PAGE_BREAK) and structural cues keep their text as-is,
+    # getting only backslash-escape resolution.
+    EMPHASIS_TYPES = frozenset(
+        {
+            ElementType.ACTION,
+            ElementType.SECTION,
+            ElementType.SYNOPSIS,
+            ElementType.LYRICS,
+            ElementType.SCENE_HEADING,
+            ElementType.CENTERED,
+            ElementType.TRANSITION,
+            ElementType.DIALOGUE,
+            ElementType.PARENTHETICAL,
+        }
+    )
+
     def __init__(self) -> None:
         self.lines: list[str] = []
         self.current_line = 0
@@ -424,7 +446,7 @@ class FountainParser:
 
             element = self._parse_line(line, previous_line_was_blank, raw_line)
             if element:
-                element.text = self._strip_escapes(element.text)
+                self._finalize_inline(element)
                 self.elements.append(element)
 
             previous_line_was_blank = False
@@ -667,7 +689,7 @@ class FountainParser:
                 formatting=self._extract_formatting(buffered_line),
                 line_number=note_start + line_offset,
             )
-            element.text = self._strip_escapes(element.text)
+            self._finalize_inline(element)
             self.elements.append(element)
 
     def _parse_line(
@@ -1381,6 +1403,22 @@ class FountainParser:
             return text
         return text.replace("\\*", "*").replace("\\_", "_").replace("\\\\", "\\")
 
+    def _finalize_inline(self, element: FountainElement) -> None:
+        """Resolve inline markup on an element in place before it is stored (D4).
+
+        Emphasis-bearing elements have their emphasis delimiters stripped and their
+        formatting re-derived as content-only spans over the clean text. Verbatim
+        elements (BONEYARD, NOTE, PAGE_BREAK) and structural cues keep their text and
+        only get backslash escapes resolved to literal characters.
+
+        Args:
+            element: The parsed element to finalize; mutated in place.
+        """
+        if element.type in self.EMPHASIS_TYPES:
+            element.text, element.formatting = self._extract_inline(element.text)
+        else:
+            element.text = self._strip_escapes(element.text)
+
     def _process_escapes(self, text: str) -> tuple[str, str]:
         """Process backslash escapes for emphasis markers.
 
@@ -1396,28 +1434,127 @@ class FountainParser:
         formatting_text = text.replace("\\*", "\x00").replace("\\_", "\x01").replace("\\\\", "\x02")
         return display_text, formatting_text
 
+    def _find_emphasis_spans(self, formatting_text: str) -> list[FormatSpan]:
+        """Find full-match emphasis spans (delimiters included) in placeholder text.
+
+        Runs the bold-italic, bold, italic, and underline patterns in precedence order
+        against ``formatting_text`` (escapes already replaced by placeholders) and returns
+        FormatSpan entries whose start/end bracket the whole match, delimiters included.
+        Overlap suppression keeps bold out of bold-italic ranges and italic out of both.
+
+        Args:
+            formatting_text: Text with backslash escapes replaced by placeholder chars.
+
+        Returns:
+            List of full-match FormatSpan objects indexed into ``formatting_text``.
+        """
+        spans: list[FormatSpan] = []
+
+        # Find bold-italic formatting first (***text***)
+        for match in self.BOLD_ITALIC_PATTERN.finditer(formatting_text):
+            spans.append(FormatSpan(match.start(), match.end(), "bold_italic"))
+
+        # Find bold formatting, skipping anything already inside a bold-italic span
+        for match in self.BOLD_PATTERN.finditer(formatting_text):
+            overlap = any(
+                span.start <= match.start() < span.end or span.start < match.end() <= span.end
+                for span in spans
+                if span.format_type == "bold_italic"
+            )
+            if not overlap:
+                spans.append(FormatSpan(match.start(), match.end(), "bold"))
+
+        # Find italic formatting, skipping anything inside a bold-italic or bold span
+        for match in self.ITALIC_PATTERN.finditer(formatting_text):
+            overlap = any(
+                span.start <= match.start() < span.end or span.start < match.end() <= span.end
+                for span in spans
+                if span.format_type in ("bold_italic", "bold")
+            )
+            if not overlap:
+                spans.append(FormatSpan(match.start(), match.end(), "italic"))
+
+        # Find underline formatting (never suppressed; may overlap other spans)
+        for match in self.UNDERLINE_PATTERN.finditer(formatting_text):
+            spans.append(FormatSpan(match.start(), match.end(), "underline"))
+
+        return spans
+
+    def _extract_inline(self, text: str) -> tuple[str, list[FormatSpan]]:
+        """Resolve inline markup: strip emphasis delimiters and return content spans (D4).
+
+        Produces the clean text a downstream consumer stores on the element, plus
+        FormatSpan entries whose start/end index into that clean text and cover only the
+        emphasized content (delimiters removed). Backslash escapes (``\\*``, ``\\_``,
+        ``\\\\``) are resolved to their literal characters and never treated as emphasis,
+        so ``\\*literal\\*`` keeps its asterisks and produces no span.
+
+        Formatting precedence (highest to lowest): bold-italic (``***``), bold (``**``),
+        italic (``*``), underline (``_``).
+
+        Args:
+            text: Raw text to scan for emphasis markers and escapes.
+
+        Returns:
+            A ``(clean_text, spans)`` tuple. ``clean_text`` has escapes resolved and
+            emphasis delimiters removed; ``spans`` index into ``clean_text``.
+
+        Examples:
+            >>> parser = FountainParser()
+            >>> clean, spans = parser._extract_inline("This is **bold** text.")
+            >>> clean
+            'This is bold text.'
+            >>> spans[0].format_type, spans[0].start, spans[0].end
+            ('bold', 8, 12)
+            >>> clean[spans[0].start:spans[0].end]
+            'bold'
+        """
+        # Replace escapes with single-char placeholders so they neither match emphasis
+        # patterns nor shift positions relative to the resolved literals (each is one char).
+        _, formatting_text = self._process_escapes(text)
+
+        full_spans = self._find_emphasis_spans(formatting_text)
+
+        # Mark the delimiter characters (both sides of every span) for deletion.
+        delete_indices: set[int] = set()
+        for span in full_spans:
+            width = self.DELIMITER_WIDTHS[span.format_type]
+            delete_indices.update(range(span.start, span.start + width))
+            delete_indices.update(range(span.end - width, span.end))
+
+        # kept_before[index] == number of retained characters before that index, giving
+        # the mapping from a formatting_text offset to its clean-text offset.
+        kept_before = [0] * (len(formatting_text) + 1)
+        for index in range(len(formatting_text)):
+            kept_before[index + 1] = kept_before[index] + (0 if index in delete_indices else 1)
+
+        content_spans: list[FormatSpan] = []
+        for span in full_spans:
+            width = self.DELIMITER_WIDTHS[span.format_type]
+            content_start = kept_before[span.start + width]
+            content_end = kept_before[span.end - width]
+            content_spans.append(FormatSpan(content_start, content_end, span.format_type))
+
+        # Rebuild the clean text: drop delimiter chars, restore escaped literals.
+        kept_chars = [char for index, char in enumerate(formatting_text) if index not in delete_indices]
+        clean_text = "".join(kept_chars).replace("\x00", "*").replace("\x01", "_").replace("\x02", "\\")
+
+        return clean_text, content_spans
+
     def _extract_formatting(self, text: str) -> list[FormatSpan]:
-        """Extract formatting spans from text, handling backslash escapes.
+        """Extract content-only formatting spans from text (D4).
 
-        Parses Fountain's Markdown-like formatting markers to identify bold, italic,
-        underline, and combined formatting within text. Handles precedence to avoid
-        conflicts between overlapping patterns (e.g., ***text*** vs **text**).
-
-        Backslash escapes (\\*, \\_) are replaced with placeholders before pattern
-        matching so they don't trigger formatting. Returned span positions are
-        adjusted to match the display text (with escapes resolved).
-
-        Formatting precedence (highest to lowest):
-        1. Bold-italic (***text***)
-        2. Bold (**text**)
-        3. Italic (*text*)
-        4. Underline (_text_)
+        Thin wrapper over :meth:`_extract_inline` for call sites that only need the
+        spans. The returned spans index into the clean (delimiter-stripped, escape-
+        resolved) text, so consumers must store that clean text alongside them. Use
+        :meth:`_extract_inline` when both the clean text and the spans are needed.
 
         Args:
             text: Text string to scan for formatting markers
 
         Returns:
-            List of FormatSpan objects indicating start/end positions and format types
+            List of FormatSpan objects covering the emphasized content, indexed into
+            the clean text produced by :meth:`_extract_inline`.
 
         Examples:
             >>> parser = FountainParser()
@@ -1432,66 +1569,8 @@ class FountainParser:
             >>> spans = parser._extract_formatting("***bold and italic***")
             >>> spans[0].format_type
             'bold_italic'
-
-        Note:
-            Overlapping spans are avoided by checking for existing coverage before
-            adding new spans. Bold-italic spans prevent extraction of separate bold
-            or italic spans within the same range.
         """
-        # Process escapes: use placeholders for pattern matching
-        _, formatting_text = self._process_escapes(text)
-
-        formatting = []
-
-        # Find bold-italic formatting first (***text***)
-        for match in self.BOLD_ITALIC_PATTERN.finditer(formatting_text):
-            formatting.append(FormatSpan(match.start(), match.end(), "bold_italic"))
-
-        # Find bold formatting
-        for match in self.BOLD_PATTERN.finditer(formatting_text):
-            # Skip if already covered by bold-italic
-            overlap = any(
-                span.start <= match.start() < span.end or span.start < match.end() <= span.end
-                for span in formatting
-                if span.format_type == "bold_italic"
-            )
-            if not overlap:
-                formatting.append(FormatSpan(match.start(), match.end(), "bold"))
-
-        # Find italic formatting
-        for match in self.ITALIC_PATTERN.finditer(formatting_text):
-            # Skip if already covered by bold-italic
-            overlap = any(
-                span.start <= match.start() < span.end or span.start < match.end() <= span.end
-                for span in formatting
-                if span.format_type in ("bold_italic", "bold")
-            )
-            if not overlap:
-                formatting.append(FormatSpan(match.start(), match.end(), "italic"))
-
-        # Find underline formatting
-        for match in self.UNDERLINE_PATTERN.finditer(formatting_text):
-            formatting.append(FormatSpan(match.start(), match.end(), "underline"))
-
-        # Adjust span positions if escapes were present
-        if formatting_text != text:
-            escape_positions = []
-            i = 0
-            while i < len(text):
-                if text[i] == "\\" and i + 1 < len(text) and text[i + 1] in ("*", "_", "\\"):
-                    escape_positions.append(i)
-                    i += 2
-                else:
-                    i += 1
-
-            adjusted = []
-            for span in formatting:
-                offset_start = sum(1 for ep in escape_positions if ep < span.start)
-                offset_end = sum(1 for ep in escape_positions if ep < span.end)
-                adjusted.append(FormatSpan(span.start - offset_start, span.end - offset_end, span.format_type))
-            formatting = adjusted
-
-        return formatting
+        return self._extract_inline(text)[1]
 
     def _process_dual_dialogue(self) -> None:
         """Post-process elements to pair dual dialogue characters and their dialogue.

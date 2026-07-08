@@ -130,8 +130,8 @@ The renderer handles all Fountain element types with appropriate formatting:
     >>> '<div class="fountain-dual-dialogue">' in html
     True
     >>> 
-    >>> # Inline formatting (preserves original markup)
-    >>> '<strong>**love**</strong>' in html
+    >>> # Inline formatting (emphasis delimiters stripped from the output)
+    >>> '<strong>love</strong>' in html
     True
     >>> 
     >>> # Centered text
@@ -215,9 +215,9 @@ The rendering process follows these steps:
     >>> 
     >>> # Renderer applies formatting and generates HTML
     >>> html = renderer.render(document)
-    >>> '<strong>**bold**</strong>' in html
+    >>> '<strong>bold</strong>' in html
     True
-    >>> '<em>*italic*</em>' in html
+    >>> '<em>italic</em>' in html
     True
 
 Saving Rendered Content

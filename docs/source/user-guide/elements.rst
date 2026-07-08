@@ -181,7 +181,7 @@ Dialogue Elements
         >>> len(dialogue)
         3
         >>> dialogue[0].text
-        'I have something *important* to tell you.'
+        'I have something important to tell you.'
         >>> len(dialogue[0].formatting)
         1
 
@@ -406,16 +406,16 @@ Inline formatting is represented by :class:`~fountain.elements.FormatSpan` objec
     >>> bold_span.format_type
     'bold'
     >>> bold_span.start, bold_span.end
-    (8, 16)
+    (8, 12)
     >>> dialogue.text[bold_span.start:bold_span.end]
-    '**bold**'
-    >>> 
+    'bold'
+    >>>
     >>> # Italic formatting
     >>> italic_span = dialogue.formatting[1]
     >>> italic_span.format_type
     'italic'
     >>> dialogue.text[italic_span.start:italic_span.end]
-    '*italic*'
+    'italic'
 
 Working with Element Metadata
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -612,7 +612,7 @@ Extract and process formatted text:
     ...     if span.format_type == 'bold_italic':
     ...         formatted_text = dialogue.text[span.start:span.end]
     ...         print(f"Bold-italic text: '{formatted_text}'")
-    Bold-italic text: '***very important***'
+    Bold-italic text: 'very important'
 
 Element Line Numbers
 ~~~~~~~~~~~~~~~~~~~~

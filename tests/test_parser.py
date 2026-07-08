@@ -810,7 +810,8 @@ That was lovely!"""
         lyrics_elements = [el for el in document.elements if el.type == ElementType.LYRICS]
         assert len(lyrics_elements) == 1
         lyrics = lyrics_elements[0]
-        assert lyrics.text == "This is **bold** and *italic* lyrics"
+        # D4: emphasis delimiters are stripped from the stored text; spans cover content.
+        assert lyrics.text == "This is bold and italic lyrics"
 
         # Check that formatting spans are detected
         format_types = {span.format_type for span in lyrics.formatting}
