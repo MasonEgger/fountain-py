@@ -608,6 +608,32 @@ class TestSpecCompliance:
         assert doc.elements[0].type == ElementType.SCENE_HEADING
         assert doc.elements[0].text == "PATIO"
 
+    def test_scene_number_character_restriction(self):
+        """Scene numbers are limited to alphanumerics, dashes, and periods (B4).
+
+        A `#...#` group containing any other character is not a scene number: it
+        stays verbatim in the heading text and sets no `scene_number` metadata.
+        Valid groups (letters, digits, dashes, periods) still extract to metadata
+        and are stripped from the text.
+        """
+        # Junk characters: the group is not a scene number, so it is left in the text.
+        doc = self.parser.parse("INT. HOUSE - DAY #$%^&#")
+        assert doc.elements[0].type == ElementType.SCENE_HEADING
+        assert "#$%^&#" in doc.elements[0].text
+        assert "scene_number" not in doc.elements[0].metadata
+
+        # Valid alphanumeric scene number still extracts and strips from the text.
+        doc = self.parser.parse("INT. HOUSE - DAY #2A#")
+        assert doc.elements[0].type == ElementType.SCENE_HEADING
+        assert doc.elements[0].metadata["scene_number"] == "2A"
+        assert doc.elements[0].text == "INT. HOUSE - DAY"
+
+        # Dashes and periods are valid scene-number characters.
+        doc = self.parser.parse("INT. HOUSE - DAY #1-A.2#")
+        assert doc.elements[0].type == ElementType.SCENE_HEADING
+        assert doc.elements[0].metadata["scene_number"] == "1-A.2"
+        assert doc.elements[0].text == "INT. HOUSE - DAY"
+
     # -- Step 3: Tab Conversion Verification --
 
     def test_tab_converted_to_four_spaces_in_action(self):

@@ -85,9 +85,11 @@ class FountainParser:
     )
 
     # Matches scene numbers in format #SCENE_NUMBER# at end of scene headings
-    # Captures the scene number content between the hash marks
+    # Captures the scene number content between the hash marks. The content is
+    # restricted to alphanumerics, dashes, and periods (B4); a group holding any
+    # other character is not a scene number and is left verbatim in the heading.
     # Example: "INT. HOUSE - DAY #1A#" captures "1A"
-    SCENE_NUMBER_PATTERN = re.compile(r"\s*#([^#]+)#\s*$")
+    SCENE_NUMBER_PATTERN = re.compile(r"\s*#([A-Za-z0-9.-]+)#\s*$")
 
     # Forced scene heading starts with period (.) to override natural scene detection
     # Used when a line should be a scene heading but doesn't match standard prefixes
