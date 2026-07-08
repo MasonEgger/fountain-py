@@ -32,7 +32,7 @@ Fountain's unique title page format followed by screenplay body content:
 """
 
 import re
-from typing import Any, Optional
+from typing import Any
 
 from fountain.document import FountainDocument
 from fountain.elements import ElementType, FormatSpan, FountainElement
@@ -478,7 +478,7 @@ class FountainParser:
 
         return metadata
 
-    def _parse_line(self, line: str, had_blank_line_before: bool = False) -> Optional[FountainElement]:
+    def _parse_line(self, line: str, had_blank_line_before: bool = False) -> FountainElement | None:
         """Parse a single line and return the appropriate FountainElement.
 
         Classifies a single line of Fountain text into the appropriate element type using

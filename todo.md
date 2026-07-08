@@ -4,8 +4,8 @@ Read `handoff.md`, then `plan.md`. Target version 0.1.0. No 0.2.0.
 Each step is TDD: failing test first, then the minimal fix, then `just test` clean.
 
 ## Section 1: Python Floor and Type System
-- [ ] 1.1 Move the Python floor to 3.10 in pyproject (requires-python, classifiers, ruff py310, mypy 3.10)
-- [ ] 1.2 Update the CI matrix to 3.10 through 3.14
+- [x] 1.1 Move the Python floor to 3.10 in pyproject (requires-python, classifiers, ruff py310, mypy 3.10)
+- [x] 1.2 Update the CI matrix to 3.10 through 3.14
 - [ ] 1.3 Modernize typing to `X | None` and apply `MetadataValue` to `FountainElement.metadata` (CR-2)
 
 ## Section 2: Package API Surface

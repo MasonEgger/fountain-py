@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [
     { name = "Mason Egger", email = "mason@masonegger.com" }
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = []
 keywords = ["fountain", "screenplay", "screenwriting", "parser", "theater", "script"]
 classifiers = [
@@ -14,11 +14,11 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Text Processing :: Markup",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
@@ -57,7 +57,7 @@ docs = [
 ]
 
 [tool.ruff]
-target-version = "py39"
+target-version = "py310"
 line-length = 120
 
 [tool.ruff.lint]
@@ -78,7 +78,7 @@ ignore = [
 
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

@@ -25,7 +25,6 @@ Example:
 """
 
 import html as html_module
-from typing import Optional
 
 from fountain.document import FountainDocument
 from fountain.elements import ElementType, FormatSpan, FountainElement
@@ -533,7 +532,7 @@ class HTMLRenderer:
         sorted_formatting = sorted(formatting, key=lambda x: x.start, reverse=True)
 
         # Build list of text segments with their formatting
-        segments: list[tuple[str, Optional[str]]] = []
+        segments: list[tuple[str, str | None]] = []
         last_end = len(text)
 
         for span in sorted_formatting:

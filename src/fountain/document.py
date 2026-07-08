@@ -25,7 +25,7 @@ Example:
 
 import json
 from collections import Counter
-from typing import Any, Optional
+from typing import Any
 
 from fountain.elements import ElementType, FountainElement
 
@@ -72,7 +72,7 @@ class FountainDocument:
             'Jane Doe'
     """
 
-    def __init__(self, elements: list[FountainElement], metadata: Optional[dict[str, str]] = None):
+    def __init__(self, elements: list[FountainElement], metadata: dict[str, str] | None = None):
         """Initialize a FountainDocument with elements and optional metadata.
 
         Args:
