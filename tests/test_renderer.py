@@ -893,6 +893,32 @@ That was lovely!"""
         assert "~Oh what a beautiful day~" in rendered
         assert "That was lovely!" in rendered
 
+    def test_blank_lines_survive_round_trip(self):
+        """A4: structural blank lines survive parse -> render -> parse.
+
+        The renderer must emit blank-line separators between structural blocks so
+        that re-parsing the output keeps CHARACTER, DIALOGUE, and TRANSITION types
+        instead of degrading them to ACTION. A character cue must stay contiguous
+        with its following dialogue (no blank line splitting the dialogue block).
+        """
+        elements = [
+            FountainElement(ElementType.SCENE_HEADING, "INT. HOUSE - DAY", [], 1),
+            FountainElement(ElementType.CHARACTER, "JOHN", [], 2),
+            FountainElement(ElementType.DIALOGUE, "Hello there.", [], 3),
+            FountainElement(ElementType.CHARACTER, "MARY", [], 4),
+            FountainElement(ElementType.DIALOGUE, "Hi John.", [], 5),
+            FountainElement(ElementType.ACTION, "They shake hands.", [], 6),
+            FountainElement(ElementType.TRANSITION, "CUT TO:", [], 7),
+        ]
+        document = FountainDocument(elements)
+
+        rendered = self.renderer.render(document)
+        reparsed = FountainParser().parse(rendered)
+
+        original_types = [element.type for element in elements]
+        reparsed_types = [element.type for element in reparsed.elements]
+        assert reparsed_types == original_types
+
     def test_empty_document(self):
         """Test rendering an empty document."""
         document = FountainDocument([])

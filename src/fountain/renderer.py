@@ -703,13 +703,88 @@ class FountainRenderer:
         if document.metadata:
             fountain_parts.append(self._render_title_page(document.metadata))
 
-        # Render script body elements
-        for element in document.elements:
-            rendered = self._render_element(element)
-            if rendered:
-                fountain_parts.append(rendered)
+        # Render script body with structural blank-line separators
+        body = self._render_body(document.elements)
+        if body:
+            fountain_parts.append(body)
 
         return "\n".join(fountain_parts)
+
+    # Element types that make up the interior of a dialogue block. When one of
+    # these follows a dialogue-block predecessor it stays contiguous (single
+    # newline) so re-parsing keeps the block together.
+    _DIALOGUE_BODY_TYPES = frozenset({ElementType.DIALOGUE, ElementType.PARENTHETICAL, ElementType.LYRICS})
+    # Element types a dialogue-body line may attach to without a blank line: the
+    # character cue that opens the block, or an earlier line of the same block.
+    _DIALOGUE_PREDECESSOR_TYPES = frozenset(
+        {
+            ElementType.CHARACTER,
+            ElementType.DIALOGUE,
+            ElementType.PARENTHETICAL,
+            ElementType.LYRICS,
+        }
+    )
+
+    def _render_body(self, elements: list[FountainElement]) -> str:
+        """Render body elements with Fountain structural blank-line separators.
+
+        Fountain treats a blank line as a structural boundary: scene headings,
+        action paragraphs, character cues, and transitions each need a blank line
+        before them so the parser does not merge them into the preceding element.
+        The one exception is the interior of a dialogue block, where dialogue,
+        parentheticals, and lyrics follow the character cue with no blank line.
+
+        This joins each structural block with a blank line (``\\n\\n``) while
+        keeping a character cue contiguous (single ``\\n``) with the dialogue,
+        parentheticals, and lyrics that belong to it. Emitting the separators here
+        is what lets ``parse(render(parse(text)))`` preserve element types instead
+        of degrading CHARACTER and DIALOGUE to ACTION (requirement A4).
+
+        Args:
+            elements: The document body elements in order.
+
+        Returns:
+            The rendered body as a single string, or an empty string when no
+            element produces output.
+        """
+        rendered_parts: list[str] = []
+        previous_type: ElementType | None = None
+
+        for element in elements:
+            rendered = self._render_element(element)
+            if not rendered:
+                # Skip elements that produce no markup (e.g. DUAL_DIALOGUE), and do
+                # not let them break the contiguity of a surrounding block.
+                continue
+
+            if previous_type is None:
+                separator = ""
+            elif self._continues_dialogue_block(element.type, previous_type):
+                separator = "\n"
+            else:
+                separator = "\n\n"
+
+            rendered_parts.append(separator + rendered)
+            previous_type = element.type
+
+        return "".join(rendered_parts)
+
+    def _continues_dialogue_block(self, current_type: ElementType, previous_type: ElementType) -> bool:
+        """Report whether ``current_type`` continues the previous dialogue block.
+
+        A dialogue-body line (dialogue, parenthetical, or lyric) continues the
+        current block, and so renders with no blank line before it, only when the
+        previous rendered element was the character cue or another line of the same
+        block. In every other case the element starts a new structural block.
+
+        Args:
+            current_type: The element type about to be rendered.
+            previous_type: The type of the previous rendered element.
+
+        Returns:
+            True when the element should render contiguously with the previous one.
+        """
+        return current_type in self._DIALOGUE_BODY_TYPES and previous_type in self._DIALOGUE_PREDECESSOR_TYPES
 
     def _render_title_page(self, metadata: dict[str, str]) -> str:
         """Render title page metadata as Fountain markup.

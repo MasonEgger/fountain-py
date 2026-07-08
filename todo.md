@@ -32,7 +32,7 @@ Each step is TDD: failing test first, then the minimal fix, then `just test` cle
 ## Section 5: Compliance Group A: Title Page and Whitespace
 - [x] 5.1 A1: multi-line title page values preserve line structure
 - [x] 5.2 A2: title page continuation requires indentation; indented colons stay values
-- [ ] 5.3 A4: blank lines survive parse and FountainRenderer round trip
+- [x] 5.3 A4: blank lines survive parse and FountainRenderer round trip
 - [ ] 5.4 A4b: dual dialogue survives the Fountain round trip
 - [ ] 5.5 A4c: lyrics round-trip without accreting delimiters
 - [ ] 5.6 A5 and D10: tabs and space indentation visible in HTML
