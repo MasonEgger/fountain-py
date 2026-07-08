@@ -32,10 +32,9 @@ Fountain's unique title page format followed by screenplay body content:
 """
 
 import re
-from typing import Any
 
 from fountain.document import FountainDocument
-from fountain.elements import ElementType, FormatSpan, FountainElement
+from fountain.elements import ElementType, FormatSpan, FountainElement, MetadataValue
 
 
 class FountainParser:
@@ -664,7 +663,7 @@ class FountainParser:
         # Check for forced scene heading (must come before natural scene heading)
         if self.FORCED_SCENE_HEADING_PATTERN.match(line):
             text = line[1:].strip()  # Remove the '.'
-            metadata: dict[str, Any] = {"forced": True}
+            metadata: dict[str, MetadataValue] = {"forced": True}
             # Check for scene number
             scene_num_match = self.SCENE_NUMBER_PATTERN.search(text)
             if scene_num_match:
@@ -700,7 +699,7 @@ class FountainParser:
 
         # Check for scene heading (requires blank line before, or first element)
         if self.SCENE_HEADING_PATTERN.match(line) and (had_blank_line_before or not self.elements):
-            scene_metadata: dict[str, Any] = {}
+            scene_metadata: dict[str, MetadataValue] = {}
             text = line
             # Check for scene number
             scene_num_match = self.SCENE_NUMBER_PATTERN.search(text)
@@ -756,7 +755,7 @@ class FountainParser:
             extension = char_ext_match.group(2).strip()
             is_dual = char_ext_match.group(3) is not None
             if self._is_dialogue_following():
-                char_metadata: dict[str, Any] = {"extension": extension}
+                char_metadata: dict[str, MetadataValue] = {"extension": extension}
                 if is_dual:
                     char_metadata["dual_dialogue"] = True
                 return FountainElement(

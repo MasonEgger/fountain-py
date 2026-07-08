@@ -899,3 +899,15 @@ class TestSpecCompliance:
         assert ElementType.CHARACTER in types
         assert ElementType.DIALOGUE in types
         assert ElementType.SCENE_HEADING in types
+
+    # -- CR-2: MetadataValue annotation --
+
+    def test_metadata_annotation_uses_metadatavalue(self):
+        """FountainElement.metadata is typed dict[str, MetadataValue] | None (CR-2)."""
+        from fountain.elements import FountainElement, MetadataValue
+
+        annotation = FountainElement.__annotations__["metadata"]
+        assert "MetadataValue" in annotation
+        assert "Any" not in annotation
+        # The MetadataValue alias is exported and usable as the metadata value type.
+        assert MetadataValue is not None

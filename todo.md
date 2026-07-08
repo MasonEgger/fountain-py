@@ -6,7 +6,7 @@ Each step is TDD: failing test first, then the minimal fix, then `just test` cle
 ## Section 1: Python Floor and Type System
 - [x] 1.1 Move the Python floor to 3.10 in pyproject (requires-python, classifiers, ruff py310, mypy 3.10)
 - [x] 1.2 Update the CI matrix to 3.10 through 3.14
-- [ ] 1.3 Modernize typing to `X | None` and apply `MetadataValue` to `FountainElement.metadata` (CR-2)
+- [x] 1.3 Modernize typing to `X | None` and apply `MetadataValue` to `FountainElement.metadata` (CR-2)
 
 ## Section 2: Package API Surface
 - [ ] 2.1 Promote `HTMLRenderer` and `FountainRenderer` to the top-level `__all__` (Open Question 7)

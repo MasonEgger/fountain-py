@@ -25,6 +25,7 @@ Example:
 """
 
 import html as html_module
+from typing import cast
 
 from fountain.document import FountainDocument
 from fountain.elements import ElementType, FormatSpan, FountainElement
@@ -595,10 +596,10 @@ class HTMLRenderer:
         if not metadata:
             return ""
 
-        left_char = metadata["left_character"]
-        left_dialogue = metadata["left_dialogue"]
-        right_char = metadata["right_character"]
-        right_dialogue = metadata["right_dialogue"]
+        left_char = cast(FountainElement, metadata["left_character"])
+        left_dialogue = cast("list[FountainElement]", metadata["left_dialogue"])
+        right_char = cast(FountainElement, metadata["right_character"])
+        right_dialogue = cast("list[FountainElement]", metadata["right_dialogue"])
 
         html_parts = ['<div class="fountain-dual-dialogue">']
 
@@ -855,7 +856,7 @@ class FountainRenderer:
 
         elif element.type == ElementType.SECTION:
             # Count the level based on metadata or default to single #
-            level = element.metadata.get("level", 1) if element.metadata else 1
+            level = cast(int, element.metadata.get("level", 1)) if element.metadata else 1
             return f"{'#' * level} {text}"
 
         elif element.type == ElementType.SYNOPSIS:
