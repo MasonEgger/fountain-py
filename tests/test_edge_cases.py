@@ -2,6 +2,7 @@
 # Tests all the edge cases discovered during implementation and validation
 """Edge case tests for Fountain parser covering spec compliance and robustness."""
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -2113,3 +2114,59 @@ Hello /* hidden */ world."""
         assert len(note_elements) == 1
         # The standalone note is kept verbatim, brackets included.
         assert note_elements[0].text == "[[remember this]]"
+
+
+class TestToolingCompliance:
+    """Tests for project tooling hygiene.
+
+    CR-3: the justfile once carried ``pre-commit-install`` and ``pre-commit-all``
+    recipes and CONTRIBUTING.md told contributors to run ``pre-commit install``,
+    even though pre-commit is neither a dependency nor configured anywhere (no
+    ``.pre-commit-config.yaml``). These dangling references must stay gone.
+    """
+
+    def _repo_root(self) -> Path:
+        return Path(__file__).resolve().parent.parent
+
+    def test_justfile_has_no_pre_commit_recipe(self):
+        """The justfile declares no pre-commit recipe (CR-3)."""
+        justfile = self._repo_root() / "justfile"
+        assert "pre-commit" not in justfile.read_text(encoding="utf-8")
+
+    def test_contributing_has_no_pre_commit_instruction(self):
+        """CONTRIBUTING.md tells no one to install pre-commit hooks (CR-3)."""
+        contributing = self._repo_root() / "CONTRIBUTING.md"
+        assert "pre-commit" not in contributing.read_text(encoding="utf-8")
+
+    def test_no_pre_commit_in_source_and_config(self):
+        """No tracked source or config file references pre-commit (CR-3).
+
+        Scoped to the shipped deliverables (justfile, CONTRIBUTING.md,
+        pyproject.toml, source, docs, CI). Planning and session-note files
+        (``plan.md``, ``todo.md``, ``spec.md``, ``.ai-sessions/``) legitimately
+        mention CR-3 by name and are intentionally excluded.
+        """
+        root = self._repo_root()
+        try:
+            result = subprocess.run(
+                [
+                    "git",
+                    "grep",
+                    "-il",
+                    "pre-commit",
+                    "--",
+                    "justfile",
+                    "CONTRIBUTING.md",
+                    "pyproject.toml",
+                    "src",
+                    "docs",
+                    ".github",
+                ],
+                cwd=root,
+                capture_output=True,
+                text=True,
+            )
+        except FileNotFoundError:
+            pytest.skip("git is not available")
+        # git grep exits 1 when there are no matches; that is the success case.
+        assert result.returncode == 1, f"pre-commit references remain in: {result.stdout.strip()}"

@@ -74,11 +74,3 @@ check:
 
 # Run all quality checks (tests, coverage, lint, type check, fix, format check, doctests)
 test: unit-test-cov doctest lint type-check fix check
-
-# Install pre-commit hooks
-pre-commit-install:
-    pre-commit install
-
-# Run pre-commit on all files
-pre-commit-all:
-    pre-commit run --all-files

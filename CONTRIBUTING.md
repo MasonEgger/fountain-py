@@ -19,9 +19,6 @@ cd fountain-py
 
 # Install development dependencies
 uv sync --dev
-
-# Install pre-commit hooks
-pre-commit install
 ```
 
 ## Running Tests

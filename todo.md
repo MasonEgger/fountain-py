@@ -77,7 +77,7 @@ Each step is TDD: failing test first, then the minimal fix, then `just test` cle
 - [x] 10.5 Open Question 3: hidden-by-default docs and docstrings agree
 
 ## Section 11: Tooling Cleanup
-- [ ] 11.1 CR-3: remove dangling pre-commit recipes and references
+- [x] 11.1 CR-3: remove dangling pre-commit recipes and references
 
 ## Section 12: Path to PyPI
 - [ ] 12.1 CI dependency install fix (`uv sync --dev`) and build verification (wheel contents, Sphinx doctest)
