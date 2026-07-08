@@ -6,6 +6,7 @@ Tests for the HTML renderer.
 
 from fountain.document import FountainDocument
 from fountain.elements import ElementType, FormatSpan, FountainElement
+from fountain.parser import FountainParser
 from fountain.renderer import FountainRenderer, HTMLRenderer
 
 
@@ -314,9 +315,52 @@ class TestHTMLRenderer:
         document = FountainDocument(elements)
         html = self.renderer.render(document)
 
-        assert '<div class="fountain-boneyard">/* comment */</div>' in html
+        # Boneyard content is a writer tool and must never ship in the fragment (E11).
+        assert "fountain-boneyard" not in html
+        assert "comment" not in html
         assert '<div class="fountain-section">ACT ONE</div>' in html
         assert '<div class="fountain-synopsis">What happens</div>' in html
+
+    def test_boneyard_single_line_omitted_from_fragment(self):
+        """A single-line boneyard's text must not appear in the HTML fragment (E11)."""
+        parser = FountainParser()
+        doc = parser.parse("INT. ROOM - DAY\n\n/* hidden scene */\n\nReal action here.")
+        html = self.renderer.render(doc)
+
+        assert "hidden" not in html
+        assert "fountain-boneyard" not in html
+        # Real, non-boneyard content still renders.
+        assert '<div class="fountain-scene-heading">INT. ROOM - DAY</div>' in html
+        assert "Real action here." in html
+
+    def test_boneyard_multi_line_omitted_from_fragment(self):
+        """A multi-line boneyard's interior text must not appear in the fragment (E11)."""
+        parser = FountainParser()
+        doc = parser.parse(
+            "INT. ROOM - DAY\n\n/*\nhidden interior line one\nhidden interior line two\n*/\n\nReal action here."
+        )
+        html = self.renderer.render(doc)
+
+        assert "hidden" not in html
+        assert "interior" not in html
+        assert "fountain-boneyard" not in html
+        # Real, non-boneyard content still renders.
+        assert '<div class="fountain-scene-heading">INT. ROOM - DAY</div>' in html
+        assert "Real action here." in html
+
+    def test_boneyard_single_and_multi_line_identical_omission(self):
+        """Single-line and multi-line boneyards behave identically: no boneyard text ships (E11)."""
+        parser = FountainParser()
+        single = self.renderer.render(parser.parse("/* hidden scene */\n\nAction."))
+        multi = self.renderer.render(parser.parse("/*\nhidden scene\n*/\n\nAction."))
+
+        assert "hidden" not in single
+        assert "hidden" not in multi
+        assert "fountain-boneyard" not in single
+        assert "fountain-boneyard" not in multi
+        # Both still render the real action element.
+        assert "Action." in single
+        assert "Action." in multi
 
     def test_unknown_element_type(self):
         """Test fallback rendering for unknown types (line 182)."""

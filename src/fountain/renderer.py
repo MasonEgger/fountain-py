@@ -484,7 +484,11 @@ class HTMLRenderer:
         elif element.type == ElementType.NOTE:
             return f'<div class="fountain-note">{text}</div>'
         elif element.type == ElementType.BONEYARD:
-            return f'<div class="fountain-boneyard">{text}</div>'
+            # Boneyard is a writer-only tool; its content is omitted from formatted
+            # output entirely so it never ships in the CSS-free HTML fragment (E11).
+            # This keeps single-line boneyards consistent with multi-line ones, whose
+            # interior lines the parser already drops.
+            return ""
         elif element.type == ElementType.SECTION:
             return f'<div class="fountain-section">{text}</div>'
         elif element.type == ElementType.SYNOPSIS:
