@@ -61,7 +61,7 @@ Each step is TDD: failing test first, then the minimal fix, then `just test` cle
 - [x] 8.5 D6: nested emphasis does not duplicate text
 - [x] 8.6 D7: bold and underline get the italic delimiter-adjacent-space guards
 - [x] 8.7 D8: span offsets computed against stored text including indentation
-- [ ] 8.8 D9: forced action retains indentation after the `!`
+- [x] 8.8 D9: forced action retains indentation after the `!`
 
 ## Section 9: Documented Contract Ambiguities
 - [ ] 9.1 A3: title page detection heuristic pinned and documented

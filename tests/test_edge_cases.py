@@ -1321,6 +1321,44 @@ class TestSpecCompliance:
         assert action.text[bold_spans[0].start : bold_spans[0].end] == "bold"
         assert action.text[italic_spans[0].start : italic_spans[0].end] == "italic"
 
+    # -- Step 8.8: D9 Forced Action Retains Indentation After the ! --
+
+    def test_forced_action_retains_indent(self):
+        """D9: a forced action keeps the indentation that follows the ``!`` marker.
+
+        Only the leading ``!`` forcing marker is removed; the whitespace after it is
+        part of the action text. ``!    INDENTED FORCED ACTION`` stores four leading
+        spaces rather than dropping them. A tab after the marker follows the same
+        tab-to-four-spaces rule as normal action text (A5), and a marker with no
+        following indent leaves no spurious leading space. Emphasis inside a forced,
+        indented action still lands on its content with the leading whitespace outside
+        the span (D4/D8).
+        """
+        # Indentation after the marker is preserved verbatim: only the ! is stripped.
+        doc = self.parser.parse("!    INDENTED FORCED ACTION")
+        assert doc.elements[0].type == ElementType.ACTION
+        assert doc.elements[0].text == "    INDENTED FORCED ACTION"
+
+        # No indent after the marker: only the ! is removed, no leading space added.
+        doc = self.parser.parse("!plain forced action")
+        assert doc.elements[0].type == ElementType.ACTION
+        assert doc.elements[0].text == "plain forced action"
+
+        # A tab after the marker converts to four spaces, consistent with normal action (A5).
+        doc = self.parser.parse("!\tINDENTED")
+        assert doc.elements[0].type == ElementType.ACTION
+        assert doc.elements[0].text == "    INDENTED"
+
+        # Emphasis inside an indented forced action keeps the indent outside the span (D4/D8).
+        doc = self.parser.parse("!    *italic*")
+        action = doc.elements[0]
+        assert action.type == ElementType.ACTION
+        assert action.text == "    italic"
+        italic_spans = [span for span in action.formatting if span.format_type == "italic"]
+        assert len(italic_spans) == 1
+        assert italic_spans[0].start == 4
+        assert action.text[italic_spans[0].start : italic_spans[0].end] == "italic"
+
     def test_dialogue_not_broken_by_regular_text(self):
         """Regular text following a character name should be dialogue, not action."""
         doc = self.parser.parse("JOHN\nHello.\nMore dialogue.")

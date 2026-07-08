@@ -902,7 +902,11 @@ class FountainParser:
 
         # Check for forced action (starts with !)
         if self.FORCED_ACTION_PATTERN.match(line):
-            text = self.FORCED_ACTION_PATTERN.sub(r"\1", line).strip()
+            # Strip only the leading ``!`` forcing marker; the indentation that
+            # follows it is part of the action text (D9). Trailing whitespace is
+            # dropped and tabs convert to four spaces, matching how normal action
+            # text is stored (A5), so forced and natural action indent consistently.
+            text = self.FORCED_ACTION_PATTERN.sub(r"\1", line).rstrip().replace("\t", "    ")
             return FountainElement(
                 type=ElementType.ACTION,
                 text=text,
