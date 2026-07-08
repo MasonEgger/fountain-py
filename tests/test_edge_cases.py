@@ -2080,3 +2080,36 @@ Hello /* hidden */ world."""
 
         transitions = [element for element in doc.elements if element.type == ElementType.TRANSITION]
         assert [transition.text for transition in transitions] == ["FADE IN:", "FADE OUT."]
+
+    # -- Step 9.4: E9 Inline Notes Are Removed, Standalone Note Lines Are Kept (documented contract) --
+
+    def test_inline_note_removed_standalone_kept(self):
+        """Inline ``[[note]]`` content is stripped and unrecoverable; a standalone ``[[note]]`` line is kept (E9).
+
+        Fountain notes behave asymmetrically depending on placement. An inline
+        ``[[note]]`` embedded in a line of action has its content stripped out of
+        the line text and is unrecoverable from the parse: the note leaves only a
+        whitespace artifact (a doubled space) where it stood, and neither the note
+        content nor its brackets survive. A standalone ``[[note]]`` line, by
+        contrast, becomes a NOTE element whose text keeps the content verbatim,
+        brackets included (per E10). This pins the asymmetry so it is not lost to a
+        future change that treats the two placements the same way.
+        """
+        inline_doc = self.parser.parse("INT. HOUSE - DAY\n\nHe waves [[secret]] hello.")
+
+        action_elements = [element for element in inline_doc.elements if element.type == ElementType.ACTION]
+        assert len(action_elements) == 1
+        inline_text = action_elements[0].text
+        # The note content is stripped and unrecoverable: no content, no brackets.
+        assert "secret" not in inline_text
+        assert "[[" not in inline_text
+        assert "]]" not in inline_text
+        # A whitespace artifact (doubled space) remains where the note stood.
+        assert inline_text == "He waves  hello."
+
+        standalone_doc = self.parser.parse("INT. HOUSE - DAY\n\n[[remember this]]")
+
+        note_elements = [element for element in standalone_doc.elements if element.type == ElementType.NOTE]
+        assert len(note_elements) == 1
+        # The standalone note is kept verbatim, brackets included.
+        assert note_elements[0].text == "[[remember this]]"

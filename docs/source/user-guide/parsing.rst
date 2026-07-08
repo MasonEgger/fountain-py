@@ -418,6 +418,37 @@ The Fountain format includes special syntax for forcing element types:
     >>> 'note that' in note.text
     True
 
+Notes: Inline Are Stripped, Standalone Are Kept
+-----------------------------------------------
+
+Fountain notes in ``[[double brackets]]`` behave asymmetrically depending on where they sit.
+An inline note embedded in a line of action has its content stripped out of the line text and is unrecoverable from the parse: neither the note content nor its brackets survive.
+Stripping the note leaves a whitespace artifact where it stood (the space before the note and the space after it collapse into a doubled space), so the surrounding text keeps that gap.
+A standalone note on its own line, by contrast, becomes a NOTE element whose text keeps the content verbatim, brackets included.
+
+This asymmetry is a documented contract, not a defect.
+If you need a note to survive the parse, put it on its own line.
+
+.. doctest::
+
+    >>> from fountain.parser import FountainParser
+    >>> from fountain.elements import ElementType
+    >>> parser = FountainParser()
+    >>>
+    >>> # Inline note: content stripped, unrecoverable, doubled space left behind
+    >>> inline = parser.parse("INT. HOUSE - DAY\n\nHe waves [[secret]] hello.")
+    >>> action = [el for el in inline.elements if el.type == ElementType.ACTION][0]
+    >>> action.text
+    'He waves  hello.'
+    >>> "secret" in action.text
+    False
+    >>>
+    >>> # Standalone note: kept as a NOTE element, verbatim with brackets
+    >>> standalone = parser.parse("INT. HOUSE - DAY\n\n[[remember this]]")
+    >>> note = [el for el in standalone.elements if el.type == ElementType.NOTE][0]
+    >>> note.text
+    '[[remember this]]'
+
 Inline Formatting
 -----------------
 
