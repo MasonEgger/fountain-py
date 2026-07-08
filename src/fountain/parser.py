@@ -139,14 +139,6 @@ class FountainParser:
     # Single-line boneyard: /* comment */ on one line (DOTALL allows newlines in content)
     # Used for comments that should not appear in final output
     BONEYARD_PATTERN = re.compile(r"^/\*.*?\*/$", re.DOTALL)
-
-    # Multi-line boneyard start: line beginning with /*
-    # Starts a comment block that continues until */
-    MULTILINE_BONEYARD_START = re.compile(r"^/\*")
-
-    # Multi-line boneyard end: line ending with */
-    # Ends a comment block started with /*
-    MULTILINE_BONEYARD_END = re.compile(r"\*/$")
     # Document Structure Patterns
     # Section headings: one or more # symbols followed by optional whitespace
     # Used for document organization, similar to Markdown headers
@@ -669,11 +661,12 @@ class FountainParser:
                 line_number=self.current_line + 1,
             )
 
-        # A line that both opens and closes a boneyard span but carries text
-        # outside it (e.g. "/* cut */ keep this"). Strip the /* ... */ span and
-        # reprocess the surrounding remainder as body so trailing or leading
-        # content is not swallowed. Checked before MULTILINE_BONEYARD_START so
-        # such a line never enters open-boneyard state and truncates the document.
+        # A line containing /* somewhere other than a whole-line span. Two cases,
+        # both handled here so a line with leading body text never truncates the
+        # document. If a */ also appears on the line the span opens and closes
+        # here (e.g. "/* cut */ keep this"): strip the span and reprocess the
+        # surrounding remainder as body. Otherwise the /* opens a multi-line
+        # boneyard that closes on a later line.
         open_index = line.find("/*")
         if open_index != -1:
             close_index = line.find("*/", open_index + 2)
@@ -682,11 +675,20 @@ class FountainParser:
                 if remainder:
                     return self._parse_line(remainder, had_blank_line_before)
                 return None
-
-        if self.MULTILINE_BONEYARD_START.match(line):
-            if not self.MULTILINE_BONEYARD_END.search(line):
+            # The /* opens a boneyard that does not close on this line. Anything
+            # before it (e.g. "He waves" in "He waves /* begin cut") is body and
+            # must be emitted; the /* and every following line is comment until a
+            # */ closes it. Reprocess the pre-text before entering boneyard state
+            # so the recursive call is not itself swallowed by the in_boneyard
+            # branch above. boneyard_start_line feeds the unclosed-boneyard
+            # diagnostic in validate() when no */ ever arrives.
+            self.boneyard_start_line = self.current_line + 1
+            pre_text = line[:open_index].strip()
+            if pre_text:
+                pre_element = self._parse_line(pre_text, had_blank_line_before)
                 self.in_boneyard = True
-                self.boneyard_start_line = self.current_line + 1
+                return pre_element
+            self.in_boneyard = True
             return None  # Skip boneyard start line
 
         # Handle multi-line notes

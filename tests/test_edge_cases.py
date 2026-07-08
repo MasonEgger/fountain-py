@@ -994,3 +994,34 @@ More action here."""
         # The boneyard interior is dropped.
         assert "cut this" not in texts
         assert not any("cut this" in element_text for element_text in texts)
+
+    # -- Step 4.3: Mid-Line Boneyard Opener (E4) --
+
+    def test_midline_boneyard_opener_no_leak(self):
+        """A mid-line `/*` opener emits its pre-text as action and hides the interior (E4)."""
+        text = """He waves /* begin cut
+This interior should be cut
+and this line too
+*/ And we are back.
+
+The scene continues.
+
+More action here."""
+
+        doc = self.parser.parse(text)
+        texts = [element.text for element in doc.elements]
+
+        # The text before the opener survives as exactly one ACTION element.
+        assert texts.count("He waves") == 1
+        opener_actions = [
+            element for element in doc.elements if element.type == ElementType.ACTION and element.text == "He waves"
+        ]
+        assert len(opener_actions) == 1
+        # No interior line leaks anywhere in the output.
+        assert not any("begin cut" in element_text for element_text in texts)
+        assert not any("This interior should be cut" in element_text for element_text in texts)
+        assert not any("and this line too" in element_text for element_text in texts)
+        # Text after the close survives, and so does the following action.
+        assert "And we are back." in texts
+        assert "The scene continues." in texts
+        assert "More action here." in texts
