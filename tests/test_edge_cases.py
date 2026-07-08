@@ -1394,3 +1394,34 @@ Hello /* hidden */ world."""
             assert numeric_types == [ElementType.ACTION, ElementType.ACTION], (
                 f"{numeric_line!r} has no letter and should stay ACTION, got {numeric_types}"
             )
+
+    # -- Step 7.3: Blank Line After a Cue Disqualifies It (C3) --
+
+    def test_blank_after_cue_disqualifies(self):
+        """A blank line immediately after a cue disqualifies it (C3).
+
+        The Fountain spec requires a character cue to be immediately followed by
+        its dialogue with no intervening blank line. ``JOHN`` on its own line, a
+        blank line, then ``He walks to the door.`` is therefore not a cue plus
+        dialogue: both lines are ACTION. The lookahead must not skip the blank
+        line to reach a later non-empty line and treat ``JOHN`` as a cue for it.
+
+        The guard case confirms that a cue with immediate dialogue (no blank line)
+        still parses as CHARACTER plus DIALOGUE, so the disqualification is scoped
+        to the blank-line-after case alone.
+        """
+        doc = FountainParser().parse("JOHN\n\nHe walks to the door.")
+        element_types = [element.type for element in doc.elements]
+        assert element_types == [ElementType.ACTION, ElementType.ACTION], (
+            f"'JOHN' / blank / 'He walks to the door.' should parse as two ACTION elements, got {element_types}"
+        )
+        assert doc.elements[0].text == "JOHN"
+        assert doc.elements[1].text == "He walks to the door."
+
+        guard = FountainParser().parse("JOHN\nHe walks to the door.")
+        guard_types = [element.type for element in guard.elements]
+        assert guard_types == [ElementType.CHARACTER, ElementType.DIALOGUE], (
+            f"'JOHN' with immediate dialogue should still parse as CHARACTER + DIALOGUE, got {guard_types}"
+        )
+        assert guard.elements[0].text == "JOHN"
+        assert guard.elements[1].text == "He walks to the door."

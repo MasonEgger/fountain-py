@@ -1091,9 +1091,11 @@ class FountainParser:
         should be classified as a character name. This prevents false positive character
         detection when ALL CAPS text appears in action lines.
 
-        The method skips empty lines and checks if the next non-empty line matches any
-        structural element patterns. If no structural patterns match, the line is
-        considered potential dialogue, confirming the current line as a character.
+        The cue must be immediately followed by its dialogue: a blank line (or EOF)
+        directly after the cue disqualifies it (C3). Otherwise the method checks if
+        the immediate next line matches any structural element patterns. If no
+        structural patterns match, the line is considered potential dialogue,
+        confirming the current line as a character.
 
         Returns:
             bool: True if the next non-empty line appears to be dialogue, parenthetical,
@@ -1116,6 +1118,13 @@ class FountainParser:
             This method is critical for distinguishing between character names and
             action text that happens to be in ALL CAPS (like "FADE IN" or "THE END").
         """
+        # The cue must be immediately followed by its dialogue: a blank line (or
+        # EOF) directly after the cue disqualifies it (C3). Do not skip the blank
+        # to reach a later non-empty line, or "JOHN\n\nHe walks..." would wrongly
+        # treat JOHN as a cue for the later action.
+        if self._is_blank_line_after():
+            return False
+
         next_line_idx = self.current_line + 1
         while next_line_idx < len(self.lines):
             next_line = self.lines[next_line_idx].strip()
