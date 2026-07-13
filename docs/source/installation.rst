@@ -6,7 +6,7 @@ Installation
 Requirements
 ------------
 
-- **Python 3.9 or higher** (3.9, 3.10, 3.11, 3.12, 3.13 supported)
+- **Python 3.10 or higher** (3.10, 3.11, 3.12, 3.13, 3.14 supported)
 - No external dependencies for core functionality
 
 Quick Install

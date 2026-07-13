@@ -66,8 +66,8 @@ Type System
 Quality
 ~~~~~~~
 
-* 241 tests with 99% code coverage
-* 34 module-level doctests + 412 Sphinx doctests
-* Supports Python 3.9, 3.10, 3.11, 3.12, 3.13
+* 280 tests with 99% code coverage
+* 38 module-level doctests + 446 Sphinx doctests
+* Supports Python 3.10, 3.11, 3.12, 3.13, 3.14
 * Zero runtime dependencies
 * CI with GitHub Actions across all supported Python versions

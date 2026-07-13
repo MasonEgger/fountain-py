@@ -55,7 +55,7 @@ The project uses `ruff <https://docs.astral.sh/ruff/>`_ for linting and formatti
 Key conventions:
 
 - Line length: 120 characters
-- Target: Python 3.9+
+- Target: Python 3.10+
 - All functions must have type annotations
 - All code files start with a 2-line ``# ABOUTME:`` comment
 
