@@ -308,7 +308,7 @@ The Fountain spec leaves these underdetermined; the audit classified them as amb
 The behaviors below are contract: they must be documented in the user guide and pinned by tests, and changing them is a breaking change.
 
 - **A3: title page detection heuristic.** Any first line containing a colon that fails the scene heading guard opens the title page, including `FADE IN:`, a tab-indented `CUT TO:`, or prose like `He opens the card:` (src/fountain/parser.py:448, 463).
-  Documented workarounds: a leading blank line, or forced syntax such as `>CUT TO:`.
+  The only reliable fix is to precede the line with an action line; a leading blank line does not help, and a forced `>` prefix does not rescue it either (the `>` is swallowed into the metadata key, e.g. `>cut to`).
   The guard's case sensitivity (B3) and in-page indentation (A2) remain defects tracked separately.
 - **C8: lyrics inside a dialogue block end the block.** `JOHN` / `~Willy Wonka!` / `Wasn't that great?` yields CHARACTER, LYRICS, ACTION (src/fountain/parser.py:654-662, 906-919).
   Writers who want the trailing line as dialogue have no supported syntax here; document this.
