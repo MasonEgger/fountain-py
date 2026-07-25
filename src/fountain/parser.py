@@ -1048,11 +1048,15 @@ class FountainParser:
         # Check for forced transition (>text - not enclosed)
         if self.FORCED_TRANSITION_PATTERN.match(line) and not line.endswith("<"):
             text = line[1:].strip()  # Remove the '>'
+            # Record the forced flag so the Fountain renderer re-emits the '>'. Without it
+            # a forced transition whose text does not end in 'TO:' round-trips to ACTION.
+            forced_transition_metadata: dict[str, MetadataValue] = {"forced": True}
             return FountainElement(
                 type=ElementType.TRANSITION,
                 text=text,
                 formatting=self._extract_formatting(text),
                 line_number=self.current_line + 1,
+                metadata=forced_transition_metadata,
             )
 
         # Check for scene heading (requires a blank line before and after, or

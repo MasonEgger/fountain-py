@@ -749,6 +749,25 @@ class TestSpecCompliance:
             for element in doc.elements
         )
 
+    def test_forced_transition_round_trips(self):
+        """A forced transition keeps its forced flag so it survives a Fountain round trip.
+
+        ``> SMASH CUT TO BLACK`` does not end in ``TO:`` and would not re-parse as a
+        transition without the leading ``>``. The parser must record ``forced`` so the
+        Fountain renderer re-emits the marker and the element stays a TRANSITION.
+        """
+        from fountain.renderer import FountainRenderer
+
+        doc = self.parser.parse("> SMASH CUT TO BLACK")
+        transitions = [element for element in doc.elements if element.type == ElementType.TRANSITION]
+        assert len(transitions) == 1
+        assert transitions[0].metadata is not None
+        assert transitions[0].metadata.get("forced") is True
+
+        rendered = FountainRenderer().render(doc)
+        reparsed = self.parser.parse(rendered)
+        assert [element.type for element in reparsed.elements] == [ElementType.TRANSITION]
+
     # -- Step 5.1: A1 Multi-line Title Page Values Preserve Line Structure --
 
     def test_title_page_multiline_value_preserved(self):
