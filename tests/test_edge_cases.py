@@ -1377,6 +1377,21 @@ class TestSpecCompliance:
 
     # -- Adversarial review: emphasis nesting, intraword underscore, stray delimiters --
 
+    def test_emphasis_does_not_cross_line_breaks(self):
+        """Emphasis delimiters on different lines do not pair (spec: not carried across breaks).
+
+        A merged action paragraph carries embedded newlines, so an opening ``*`` on one
+        line must not close against a ``*`` on the next line.
+        """
+        from fountain.renderer import HTMLRenderer
+
+        doc = self.parser.parse("This is *italic\nnot carried* over")
+        action = [element for element in doc.elements if element.type == ElementType.ACTION][-1]
+        assert action.formatting == []
+        html = HTMLRenderer()._apply_formatting(action.text, action.formatting)
+        assert "<em>" not in html
+        assert "*italic" in html and "carried*" in html
+
     def test_nested_same_delimiter_emphasis(self):
         """An italic phrase containing a bold word (both asterisks) composes cleanly.
 

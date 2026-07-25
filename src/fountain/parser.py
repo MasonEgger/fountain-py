@@ -1709,7 +1709,28 @@ class FountainParser:
         return runs
 
     def _find_emphasis_spans(self, formatting_text: str) -> list[FormatSpan]:
-        """Find full-match emphasis spans (delimiters included) via a delimiter stack.
+        """Find full-match emphasis spans, scanning each line independently.
+
+        Emphasis is not carried across line breaks (Fountain spec), and a merged action
+        paragraph carries embedded newlines, so each ``\\n``-delimited segment is scanned
+        on its own and its spans are offset back into the full text.
+
+        Args:
+            formatting_text: Text with backslash escapes replaced by placeholder chars.
+
+        Returns:
+            List of full-match FormatSpan objects indexed into ``formatting_text``.
+        """
+        spans: list[FormatSpan] = []
+        offset = 0
+        for segment in formatting_text.split("\n"):
+            for span in self._find_emphasis_spans_in_line(segment):
+                spans.append(FormatSpan(span.start + offset, span.end + offset, span.format_type))
+            offset += len(segment) + 1
+        return spans
+
+    def _find_emphasis_spans_in_line(self, formatting_text: str) -> list[FormatSpan]:
+        """Match emphasis within a single line (no newlines) via a delimiter stack.
 
         Scans left to right, pushing runs that can open onto a stack and matching each
         run that can close against the nearest compatible opener. Bold-italic (``***``),
@@ -1719,7 +1740,7 @@ class FountainParser:
         Unmatched delimiters are left in place and stay literal.
 
         Args:
-            formatting_text: Text with backslash escapes replaced by placeholder chars.
+            formatting_text: A single newline-free line with escapes already replaced.
 
         Returns:
             List of full-match FormatSpan objects indexed into ``formatting_text``.
