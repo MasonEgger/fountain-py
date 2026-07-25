@@ -406,7 +406,7 @@ Notes: Inline Are Stripped, Standalone Are Kept
 
 Fountain notes in ``[[double brackets]]`` behave asymmetrically depending on where they sit.
 An inline note embedded in a line of action has its content stripped out of the line text and is unrecoverable from the parse: neither the note content nor its brackets survive.
-Stripping the note leaves a whitespace artifact where it stood (the space before the note and the space after it collapse into a doubled space), so the surrounding text keeps that gap.
+The whitespace seam left where the note stood collapses to a single space, so the surrounding words do not run together or leave a doubled gap.
 A standalone note on its own line, by contrast, becomes a NOTE element whose text keeps the content verbatim, brackets included.
 
 This asymmetry is a documented contract, not a defect.
@@ -418,11 +418,11 @@ If you need a note to survive the parse, put it on its own line.
     >>> from fountain.elements import ElementType
     >>> parser = FountainParser()
     >>>
-    >>> # Inline note: content stripped, unrecoverable, doubled space left behind
+    >>> # Inline note: content stripped, unrecoverable, seam collapsed to one space
     >>> inline = parser.parse("INT. HOUSE - DAY\n\nHe waves [[secret]] hello.")
     >>> action = [el for el in inline.elements if el.type == ElementType.ACTION][0]
     >>> action.text
-    'He waves  hello.'
+    'He waves hello.'
     >>> "secret" in action.text
     False
     >>>

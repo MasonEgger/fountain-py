@@ -1668,6 +1668,17 @@ More action here."""
             ElementType.DIALOGUE,
         ]
 
+    def test_inline_note_removal_collapses_double_space(self):
+        """Removing a mid-line note leaves a single space, not two."""
+        doc = self.parser.parse("Action [[a note]] here")
+        actions = [element for element in doc.elements if element.type == ElementType.ACTION]
+        assert len(actions) == 1
+        assert actions[0].text == "Action here"
+
+        multi = self.parser.parse("One [[n1]] two [[n2]] three")
+        multi_actions = [element for element in multi.elements if element.type == ElementType.ACTION]
+        assert multi_actions[0].text == "One two three"
+
     def test_parse_surfaces_diagnostics_on_document(self):
         """parse() attaches the diagnostics it detects to the returned document's issues."""
         boneyard_doc = self.parser.parse("INT. HOUSE - DAY\n\n/* open boneyard")
@@ -2287,12 +2298,12 @@ Hello /* hidden */ world."""
 
         Fountain notes behave asymmetrically depending on placement. An inline
         ``[[note]]`` embedded in a line of action has its content stripped out of
-        the line text and is unrecoverable from the parse: the note leaves only a
-        whitespace artifact (a doubled space) where it stood, and neither the note
-        content nor its brackets survive. A standalone ``[[note]]`` line, by
-        contrast, becomes a NOTE element whose text keeps the content verbatim,
-        brackets included (per E10). This pins the asymmetry so it is not lost to a
-        future change that treats the two placements the same way.
+        the line text and is unrecoverable from the parse: neither the note content
+        nor its brackets survive, and the whitespace seam collapses to a single
+        space. A standalone ``[[note]]`` line, by contrast, becomes a NOTE element
+        whose text keeps the content verbatim, brackets included (per E10). This pins
+        the asymmetry so it is not lost to a future change that treats the two
+        placements the same way.
         """
         inline_doc = self.parser.parse("INT. HOUSE - DAY\n\nHe waves [[secret]] hello.")
 
@@ -2303,8 +2314,8 @@ Hello /* hidden */ world."""
         assert "secret" not in inline_text
         assert "[[" not in inline_text
         assert "]]" not in inline_text
-        # A whitespace artifact (doubled space) remains where the note stood.
-        assert inline_text == "He waves  hello."
+        # The whitespace seam left by the note collapses to a single space.
+        assert inline_text == "He waves hello."
 
         standalone_doc = self.parser.parse("INT. HOUSE - DAY\n\n[[remember this]]")
 

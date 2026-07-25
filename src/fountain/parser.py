@@ -199,6 +199,12 @@ class FountainParser:
     # one note and preserves the E13 fullmatch guard and per-note inline stripping.
     NOTE_PATTERN = re.compile(r"\[\[(?:[^\]]|\](?!\]))*\]\]")
 
+    # The same note body but also matching the spaces/tabs on either side, so removing a
+    # mid-line note collapses to a single space (word note word -> word word) instead of
+    # leaving a double-space seam. A note flush against a word or the line edge is removed
+    # with no inserted space (see :meth:`_collapse_note_seam`).
+    NOTE_SEAM_PATTERN = re.compile(r"[ \t]*\[\[(?:[^\]]|\](?!\]))*\]\][ \t]*")
+
     # Boneyard (Comment) Patterns
     # Single-line boneyard: /* comment */ on one line (DOTALL allows newlines in content)
     # Used for comments that should not appear in final output
@@ -774,6 +780,23 @@ class FountainParser:
         leading_spaces = len(raw_next) - len(raw_next.lstrip(" "))
         return raw_next.startswith("\t") or leading_spaces >= 3
 
+    @staticmethod
+    def _collapse_note_seam(match: re.Match[str]) -> str:
+        """Replace a matched inline note (plus flanking whitespace) with the right spacing.
+
+        A note between two spaces collapses to a single space so the surrounding words do
+        not run together with a double space; a note flush against a word or the line edge
+        is removed with no inserted space.
+
+        Args:
+            match: A ``NOTE_SEAM_PATTERN`` match (the note and any adjacent spaces/tabs).
+
+        Returns:
+            A single space when the note was flanked by whitespace on both sides, else "".
+        """
+        matched = match.group(0)
+        return " " if matched[:1] in (" ", "\t") and matched[-1:] in (" ", "\t") else ""
+
     def _flush_open_note_as_text(self) -> None:
         """Break an open multi-line note and re-emit its buffered lines as action.
 
@@ -996,7 +1019,7 @@ class FountainParser:
 
         # Strip inline notes from the line text
         if note_matches:
-            line = self.NOTE_PATTERN.sub("", line).strip()
+            line = self.NOTE_SEAM_PATTERN.sub(self._collapse_note_seam, line).strip()
             # Removing a note leaves a whitespace seam. Always drop the trailing
             # seam. Only drop the leading seam when a note began the line (col 0 of
             # the stripped line): a front note (e.g. "[[a]] middle") leaves a leading
@@ -1004,7 +1027,7 @@ class FountainParser:
             # (e.g. "\tIndented action [[note]]") must keep its deliberate leading
             # indentation, so lstrip only when the first note starts the content.
             note_starts_line = note_matches[0].start() == 0
-            original_line = self.NOTE_PATTERN.sub("", original_line).rstrip()
+            original_line = self.NOTE_SEAM_PATTERN.sub(self._collapse_note_seam, original_line).rstrip()
             if note_starts_line:
                 original_line = original_line.lstrip()
             if not line:
