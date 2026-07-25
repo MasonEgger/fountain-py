@@ -29,7 +29,7 @@ import json
 from collections import Counter
 from typing import Any
 
-from fountain.elements import ElementType, FountainElement
+from fountain.elements import ElementType, FountainElement, ValidationIssue
 
 
 class FountainDocument:
@@ -74,12 +74,19 @@ class FountainDocument:
             'Jane Doe'
     """
 
-    def __init__(self, elements: list[FountainElement], metadata: dict[str, str] | None = None):
+    def __init__(
+        self,
+        elements: list[FountainElement],
+        metadata: dict[str, str] | None = None,
+        issues: list[ValidationIssue] | None = None,
+    ):
         """Initialize a FountainDocument with elements and optional metadata.
 
         Args:
             elements: Ordered list of FountainElement objects
             metadata: Optional dictionary of document metadata
+            issues: Optional diagnostics recorded during parsing (unclosed constructs,
+                orphan cues, empty document). Empty when the document is well formed.
 
         Example:
             Basic initialization::
@@ -91,9 +98,12 @@ class FountainDocument:
                 1
                 >>> doc.metadata
                 {}
+                >>> doc.issues
+                []
         """
         self.elements = elements
         self.metadata = metadata or {}
+        self.issues = issues or []
 
     def to_dict(self) -> dict[str, Any]:
         """Convert the entire document to a dictionary representation.

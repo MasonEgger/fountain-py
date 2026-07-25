@@ -1668,6 +1668,23 @@ More action here."""
             ElementType.DIALOGUE,
         ]
 
+    def test_parse_surfaces_diagnostics_on_document(self):
+        """parse() attaches the diagnostics it detects to the returned document's issues."""
+        boneyard_doc = self.parser.parse("INT. HOUSE - DAY\n\n/* open boneyard")
+        assert any(issue.code == "unclosed-boneyard" for issue in boneyard_doc.issues)
+
+        note_doc = self.parser.parse("INT. HOUSE - DAY\n\n[[ open note")
+        assert any(issue.code == "unclosed-note" for issue in note_doc.issues)
+
+        orphan_doc = self.parser.parse("INT. HOUSE - DAY\n\nJOHN\n\nINT. KITCHEN - NIGHT")
+        assert any(issue.code == "orphan-character-cue" for issue in orphan_doc.issues)
+
+        clean_doc = self.parser.parse("INT. HOUSE - DAY\n\nAction.")
+        assert clean_doc.issues == []
+
+        # validate() surfaces the same diagnostics parse() records.
+        assert [issue.code for issue in self.parser.validate("INT. HOUSE - DAY\n\n/* open")] == ["unclosed-boneyard"]
+
     def test_emphasis_round_trips_through_fountain(self):
         """Emphasis survives parse -> FountainRenderer -> parse with the same spans.
 
