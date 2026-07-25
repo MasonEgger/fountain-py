@@ -176,9 +176,9 @@ After the title page, the parser classifies each line into one of 14 element typ
 Lyrics Inside a Dialogue Block
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A lyric line (a line beginning with ``~``) ends the dialogue block it appears in.
-This is a documented contract, not a defect.
-Once a lyric closes the block, the next ordinary line is no longer inside a character's dialogue, so it falls back to action.
+A lyric line (a line beginning with ``~``) inside a dialogue block does not end the block.
+A standalone note (``[[ ... ]]`` on its own line) behaves the same way.
+A character who sings, or carries an editorial note, mid-speech keeps speaking: the block ends only at a blank line.
 
 Consider this input:
 
@@ -188,21 +188,10 @@ Consider this input:
     ~Willy Wonka!
     Wasn't that great?
 
-The parser produces three elements: a ``CHARACTER`` (``JOHN``), a ``LYRICS`` element (``Willy Wonka!``, with the tilde stripped), and an ``ACTION`` element (``Wasn't that great?``).
-The trailing line is action because the lyric already closed the dialogue block.
+The parser produces three elements: a ``CHARACTER`` (``JOHN``), a ``LYRICS`` element (``Willy Wonka!``, with the tilde stripped), and a ``DIALOGUE`` element (``Wasn't that great?``).
+The trailing line continues as dialogue because the lyric did not close the block.
 
-There is no supported syntax that keeps that trailing line as dialogue in this position.
-If you need the character to keep speaking after singing, repeat the character cue:
-
-.. code-block:: text
-
-    JOHN
-    ~Willy Wonka!
-
-    JOHN
-    Wasn't that great?
-
-The blank line and second ``JOHN`` cue open a fresh dialogue block, so ``Wasn't that great?`` is parsed as dialogue.
+A blank line still ends the dialogue block, so an ordinary line after a blank falls back to action as usual.
 
 FADE IN: and FADE OUT. as Transitions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

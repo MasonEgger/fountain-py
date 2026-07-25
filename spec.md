@@ -309,8 +309,7 @@ The behaviors below are contract: they must be documented in the user guide and 
 
 - **A3: title page detection.** A colon-bearing first line opens a title-page key only when it looks like one (`_opens_title_page_key`): it must carry a non-empty value or an indented continuation, and it must name a recognized field or be a capitalized label. So `FADE IN:` and `CUT TO:` (empty value) parse as body transitions and prose like `He opens the card: a threat.` (lowercase label) parses as body action, rather than being consumed as phantom metadata. A recognized field (`Title:`, `Contact:`, ...) or a capitalized custom label (`Custom Field:`) still opens the title page.
   The scene-heading guard's case sensitivity (B3) and in-page indentation (A2) are tracked separately.
-- **C8: lyrics inside a dialogue block end the block.** `JOHN` / `~Willy Wonka!` / `Wasn't that great?` yields CHARACTER, LYRICS, ACTION (src/fountain/parser.py:654-662, 906-919).
-  Writers who want the trailing line as dialogue have no supported syntax here; document this.
+- **C8: lyrics inside a dialogue block do not end the block.** A lyric or standalone note within a dialogue block does not close it; the following non-forced line continues as dialogue until a blank line. `JOHN` / `~Willy Wonka!` / `Wasn't that great?` yields CHARACTER, LYRICS, DIALOGUE (`_is_dialogue_line` looks back past LYRICS/NOTE to the block anchor).
 - **D11: `FADE IN:` and `FADE OUT.` as natural transitions.** The spec's natural rule requires ending in `TO:`; fountain-py special-cases both (src/fountain/parser.py:108; pinned by tests/test_parser.py:57-58 and tests/test_edge_cases.py:739-740).
   This is a deliberate extension and must be documented as such.
 - **E9: mid-line notes are removed without a trace.** Inline `[[note]]` content is stripped and unrecoverable from the parse, while a standalone `[[note]]` line becomes a NOTE element (src/fountain/parser.py:614-619).

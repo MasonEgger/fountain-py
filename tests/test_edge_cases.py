@@ -1645,6 +1645,29 @@ More action here."""
         assert len(actions) == 1
         assert actions[0].text == "Before after"
 
+    def test_dialogue_continues_across_interior_lyric_or_note(self):
+        """A character who sings or has a note mid-speech keeps speaking in dialogue.
+
+        A lyric or standalone note inside a dialogue block does not end the block; the
+        following non-forced line continues as dialogue until a blank line.
+        """
+        lyric_doc = self.parser.parse("STEEL\nHello.\n~la la la\nGoodbye.")
+        assert [element.type for element in lyric_doc.elements] == [
+            ElementType.CHARACTER,
+            ElementType.DIALOGUE,
+            ElementType.LYRICS,
+            ElementType.DIALOGUE,
+        ]
+        assert lyric_doc.elements[-1].text == "Goodbye."
+
+        note_doc = self.parser.parse("STEEL\nHello.\n[[a note]]\nGoodbye.")
+        assert [element.type for element in note_doc.elements] == [
+            ElementType.CHARACTER,
+            ElementType.DIALOGUE,
+            ElementType.NOTE,
+            ElementType.DIALOGUE,
+        ]
+
     # -- Step 4.4: Mid-Line Boneyard Stripped from Text (E1) --
 
     def test_midline_boneyard_stripped_from_text(self):
@@ -2182,24 +2205,23 @@ Hello /* hidden */ world."""
         assert len(transitions) == 1
         assert transitions[0].text == "CUT TO:"
 
-    # -- Step 9.2: C8 Lyrics Inside a Dialogue Block End the Block (documented contract) --
+    # -- Step 9.2 (revised): C8 Lyrics Inside a Dialogue Block Do Not End It --
 
-    def test_lyrics_end_dialogue_block(self):
-        """A lyric line inside a dialogue block ends the block; the next line is ACTION.
+    def test_lyrics_inside_dialogue_do_not_end_block(self):
+        """A lyric line inside a dialogue block does not end it; the next line is dialogue.
 
-        Documented contract, not a defect. A character cue followed by a lyric line
-        closes the dialogue block, so a following ordinary line falls back to action
-        rather than continuing as dialogue. Writers who want that trailing line spoken
-        have no supported syntax to force it here.
+        A character who sings and then keeps speaking stays in the dialogue block, which
+        ends only at a blank line. ``JOHN`` / ``~Willy Wonka!`` / ``Wasn't that great?``
+        yields CHARACTER, LYRICS, DIALOGUE.
         """
         doc = self.parser.parse("JOHN\n~Willy Wonka!\nWasn't that great?")
 
         types = [element.type for element in doc.elements]
-        assert types == [ElementType.CHARACTER, ElementType.LYRICS, ElementType.ACTION]
+        assert types == [ElementType.CHARACTER, ElementType.LYRICS, ElementType.DIALOGUE]
 
         # The tilde is stripped from the stored lyric text.
         assert doc.elements[1].text == "Willy Wonka!"
-        # The trailing line is action, not dialogue.
+        # The trailing line continues as dialogue.
         assert doc.elements[2].text == "Wasn't that great?"
 
     # -- Step 9.3: D11 FADE IN: and FADE OUT. Are Natural Transitions (deliberate extension) --
