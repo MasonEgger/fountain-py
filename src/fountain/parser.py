@@ -784,14 +784,12 @@ class FountainParser:
         # A recognized field always opens a key (even a lowercase one like "draft date").
         if raw_key.lower() in self.TITLE_PAGE_KEYS:
             return True
-        # A custom key must be a capitalized label whose value is not a prose sentence: a
-        # value ending in ".", "!", or "?" is body prose with a colon (e.g. "Warning: stay
-        # back."), not a title-page value, so the line stays action.
+        # Otherwise accept a capitalized label (each word starts uppercase/digit). The spec
+        # accepts any colon-terminated key at the top, so a custom key with a sentence-like
+        # value is still a key; only lowercase prose (and empty-value transitions above) are
+        # excluded. This is the documented arbitrary-key ambiguity.
         words = raw_key.split()
-        is_capitalized_label = bool(words) and all(word[0].isupper() or word[0].isdigit() for word in words)
-        if not is_capitalized_label:
-            return False
-        return not (stripped_value and stripped_value[-1] in ".!?")
+        return bool(words) and all(word[0].isupper() or word[0].isdigit() for word in words)
 
     def _next_line_is_indented(self) -> bool:
         """Whether the line after the current one is an indented value continuation (A2)."""

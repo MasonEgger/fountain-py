@@ -752,20 +752,26 @@ class TestSpecCompliance:
             for element in doc.elements
         )
 
-    def test_title_case_prose_colon_line_is_action(self):
-        """A capitalized prose line with a colon and a sentence value is action, not metadata.
+    def test_capitalized_colon_line_opens_title_page_key(self):
+        """At document start a capitalized ``Key: value`` opens a title-page key.
 
-        The capitalized-label guard alone let ``Warning: stay back.`` open a bogus key; a
-        value ending in sentence punctuation marks it as body prose instead.
+        The Fountain spec accepts any colon-terminated key at the top, so a capitalized
+        custom key is metadata even when its value looks like a sentence. Only lowercase
+        prose and empty-value transitions (``FADE IN:``) are excluded.
         """
-        for source in ("Warning: stay back.", "Meanwhile: the clock ticks.", "Jim: Hello there!"):
+        for source, key in (
+            ("Warning: stay back.", "warning"),
+            ("Epigraph: To be or not to be.", "epigraph"),
+            ("Custom Field: Custom Value", "custom field"),
+        ):
             doc = self.parser.parse(f"{source}\n\nINT. HOUSE - DAY")
-            assert doc.metadata == {}, f"{source!r} should be body, got {doc.metadata}"
-            assert any(element.type == ElementType.ACTION and source in element.text for element in doc.elements)
+            assert key in doc.metadata, f"{source!r} should open key {key!r}, got {doc.metadata}"
 
-        # A real capitalized custom key (no sentence punctuation) still opens the title page.
-        keyed = self.parser.parse("Custom Field: Custom Value\n\nINT. HOUSE - DAY")
-        assert keyed.metadata.get("custom field") == "Custom Value"
+        # Lowercase prose and empty-value transitions still stay body.
+        prose = self.parser.parse("he opens the card: a threat.\n\nINT. HOUSE - DAY")
+        assert prose.metadata == {}
+        fade = self.parser.parse("FADE IN:\n\nINT. HOUSE - DAY")
+        assert fade.metadata == {}
 
     def test_forced_action_round_trips(self):
         """A forced action whose text starts with a special char survives a round trip.
