@@ -27,7 +27,6 @@ Example:
 
 import json
 from collections import Counter
-from typing import Any
 
 from fountain.elements import ElementType, FountainElement, ValidationIssue
 
@@ -105,7 +104,7 @@ class FountainDocument:
         self.metadata = metadata or {}
         self.issues = issues or []
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, object]:
         """Convert the entire document to a dictionary representation.
 
         Creates a comprehensive dictionary representation of the document,

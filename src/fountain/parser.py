@@ -124,6 +124,14 @@ class FountainParser:
     # Used when a line should be a scene heading but doesn't match standard prefixes
     # Example: ".FLASHBACK - 10 YEARS AGO" becomes "FLASHBACK - 10 YEARS AGO"
     FORCED_SCENE_HEADING_PATTERN = re.compile(r"^\.(?!\.)(?=[A-Za-z0-9])")
+
+    # Shared character-name fragments (C1/C2), reused by the three cue patterns below so a
+    # change to the allowed characters is made in one place. ``_CHAR_CLASS`` is the set a
+    # cue may contain; ``_CHAR_NAME`` requires at least one uppercase letter (the lookahead)
+    # while allowing a digit-first cue.
+    _CHAR_CLASS = r"[A-Z0-9\s_.'#-]"
+    _CHAR_NAME = rf"(?={_CHAR_CLASS}*[A-Z])[A-Z0-9]{_CHAR_CLASS}*"
+
     # Character Name Patterns
     # Standard character names: ALL CAPS, may include numbers, spaces, underscores, and
     # cue punctuation (C1): a period, apostrophe, or hyphen, plus ``#`` for numbered
@@ -136,13 +144,13 @@ class FountainParser:
     # still falls through to action.
     # Examples: "JOHN", "MARY JANE", "ROBOT_1", "MR. SMITH", "O'BRIEN", "JEAN-CLAUDE",
     # "DEALER #2", "23 SKIDOO"
-    CHARACTER_PATTERN = re.compile(r"^(?=[A-Z0-9\s_.'#-]*[A-Z])[A-Z0-9][A-Z0-9\s_.'#-]*$")
+    CHARACTER_PATTERN = re.compile(rf"^{_CHAR_NAME}$")
 
     # Dual dialogue character: standard character name followed by caret (^)
     # Indicates this character speaks simultaneously with previous character
     # Shares the C1/C2 name rules: digit-first allowed, at least one letter required.
     # Example: "MARY^" for dual dialogue with preceding character
-    DUAL_CHARACTER_PATTERN = re.compile(r"^(?=[A-Z0-9\s_.'#-]*[A-Z])[A-Z0-9][A-Z0-9\s_.'#-]*\^\s*$")
+    DUAL_CHARACTER_PATTERN = re.compile(rf"^{_CHAR_NAME}\^\s*$")
 
     # Forced character name: prefixed with @ to override natural character detection
     # Captures the character name after the @ symbol
@@ -152,10 +160,11 @@ class FountainParser:
     # Trailing extension suffix on a forced cue (C7). Lifts a "(extension)" off the end
     # of a forced ``@`` name so it lands in metadata like a natural cue. The forced path
     # needs its own regex because a forced name may be any case (``@mcclane``), so the
-    # uppercase-gated CHARACTER_EXTENSION_PATTERN cannot match it. The name group is
-    # non-greedy so the trailing paren group binds to the last "(...)" before end.
+    # uppercase-gated CHARACTER_EXTENSION_PATTERN cannot match it. The name group excludes
+    # '(' so it cannot backtrack into the extension parens; this keeps matching linear on a
+    # crafted line with many unclosed parens instead of quadratic.
     # Example: "McClane (O.S.)" captures name "McClane" and extension "O.S.".
-    FORCED_EXTENSION_PATTERN = re.compile(r"^(.*?)\s*\(([^)]+)\)$")
+    FORCED_EXTENSION_PATTERN = re.compile(r"^([^(]*)\s*\(([^)]+)\)$")
 
     # Character with extensions: CHARACTER_NAME (extension) with optional dual dialogue caret
     # Captures character name, extension (V.O., O.S., CONT'D, etc.), and dual dialogue marker
@@ -163,7 +172,7 @@ class FountainParser:
     # required (the lookahead scans the name, stopping at the extension's open paren).
     # Examples: "JOHN (V.O.)", "MARY (O.S.)^", "NARRATOR (CONT'D)", "MR. SMITH (V.O.)"
     CHARACTER_EXTENSION_PATTERN = re.compile(
-        r"^(?=[A-Z0-9\s_.'#-]*[A-Z])([A-Z0-9][A-Z0-9\s_.'#-]*)\s*\(([^)]+)\)\s*(\^)?\s*$"
+        rf"^(?={_CHAR_CLASS}*[A-Z])([A-Z0-9]{_CHAR_CLASS}*)\s*\(([^)]+)\)\s*(\^)?\s*$"
     )
     # Transition Patterns
     # Standard transitions: ALL CAPS ending with colon, or specific fade patterns

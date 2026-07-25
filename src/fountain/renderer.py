@@ -372,14 +372,11 @@ class HTMLRenderer:
         """
         html_parts = ['<div class="fountain-title-page">']
 
-        # Render known fields in defined order
-        rendered_keys: set[str] = set()
+        # Render known fields in defined order. 'author' and 'authors' each render as their
+        # own author paragraph (Q10); the two renderers agree that both keys are represented.
         for key, css_class, tag, prefix, multiline in TITLE_PAGE_FIELD_ORDER:
             if key not in metadata:
                 continue
-            # Render 'author' and 'authors' each as its own author paragraph (Q10);
-            # the two renderers agree that both keys are represented.
-            rendered_keys.add(key)
             value_html = self._escape_html(metadata[key])
             if multiline:
                 value_html = value_html.replace("\n", "<br>")
