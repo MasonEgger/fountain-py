@@ -309,9 +309,6 @@ class FountainParser:
         # Diagnostics collected during parsing (unclosed constructs, orphan cues, empty
         # document). Reset each parse() and attached to the returned document.
         self.diagnostics: list[ValidationIssue] = []
-        # Raw (pre-strip) lines of the action paragraph currently being accumulated, so
-        # consecutive action lines merge into one element with their line breaks kept.
-        self._action_raw: list[str] = []
         # Source line index of the last line added to the current action paragraph; only a
         # directly-adjacent next line merges, so a boneyard gap does not join across it.
         self._action_last_line = -1
@@ -432,7 +429,6 @@ class FountainParser:
         self.note_buffer = []
         self.note_start_line = 0
         self.diagnostics = []
-        self._action_raw = []
         self._action_last_line = -1
         self._boneyard_pretext = ""
         self._boneyard_pretext_blank = False
@@ -495,17 +491,21 @@ class FountainParser:
                     and self.elements[-1].type == ElementType.ACTION
                 ):
                     # Continuation of the current action paragraph: keep the line break
-                    # (Fountain treats every carriage return as intentional) by re-deriving
-                    # the merged paragraph's clean text and spans over the joined raw lines.
-                    # Only a directly-adjacent line merges, so a boneyard gap does not join.
-                    self._action_raw.append(element.text)
-                    self._action_last_line = self.current_line
+                    # (Fountain treats every carriage return as intentional). Emphasis does
+                    # not cross line breaks, so extract THIS line independently and append it
+                    # with an offset, keeping paragraph assembly O(n) overall rather than
+                    # re-extracting the whole growing paragraph each line. Only a
+                    # directly-adjacent line merges, so a boneyard gap does not join.
                     paragraph = self.elements[-1]
-                    paragraph.text, paragraph.formatting = self._extract_inline("\n".join(self._action_raw))
+                    line_text, line_spans = self._extract_inline(element.text)
+                    offset = len(paragraph.text) + 1  # +1 for the joining newline
+                    paragraph.text = f"{paragraph.text}\n{line_text}"
+                    paragraph.formatting = paragraph.formatting + [
+                        FormatSpan(span.start + offset, span.end + offset, span.format_type) for span in line_spans
+                    ]
+                    self._action_last_line = self.current_line
                 else:
                     if element.type == ElementType.ACTION:
-                        # Start a new action paragraph; remember its raw text for merging.
-                        self._action_raw = [element.text]
                         self._action_last_line = self.current_line
                     self._finalize_inline(element)
                     self.elements.append(element)

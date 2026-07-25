@@ -809,6 +809,28 @@ class TestSpecCompliance:
         reparsed = self.parser.parse(rendered)
         assert [element.type for element in reparsed.elements] == [ElementType.TRANSITION]
 
+    def test_merged_action_emphasis_per_line_and_linear(self):
+        """Multi-line action keeps per-line emphasis and assembles in linear time.
+
+        Emphasis is line-bounded, so each continuation line is extracted independently and
+        offset, keeping paragraph assembly O(n) instead of re-extracting the whole buffer.
+        """
+        import time
+
+        from fountain.renderer import HTMLRenderer
+
+        doc = self.parser.parse("First **bold** line\nsecond *italic* line")
+        action = [element for element in doc.elements if element.type == ElementType.ACTION][-1]
+        html = HTMLRenderer()._apply_formatting(action.text, action.formatting)
+        assert "<strong>bold</strong>" in html
+        assert "<em>italic</em>" in html
+
+        # A large no-blank action block must assemble in roughly linear time.
+        big = "\n".join(["a **b** c"] * 3000)
+        start = time.perf_counter()
+        self.parser.parse(big)
+        assert time.perf_counter() - start < 2.0
+
     def test_consecutive_action_lines_form_one_paragraph(self):
         """Consecutive non-blank action lines join into one ACTION element, line breaks kept.
 
