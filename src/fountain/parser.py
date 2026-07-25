@@ -299,6 +299,11 @@ class FountainParser:
         # Source line index of the last line added to the current action paragraph; only a
         # directly-adjacent next line merges, so a boneyard gap does not join across it.
         self._action_last_line = -1
+        # Text before a `/*` that opened a still-open multi-line boneyard. A boneyard
+        # removes the intervening newlines too, so this rejoins the post-close remainder on
+        # one line rather than becoming a separate element with a spurious line break.
+        self._boneyard_pretext = ""
+        self._boneyard_pretext_blank = False
 
     def parse(self, text: str) -> FountainDocument:
         """Parse Fountain text and return a FountainDocument.
@@ -413,6 +418,8 @@ class FountainParser:
         self.diagnostics = []
         self._action_raw = []
         self._action_last_line = -1
+        self._boneyard_pretext = ""
+        self._boneyard_pretext_blank = False
 
         # First pass: extract title page
         metadata = self._parse_title_page()
@@ -496,6 +503,15 @@ class FountainParser:
         # leftover in_note state.
         if self.in_note and not self._validating:
             self._flush_open_note_as_text()
+
+        # An unclosed boneyard buffered its pre-text on the opening line; emit it so the
+        # body text before '/*' is not lost when no '*/' ever arrives.
+        if self.in_boneyard and self._boneyard_pretext and not self._validating:
+            pretext_element = self._parse_line(self._boneyard_pretext, self._boneyard_pretext_blank)
+            self._boneyard_pretext = ""
+            if pretext_element:
+                self._finalize_inline(pretext_element)
+                self.elements.append(pretext_element)
 
         # Post-process for dual dialogue pairing
         self._process_dual_dialogue()
@@ -879,13 +895,21 @@ class FountainParser:
         if self.in_boneyard:
             close_index = line.find("*/")
             if close_index != -1:
-                # The first */ closes the boneyard. Everything up to and including
-                # it is comment; the remainder of the line is reprocessed as body so
-                # trailing content on the close line is not dropped.
+                # The first */ closes the boneyard. Everything up to and including it is
+                # comment; the buffered pre-text (from the opening line) and the remainder
+                # after the */ rejoin on one line, since the boneyard removed the newlines
+                # between them.
                 self.in_boneyard = False
                 remainder = line[close_index + 2 :].strip()
-                if remainder:
-                    return self._parse_line(remainder, had_blank_line_before)
+                pretext = self._boneyard_pretext
+                blank_before = self._boneyard_pretext_blank
+                self._boneyard_pretext = ""
+                if pretext and remainder:
+                    combined = f"{pretext} {remainder}"
+                else:
+                    combined = pretext or remainder
+                if combined:
+                    return self._parse_line(combined, blank_before)
             return None  # Skip all lines inside boneyard
 
         # Check for single-line boneyard (block comments) - handle before multiline start.
@@ -928,11 +952,10 @@ class FountainParser:
             # branch above. boneyard_start_line feeds the unclosed-boneyard
             # diagnostic in validate() when no */ ever arrives.
             self.boneyard_start_line = self.current_line + 1
-            pre_text = line[:open_index].strip()
-            if pre_text:
-                pre_element = self._parse_line(pre_text, had_blank_line_before)
-                self.in_boneyard = True
-                return pre_element
+            # Buffer any pre-text so it rejoins the post-close remainder on one line rather
+            # than becoming a separate element with a spurious line break.
+            self._boneyard_pretext = line[:open_index].strip()
+            self._boneyard_pretext_blank = had_blank_line_before
             self.in_boneyard = True
             return None  # Skip boneyard start line
 

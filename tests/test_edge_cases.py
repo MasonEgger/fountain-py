@@ -1608,8 +1608,12 @@ More action here."""
 
     # -- Step 4.3: Mid-Line Boneyard Opener (E4) --
 
-    def test_midline_boneyard_opener_no_leak(self):
-        """A mid-line `/*` opener emits its pre-text as action and hides the interior (E4)."""
+    def test_midline_boneyard_opener_rejoins_and_hides_interior(self):
+        """A mid-line `/*` opener rejoins its pre-text with the post-close text (E4).
+
+        The boneyard removes the interior lines and the newlines between them, so the
+        pre-text and the text after the closing `*/` form one action line.
+        """
         text = """He waves /* begin cut
 This interior should be cut
 and this line too
@@ -1622,20 +1626,22 @@ More action here."""
         doc = self.parser.parse(text)
         texts = [element.text for element in doc.elements]
 
-        # The text before the opener survives as exactly one ACTION element.
-        assert texts.count("He waves") == 1
-        opener_actions = [
-            element for element in doc.elements if element.type == ElementType.ACTION and element.text == "He waves"
-        ]
-        assert len(opener_actions) == 1
+        # Pre-text and post-close text rejoin as a single action line.
+        assert "He waves And we are back." in texts
         # No interior line leaks anywhere in the output.
         assert not any("begin cut" in element_text for element_text in texts)
         assert not any("This interior should be cut" in element_text for element_text in texts)
         assert not any("and this line too" in element_text for element_text in texts)
-        # Text after the close survives, and so does the following action.
-        assert "And we are back." in texts
+        # The following action paragraphs survive.
         assert "The scene continues." in texts
         assert "More action here." in texts
+
+    def test_multiline_boneyard_rejoins_surrounding_text(self):
+        """A boneyard spanning a line break rejoins the surrounding text on one line."""
+        doc = self.parser.parse("Before /* boned\nstill boned */ after")
+        actions = [element for element in doc.elements if element.type == ElementType.ACTION]
+        assert len(actions) == 1
+        assert actions[0].text == "Before after"
 
     # -- Step 4.4: Mid-Line Boneyard Stripped from Text (E1) --
 
