@@ -89,6 +89,23 @@ class TestHTMLRenderer:
         assert "&quot;quotes&quot;" in html
         assert "&#x27;apostrophe&#x27;" in html
 
+    def test_character_extension_is_html_escaped(self):
+        """A character extension is HTML-escaped, not injected raw into the page (XSS guard)."""
+        document = FountainParser().parse("INT. HOUSE - DAY\n\nBOB (<script>)\nHi.")
+        html = self.renderer.render(document)
+        assert "<script>" not in html
+        assert "&lt;script&gt;" in html
+
+    def test_scene_number_is_html_escaped(self):
+        """A scene number is HTML-escaped in the rendered heading (defensive escaping)."""
+        element = FountainElement(
+            ElementType.SCENE_HEADING, "INT. HOUSE - DAY", [], 1, metadata={"scene_number": "<b>"}
+        )
+        document = FountainDocument([element])
+        html = self.renderer.render(document)
+        assert "<b>" not in html
+        assert "&lt;b&gt;" in html
+
     def test_metadata_rendering(self):
         metadata = {
             "title": "My Great Script",

@@ -433,7 +433,8 @@ class HTMLRenderer:
         if element.type == ElementType.SCENE_HEADING:
             scene_html = f'<div class="fountain-scene-heading">{text}'
             if element.metadata and "scene_number" in element.metadata:
-                scene_html += f' <span class="fountain-scene-number">#{element.metadata["scene_number"]}#</span>'
+                scene_number = self._escape_html(str(element.metadata["scene_number"]))
+                scene_html += f' <span class="fountain-scene-number">#{scene_number}#</span>'
             scene_html += "</div>"
             return scene_html
         elif element.type == ElementType.ACTION:
@@ -444,7 +445,8 @@ class HTMLRenderer:
         elif element.type == ElementType.CHARACTER:
             char_html = f'<div class="fountain-character">{text}'
             if element.metadata and "extension" in element.metadata:
-                char_html += f' <span class="fountain-character-extension">({element.metadata["extension"]})</span>'
+                extension = self._escape_html(str(element.metadata["extension"]))
+                char_html += f' <span class="fountain-character-extension">({extension})</span>'
             elif element.metadata and element.metadata.get("continuation"):
                 char_html += ' <span class="fountain-character-continuation">(CONT\'D)</span>'
             char_html += "</div>"
