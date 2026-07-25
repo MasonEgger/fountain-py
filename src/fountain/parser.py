@@ -1026,9 +1026,9 @@ class FountainParser:
         if self.FORCED_ACTION_PATTERN.match(line):
             # Strip only the leading ``!`` forcing marker; the indentation that
             # follows it is part of the action text (D9). Trailing whitespace is
-            # dropped and tabs convert to four spaces, matching how normal action
-            # text is stored (A5), so forced and natural action indent consistently.
-            text = self.FORCED_ACTION_PATTERN.sub(r"\1", line).rstrip().replace("\t", "    ")
+            # dropped. Leading tabs are retained verbatim (the spec keeps tabs in
+            # Action); the renderer converts them to spacing for display.
+            text = self.FORCED_ACTION_PATTERN.sub(r"\1", line).rstrip()
             return FountainElement(
                 type=ElementType.ACTION,
                 text=text,
@@ -1275,10 +1275,11 @@ class FountainParser:
         # Default to action
         return FountainElement(
             type=ElementType.ACTION,
-            # Preserve leading indentation, converting each tab to four spaces (A5)
-            # so the stored text carries spaces rather than a raw tab. This keeps
-            # indentation consistent with the space-based offsets D8 computes.
-            text=original_line.rstrip().replace("\t", "    "),
+            # Preserve leading indentation verbatim, tabs included (the Fountain spec
+            # retains tabs and spaces in Action). The renderer converts a tab to spacing
+            # for display; spans index into this stored text, so a retained tab counts as
+            # one character.
+            text=original_line.rstrip(),
             formatting=self._extract_formatting(line),
             line_number=self.current_line + 1,
         )

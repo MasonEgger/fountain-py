@@ -176,11 +176,11 @@ class TestHTMLRenderer:
         assert '<div class="fountain-action">          Deep indent card.</div>' in html
 
     def test_tab_indented_action_renders_four_space_indentation(self):
-        """A tab-indented action line renders with its (parse-time) four-space indent present (A5/D10)."""
+        """A tab-indented action retains the tab in text and renders four nbsp per tab (D10)."""
         parser = FountainParser()
         document = parser.parse("INT. HOUSE - DAY\n\n\tTabbed card.")
         html = self.renderer.render(document)
-        assert '<div class="fountain-action">    Tabbed card.</div>' in html
+        assert '<div class="fountain-action">&nbsp;&nbsp;&nbsp;&nbsp;Tabbed card.</div>' in html
 
     def test_scene_number_rendering(self):
         """Test that scene numbers are rendered correctly."""

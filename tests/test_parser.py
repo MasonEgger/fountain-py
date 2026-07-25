@@ -309,8 +309,8 @@ Hi there!
         assert elements[5].type == ElementType.ACTION
         assert elements[5].text == "Even after dialogue, this is forced action."
 
-    def test_action_tab_converted_to_spaces(self):
-        """Test that leading tabs in action text convert to four spaces each (A5)."""
+    def test_action_tabs_retained(self):
+        """Leading tabs in action text are retained verbatim; adjacent lines merge."""
         text = """JOHN
 Hello!
 
@@ -327,11 +327,11 @@ Regular action without tabs."""
         assert elements[0].type == ElementType.CHARACTER
         assert elements[1].type == ElementType.DIALOGUE
 
-        # Each tab becomes four spaces; the three adjacent lines keep their line breaks.
+        # Tabs are kept verbatim; the three adjacent lines keep their line breaks.
         assert elements[2].type == ElementType.ACTION
         assert elements[2].text == (
-            "    This action is indented with a tab.\n"
-            "        This action is indented with two tabs.\n"
+            "\tThis action is indented with a tab.\n"
+            "\t\tThis action is indented with two tabs.\n"
             "Regular action without tabs."
         )
 

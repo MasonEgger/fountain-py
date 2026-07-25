@@ -640,30 +640,33 @@ class TestSpecCompliance:
 
     # -- Step 3: Tab Conversion Verification --
 
-    def test_tab_converted_to_four_spaces_in_action(self):
-        """Parser converts a leading tab in action text to four spaces (A5)."""
+    def test_tab_retained_in_action(self):
+        """A leading tab in action text is retained verbatim (Fountain keeps tabs)."""
         doc = self.parser.parse("\tIndented action")
         assert doc.elements[0].type == ElementType.ACTION
-        assert doc.elements[0].text == "    Indented action"
+        assert doc.elements[0].text == "\tIndented action"
 
-    def test_double_tab_converted_to_eight_spaces_in_action(self):
-        """Parser converts each tab in action text to four spaces (A5)."""
+    def test_double_tab_retained_in_action(self):
+        """Each leading tab in action text is retained verbatim."""
         doc = self.parser.parse("\t\tDouble indented")
         assert doc.elements[0].type == ElementType.ACTION
-        assert doc.elements[0].text == "        Double indented"
+        assert doc.elements[0].text == "\t\tDouble indented"
 
-    def test_tab_action_yields_four_spaces(self):
-        """A tab-indented action line yields text starting with four spaces (A5).
+    def test_tab_action_renders_indentation(self):
+        """A tab-indented action retains the tab in text and renders four nbsp per tab.
 
-        Tabs in Action convert to four spaces in the stored element text at parse
-        time, so downstream consumers (and formatting-span offsets under D8) see the
-        indentation as spaces rather than a raw tab.
+        The Fountain spec keeps tabs in Action. The stored element text keeps the raw
+        tab (so a span offset counts it as one character), and the HTML renderer converts
+        each tab to four ``&nbsp;`` entities for a consistent visible indent.
         """
+        from fountain.renderer import HTMLRenderer
+
         doc = self.parser.parse("\tIndented action line")
         assert doc.elements[0].type == ElementType.ACTION
-        assert doc.elements[0].text.startswith("    ")
-        assert doc.elements[0].text == "    Indented action line"
-        assert "\t" not in doc.elements[0].text
+        assert doc.elements[0].text == "\tIndented action line"
+
+        html = HTMLRenderer().render(doc)
+        assert "&nbsp;&nbsp;&nbsp;&nbsp;Indented action line" in html
 
     def test_tab_stripped_from_character_name(self):
         """Tabs in character names are stripped by .strip()."""
@@ -1050,14 +1053,13 @@ class TestSpecCompliance:
 
         The inline note sits at the END of the line, so removing it must not disturb the
         deliberate leading indent. Only the seam a FRONT note leaves is dropped; a
-        trailing note leaves the leading indent intact. The retained tab indent is
-        converted to four spaces in the stored text (A5).
+        trailing note leaves the leading indent intact. The tab indent is retained
+        verbatim in the stored text.
         """
         tab_doc = self.parser.parse("\tIndented action [[note]]")
         tab_actions = [e for e in tab_doc.elements if e.type == ElementType.ACTION]
         assert len(tab_actions) == 1
-        assert tab_actions[0].text.startswith("    ")
-        assert tab_actions[0].text == "    Indented action"
+        assert tab_actions[0].text == "\tIndented action"
         assert "[[" not in tab_actions[0].text
 
         space_doc = self.parser.parse("    Spaced action [[note]]")
@@ -1481,10 +1483,10 @@ class TestSpecCompliance:
         assert doc.elements[0].type == ElementType.ACTION
         assert doc.elements[0].text == "plain forced action"
 
-        # A tab after the marker converts to four spaces, consistent with normal action (A5).
+        # A tab after the marker is retained verbatim, consistent with normal action.
         doc = self.parser.parse("!\tINDENTED")
         assert doc.elements[0].type == ElementType.ACTION
-        assert doc.elements[0].text == "    INDENTED"
+        assert doc.elements[0].text == "\tINDENTED"
 
         # Emphasis inside an indented forced action keeps the indent outside the span (D4/D8).
         doc = self.parser.parse("!    *italic*")

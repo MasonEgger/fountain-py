@@ -220,8 +220,8 @@ Ruling (2026-07-03): everything gets fixed before we ship; high, medium, and low
 - **A4c (low).** Lyrics must round-trip without accreting delimiters; the Fountain lyric marker is a leading `~` only (src/fountain/renderer.py:876-877).
   Acceptance: `parse(FountainRenderer().render(parse("~La la la")))` yields a LYRICS element with text `La la la` and no trailing tilde.
   (Found during spec verification: today the text comes back as `La la la~`.)
-- **A5 (medium).** Tabs in Action must convert to four spaces in element text at parse time, and indentation must be visible in HTML output (src/fountain/parser.py:808-813; src/fountain/renderer.py:96-99, 466-469).
-  Acceptance: a tab-indented action line yields `element.text` starting with four spaces; rendered HTML preserves the indentation visually (e.g. `white-space: pre-wrap` on `.fountain-action` or equivalent).
+- **A5 (medium).** Tabs in Action are retained verbatim in element text (the Fountain spec keeps tabs and spaces in Action); the renderer converts each tab to four `&nbsp;` entities so the indentation is visible in HTML output (src/fountain/renderer.py:442-446).
+  Acceptance: a tab-indented action line yields `element.text` keeping the raw tab; rendered HTML shows four `&nbsp;` per tab.
   Shares a fix surface with D10.
 
 ### Group B: Scene Headings
