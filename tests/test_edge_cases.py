@@ -1617,6 +1617,20 @@ Hello /* hidden */ world."""
         blank_types = [element.type for element in blank_doc.elements]
         assert two_space_types != blank_types
 
+    def test_unclosed_note_at_eof_recovers_text(self):
+        """An unclosed ``[[`` note at end of input recovers its lines as action.
+
+        Without a trailing blank line to break the note, the buffered bracket lines
+        reached end of input still open and were silently dropped, taking the whole rest
+        of the document with them (zero elements). The recovery re-emits them as action so
+        the body text survives.
+        """
+        doc = self.parser.parse("[[note start\nAction after.\nMore lines.")
+        assert len(doc.elements) > 0
+        combined = " ".join(element.text for element in doc.elements)
+        assert "Action after." in combined
+        assert "More lines." in combined
+
     def test_two_space_note_line_no_empty_dialogue(self):
         """A two-space line inside an open note injects no empty DIALOGUE element (E8).
 

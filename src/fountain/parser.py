@@ -459,6 +459,13 @@ class FountainParser:
             previous_line_was_blank = False
             self.current_line += 1
 
+        # A note that opened with '[[' but reached end of input never closed. Recover its
+        # buffered lines as action rather than dropping them (and the rest of the body).
+        # Skip while validating so validate() can still report the unclosed note from the
+        # leftover in_note state.
+        if self.in_note and not self._validating:
+            self._flush_open_note_as_text()
+
         # Post-process for dual dialogue pairing
         self._process_dual_dialogue()
 
