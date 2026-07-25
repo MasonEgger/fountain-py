@@ -34,9 +34,11 @@ Fountain's unique title page format followed by screenplay body content:
 """
 
 import re
+import string
+from dataclasses import dataclass
 
 from fountain.document import FountainDocument
-from fountain.elements import ElementType, FormatSpan, FountainElement, MetadataValue, ValidationIssue
+from fountain.elements import ElementType, FormatSpan, FormatType, FountainElement, MetadataValue, ValidationIssue
 
 # Diagnostic codes emitted by FountainParser.validate(). Each string is a stable
 # machine-readable contract; keep them here as the single source of truth so the
@@ -45,6 +47,30 @@ CODE_UNCLOSED_BONEYARD = "unclosed-boneyard"
 CODE_UNCLOSED_NOTE = "unclosed-note"
 CODE_ORPHAN_CHARACTER_CUE = "orphan-character-cue"
 CODE_EMPTY_DOCUMENT = "empty-document"
+
+
+@dataclass
+class _DelimiterRun:
+    """A maximal run of one emphasis delimiter character (``*`` or ``_``).
+
+    Tracks how many of the run's delimiter characters have been consumed from each
+    end so a run that acts as both a closer (consuming from the left, adjacent to the
+    preceding content) and an opener (consuming from the right, adjacent to the
+    following content) reports correct span offsets.
+    """
+
+    position: int
+    char: str
+    length: int
+    can_open: bool
+    can_close: bool
+    left_used: int = 0
+    right_used: int = 0
+
+    @property
+    def available(self) -> int:
+        """Number of delimiter characters not yet consumed from either end."""
+        return self.length - self.left_used - self.right_used
 
 
 class FountainParser:
@@ -222,37 +248,11 @@ class FountainParser:
         CHARACTER_EXTENSION_PATTERN,
     )
 
-    # Inline Formatting Patterns
-    # These patterns handle Fountain's inline text formatting similar to Markdown
-
-    # Bold + Italic: ***text*** - three asterisks on each side
-    # Highest precedence formatting, captures text between triple asterisks
-    # The (?<!\*)/(?!\*) guards keep runs of four or more asterisks from matching, and the
-    # inner [^*\s]...[^*\s] guard mirrors ITALIC_PATTERN: a space adjacent to either
-    # delimiter defeats the emphasis (defect D7), so "*** word***" produces no span.
-    # Example: "***very important***" renders as bold and italic
-    BOLD_ITALIC_PATTERN = re.compile(r"\*\*\*([^*\s](?:[^*]*[^*\s])?)\*\*\*")
-
-    # Bold: **text** - two asterisks on each side
-    # Captures text between double asterisks, excludes if part of triple asterisks
-    # The inner [^*\s]...[^*\s] guard mirrors ITALIC_PATTERN so a space adjacent to either
-    # delimiter defeats the emphasis (defect D7): "** word**" produces no span.
-    # Example: "**important**" renders as bold text
-    BOLD_PATTERN = re.compile(r"\*\*([^*\s](?:[^*]*[^*\s])?)\*\*")
-
-    # Italic: *text* - single asterisks, with complex lookahead/lookbehind
-    # Negative lookbehind (?<!\*) ensures not preceded by asterisk (avoids **text** collision)
-    # Negative lookahead (?!\*) ensures not followed by asterisk
-    # Requires non-whitespace start/end to avoid false positives
-    # Example: "*emphasis*" renders as italic text
-    ITALIC_PATTERN = re.compile(r"(?<!\*)\*([^*\s](?:[^*]*[^*\s])?)\*(?!\*)")
-
-    # Underline: _text_ - underscores on each side
-    # Captures text between underscores for underline formatting
-    # The inner [^_\s]...[^_\s] guard mirrors ITALIC_PATTERN so a space adjacent to either
-    # delimiter defeats the emphasis (defect D7): "_ kilos_" produces no span.
-    # Example: "_underlined_" renders as underlined text
-    UNDERLINE_PATTERN = re.compile(r"_([^_\s](?:[^_]*[^_\s])?)_")
+    # Inline emphasis is matched by a delimiter-run scanner (``_find_emphasis_spans``)
+    # rather than regexes: asterisk and underscore emphasis nests and shares runs
+    # (``*a **b** c*``, ``**bold***italic*``), which a regex content class cannot span.
+    # The scanner applies CommonMark-style flanking rules so a delimiter adjacent to a
+    # space does not emphasize and an intraword underscore stays literal.
 
     # Delimiter width (characters on each side) per format type. Used by D4 to strip
     # the delimiters from stored text and re-index spans onto the emphasized content.
@@ -1445,18 +1445,80 @@ class FountainParser:
         formatting_text = text.replace("\\*", "\x00").replace("\\_", "\x01").replace("\\\\", "\x02")
         return display_text, formatting_text
 
+    # Characters treated as punctuation for CommonMark-style flanking decisions.
+    _PUNCTUATION: frozenset[str] = frozenset(string.punctuation)
+
+    @staticmethod
+    def _is_left_flanking(before: str | None, after: str | None) -> bool:
+        """Whether a delimiter run can begin emphasis (content follows it).
+
+        Left-flanking means the run is not followed by whitespace, and either the
+        following character is not punctuation or the preceding character is
+        whitespace/punctuation/boundary. Boundaries (``None``) count as whitespace.
+        """
+        if after is None or after.isspace():
+            return False
+        if after not in FountainParser._PUNCTUATION:
+            return True
+        return before is None or before.isspace() or before in FountainParser._PUNCTUATION
+
+    @staticmethod
+    def _is_right_flanking(before: str | None, after: str | None) -> bool:
+        """Whether a delimiter run can end emphasis (content precedes it)."""
+        if before is None or before.isspace():
+            return False
+        if before not in FountainParser._PUNCTUATION:
+            return True
+        return after is None or after.isspace() or after in FountainParser._PUNCTUATION
+
+    def _scan_delimiter_runs(self, formatting_text: str) -> list[_DelimiterRun]:
+        """Split the text into maximal ``*`` / ``_`` runs with open/close eligibility.
+
+        Applies flanking rules to each run. Underscores additionally follow Markdown's
+        intraword rule (a ``_`` bordered by word characters on both sides neither opens
+        nor closes), so ``some_variable_name`` keeps its underscores.
+
+        Args:
+            formatting_text: Text with backslash escapes replaced by placeholder chars.
+
+        Returns:
+            The delimiter runs in left-to-right order.
+        """
+        runs: list[_DelimiterRun] = []
+        index = 0
+        length = len(formatting_text)
+        while index < length:
+            char = formatting_text[index]
+            if char not in ("*", "_"):
+                index += 1
+                continue
+            end = index
+            while end < length and formatting_text[end] == char:
+                end += 1
+            before = formatting_text[index - 1] if index > 0 else None
+            after = formatting_text[end] if end < length else None
+            left_flank = self._is_left_flanking(before, after)
+            right_flank = self._is_right_flanking(before, after)
+            if char == "*":
+                can_open, can_close = left_flank, right_flank
+            else:
+                before_punct = before is not None and before in self._PUNCTUATION
+                after_punct = after is not None and after in self._PUNCTUATION
+                can_open = left_flank and (not right_flank or before_punct)
+                can_close = right_flank and (not left_flank or after_punct)
+            runs.append(_DelimiterRun(index, char, end - index, can_open, can_close))
+            index = end
+        return runs
+
     def _find_emphasis_spans(self, formatting_text: str) -> list[FormatSpan]:
-        """Find full-match emphasis spans (delimiters included) in placeholder text.
+        """Find full-match emphasis spans (delimiters included) via a delimiter stack.
 
-        Runs the bold-italic, bold, italic, and underline patterns in precedence order
-        against ``formatting_text`` (escapes already replaced by placeholders) and returns
-        FormatSpan entries whose start/end bracket the whole match, delimiters included.
-
-        Suppression is not a Fountain concept: bold, italic, and underline compose freely
-        so the renderer can nest them (D6). The single guard kept here stops the bold
-        pattern from re-matching the ``**text**`` inside a ``***text***`` bold-italic span,
-        which would otherwise double-count the same run; the bold-italic span already
-        carries that formatting.
+        Scans left to right, pushing runs that can open onto a stack and matching each
+        run that can close against the nearest compatible opener. Bold-italic (``***``),
+        bold (``**``), and italic (``*``) draw from the same asterisk runs, so a run can
+        act as both a closer and an opener (``**bold***italic*``); left/right consumption
+        is tracked per run so each span's offsets bracket exactly its own delimiters.
+        Unmatched delimiters are left in place and stay literal.
 
         Args:
             formatting_text: Text with backslash escapes replaced by placeholder chars.
@@ -1465,30 +1527,58 @@ class FountainParser:
             List of full-match FormatSpan objects indexed into ``formatting_text``.
         """
         spans: list[FormatSpan] = []
-
-        # Find bold-italic formatting first (***text***)
-        for match in self.BOLD_ITALIC_PATTERN.finditer(formatting_text):
-            spans.append(FormatSpan(match.start(), match.end(), "bold_italic"))
-
-        # Find bold formatting, skipping the ``**text**`` nested inside a bold-italic span.
-        for match in self.BOLD_PATTERN.finditer(formatting_text):
-            inside_bold_italic = any(
-                span.start <= match.start() < span.end or span.start < match.end() <= span.end
-                for span in spans
-                if span.format_type == "bold_italic"
-            )
-            if not inside_bold_italic:
-                spans.append(FormatSpan(match.start(), match.end(), "bold"))
-
-        # Find italic formatting; it composes with bold and underline (no suppression).
-        for match in self.ITALIC_PATTERN.finditer(formatting_text):
-            spans.append(FormatSpan(match.start(), match.end(), "italic"))
-
-        # Find underline formatting; it composes with every other span (no suppression).
-        for match in self.UNDERLINE_PATTERN.finditer(formatting_text):
-            spans.append(FormatSpan(match.start(), match.end(), "underline"))
-
+        openers: list[_DelimiterRun] = []
+        for run in self._scan_delimiter_runs(formatting_text):
+            if run.can_close:
+                self._close_against_openers(run, openers, spans)
+            if run.available > 0 and run.can_open:
+                openers.append(run)
         return spans
+
+    def _close_against_openers(
+        self, closer: _DelimiterRun, openers: list[_DelimiterRun], spans: list[FormatSpan]
+    ) -> None:
+        """Match a closing run against the nearest compatible opener(s), emitting spans.
+
+        Consumes as many delimiters as pair up: bold-italic (3), bold (2), or italic (1)
+        for asterisks, always underline (1) for underscores. Openers nested inside a
+        newly matched pair are discarded so they cannot span across it.
+
+        Args:
+            closer: The run that can close emphasis; mutated as its delimiters are used.
+            openers: Stack of still-open runs; matched/exhausted entries are removed.
+            spans: Accumulator that receives each full-match span produced here.
+        """
+        while closer.available > 0:
+            match_index = None
+            for index in range(len(openers) - 1, -1, -1):
+                candidate = openers[index]
+                if candidate.char == closer.char and candidate.available > 0:
+                    match_index = index
+                    break
+            if match_index is None:
+                return
+            opener = openers[match_index]
+            del openers[match_index + 1 :]
+            width: int
+            format_type: FormatType
+            if closer.char == "_":
+                width, format_type = 1, "underline"
+            else:
+                pair = min(opener.available, closer.available)
+                if pair >= 3:
+                    width, format_type = 3, "bold_italic"
+                elif pair >= 2:
+                    width, format_type = 2, "bold"
+                else:
+                    width, format_type = 1, "italic"
+            start = opener.position + opener.length - opener.right_used - width
+            opener.right_used += width
+            end = closer.position + closer.left_used + width
+            closer.left_used += width
+            spans.append(FormatSpan(start, end, format_type))
+            if opener.available == 0:
+                openers.pop(match_index)
 
     def _extract_inline(self, text: str) -> tuple[str, list[FormatSpan]]:
         """Resolve inline markup: strip emphasis delimiters and return content spans (D4).

@@ -1279,6 +1279,63 @@ class TestSpecCompliance:
         italic_valid = spans_of("*word*", "italic")
         assert len(italic_valid) == 1
 
+    # -- Adversarial review: emphasis nesting, intraword underscore, stray delimiters --
+
+    def test_nested_same_delimiter_emphasis(self):
+        """An italic phrase containing a bold word (both asterisks) composes cleanly.
+
+        The old regex span-finder could not cross the inner ``**`` inside an outer
+        ``*...*`` run, so the outer italic was dropped and its delimiters leaked into
+        the text as literal asterisks. The delimiter-stack scanner nests them.
+        """
+        from fountain.renderer import HTMLRenderer
+
+        doc = self.parser.parse("Body line.\n\n*italic **both** italic*")
+        action = [element for element in doc.elements if element.type == ElementType.ACTION][-1]
+        assert action.text == "italic both italic"
+        html = HTMLRenderer()._apply_formatting(action.text, action.formatting)
+        assert html == "<em>italic <strong>both</strong> italic</em>"
+        assert "*" not in html
+
+    def test_adjacent_bold_italic_shared_run(self):
+        """``**bold***italic*`` splits the shared ``***`` run into bold close + italic open."""
+        from fountain.renderer import HTMLRenderer
+
+        doc = self.parser.parse("Body line.\n\n**bold***italic*")
+        action = [element for element in doc.elements if element.type == ElementType.ACTION][-1]
+        assert action.text == "bolditalic"
+        html = HTMLRenderer()._apply_formatting(action.text, action.formatting)
+        assert html == "<strong>bold</strong><em>italic</em>"
+        assert "*" not in html
+
+    def test_intraword_underscore_is_literal(self):
+        """Underscores inside a word are literal, per Markdown's intraword rule.
+
+        ``some_variable_name`` and ``my_cool_script.py`` must keep their underscores and
+        produce no underline span, rather than deleting the underscores and underlining
+        the middle token.
+        """
+        from fountain.renderer import HTMLRenderer
+
+        for source in ("some_variable_name", "my_cool_script.py"):
+            doc = self.parser.parse(f"Body line.\n\n{source}")
+            action = [element for element in doc.elements if element.type == ElementType.ACTION][-1]
+            assert action.text == source
+            assert action.formatting == []
+            html = HTMLRenderer()._apply_formatting(action.text, action.formatting)
+            assert "<u>" not in html
+
+    def test_quadruple_asterisks_leave_no_stray_delimiters(self):
+        """A run of four asterisks on each side consumes cleanly with no literal ``*`` left."""
+        from fountain.renderer import HTMLRenderer
+
+        doc = self.parser.parse("Body line.\n\n****word****")
+        action = [element for element in doc.elements if element.type == ElementType.ACTION][-1]
+        assert "*" not in action.text
+        html = HTMLRenderer()._apply_formatting(action.text, action.formatting)
+        assert "*" not in html
+        assert "word" in html
+
     # -- Step 8.7: D8 Span Offsets Computed Against Stored Text Including Indentation --
 
     def test_span_offset_includes_indentation(self):
