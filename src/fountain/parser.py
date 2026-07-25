@@ -995,17 +995,28 @@ class FountainParser:
 
         # Handle multi-line notes
         if self.in_note:
-            self.note_buffer.append(original_line)
-            if "]]" in line:
-                self.in_note = False
-                note_text = "\n".join(self.note_buffer)
-                return FountainElement(
-                    type=ElementType.NOTE,
-                    text=note_text,
-                    formatting=[],
-                    line_number=self.note_start_line,
-                )
-            return None
+            close_index = line.find("]]")
+            if close_index == -1:
+                # Still inside the note; the whole line is note content.
+                self.note_buffer.append(original_line)
+                return None
+            # The note closes here. Buffer only up to and including ']]'; any text after it
+            # is body content and must not be swallowed into the (hidden) note.
+            self.in_note = False
+            self.note_buffer.append(line[: close_index + 2])
+            note_element = FountainElement(
+                type=ElementType.NOTE,
+                text="\n".join(self.note_buffer),
+                formatting=[],
+                line_number=self.note_start_line,
+            )
+            remainder = line[close_index + 2 :].strip()
+            if remainder:
+                # Emit the note now, then reprocess the trailing body text on this line.
+                self._finalize_inline(note_element)
+                self.elements.append(note_element)
+                return self._parse_line(remainder, had_blank_line_before)
+            return note_element
 
         # Check for page breaks
         if self.PAGE_BREAK_PATTERN.match(line):
@@ -1035,10 +1046,16 @@ class FountainParser:
 
         # Check for multi-line note start: line has [[ but no closing ]]
         if "[[" in line and "]]" not in line:
+            open_index = line.find("[[")
+            # Classify any text before '[[' as body BEFORE entering note state, so the
+            # recursive call is not itself swallowed by the in_note branch above.
+            pre_text = line[:open_index].strip()
+            pre_element = self._parse_line(pre_text, had_blank_line_before) if pre_text else None
             self.in_note = True
-            self.note_buffer = [original_line]
             self.note_start_line = self.current_line + 1
-            return None
+            # Buffer only the note portion (from '[['); the pre-text is already handled.
+            self.note_buffer = [line[open_index:]]
+            return pre_element
 
         # Strip inline notes from the line text
         if note_matches:

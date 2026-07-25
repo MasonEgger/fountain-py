@@ -1660,6 +1660,21 @@ More action here."""
         assert len(actions) == 1
         assert actions[0].text == "Before after"
 
+    def test_multiline_note_preserves_surrounding_text(self):
+        """Body text before ``[[`` and after ``]]`` of a multi-line note survives.
+
+        The multi-line note buffered the whole opening and closing lines, absorbing the
+        surrounding body text into the (hidden) note and losing it from the output.
+        """
+        doc = self.parser.parse("KEEPME [[note\ncloses]]\n\nAfter.")
+        assert any(element.type == ElementType.NOTE for element in doc.elements)
+        # KEEPME survives as a visible (non-note) element rather than being absorbed.
+        assert any(element.type != ElementType.NOTE and "KEEPME" in element.text for element in doc.elements)
+
+        tail_doc = self.parser.parse("[[opens\ncloses]] TAIL")
+        assert any(element.type == ElementType.NOTE for element in tail_doc.elements)
+        assert any(element.type != ElementType.NOTE and "TAIL" in element.text for element in tail_doc.elements)
+
     def test_unclosed_boneyard_recovers_pretext(self):
         """An unclosed boneyard emits the body text before the '/*' and reports the issue."""
         doc = self.parser.parse("Some real action.\ntext /* dangles")
