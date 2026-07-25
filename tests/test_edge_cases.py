@@ -752,6 +752,21 @@ class TestSpecCompliance:
             for element in doc.elements
         )
 
+    def test_title_case_prose_colon_line_is_action(self):
+        """A capitalized prose line with a colon and a sentence value is action, not metadata.
+
+        The capitalized-label guard alone let ``Warning: stay back.`` open a bogus key; a
+        value ending in sentence punctuation marks it as body prose instead.
+        """
+        for source in ("Warning: stay back.", "Meanwhile: the clock ticks.", "Jim: Hello there!"):
+            doc = self.parser.parse(f"{source}\n\nINT. HOUSE - DAY")
+            assert doc.metadata == {}, f"{source!r} should be body, got {doc.metadata}"
+            assert any(element.type == ElementType.ACTION and source in element.text for element in doc.elements)
+
+        # A real capitalized custom key (no sentence punctuation) still opens the title page.
+        keyed = self.parser.parse("Custom Field: Custom Value\n\nINT. HOUSE - DAY")
+        assert keyed.metadata.get("custom field") == "Custom Value"
+
     def test_forced_transition_round_trips(self):
         """A forced transition keeps its forced flag so it survives a Fountain round trip.
 

@@ -779,12 +779,20 @@ class FountainParser:
             return False
         raw_key, value = line.split(":", 1)
         raw_key = raw_key.strip()
-        if not value.strip() and not self._next_line_is_indented():
+        stripped_value = value.strip()
+        if not stripped_value and not self._next_line_is_indented():
             return False
+        # A recognized field always opens a key (even a lowercase one like "draft date").
         if raw_key.lower() in self.TITLE_PAGE_KEYS:
             return True
+        # A custom key must be a capitalized label whose value is not a prose sentence: a
+        # value ending in ".", "!", or "?" is body prose with a colon (e.g. "Warning: stay
+        # back."), not a title-page value, so the line stays action.
         words = raw_key.split()
-        return bool(words) and all(word[0].isupper() or word[0].isdigit() for word in words)
+        is_capitalized_label = bool(words) and all(word[0].isupper() or word[0].isdigit() for word in words)
+        if not is_capitalized_label:
+            return False
+        return not (stripped_value and stripped_value[-1] in ".!?")
 
     def _next_line_is_indented(self) -> bool:
         """Whether the line after the current one is an indented value continuation (A2)."""
