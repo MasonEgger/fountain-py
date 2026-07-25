@@ -510,7 +510,14 @@ class FountainParser:
                     self._finalize_inline(element)
                     self.elements.append(element)
 
-            previous_line_was_blank = False
+            # A note or boneyard line is invisible in output, so it is transparent for
+            # blank-line adjacency: leave the blank-before state unchanged across it. Every
+            # other line resets it.
+            transparent = (element is not None and element.type in (ElementType.NOTE, ElementType.BONEYARD)) or (
+                element is None and (self.in_note or self.in_boneyard)
+            )
+            if not transparent:
+                previous_line_was_blank = False
             self.current_line += 1
 
         # Record end-of-document diagnostics from the leftover parser state before the
@@ -1168,7 +1175,7 @@ class FountainParser:
         # handled earlier and stay headings regardless of the following line.
         if (
             self.SCENE_HEADING_PATTERN.match(line)
-            and (had_blank_line_before or not self.elements)
+            and (had_blank_line_before or not self._has_visible_content())
             and self._is_blank_line_after()
         ):
             scene_metadata: dict[str, MetadataValue] = {}
@@ -1191,7 +1198,7 @@ class FountainParser:
         # is end-anchored, so matching it against the raw (leading-stripped only) line makes
         # `CUT TO: ` fall through to action. Recursive remainders carry no raw line and use
         # the already-stripped `line`.
-        has_blank_before = had_blank_line_before or not self.elements
+        has_blank_before = had_blank_line_before or not self._has_visible_content()
         transition_source = raw_line.lstrip() if raw_line is not None else line
         if self.TRANSITION_PATTERN.match(transition_source) and has_blank_before and self._is_blank_line_after():
             return FountainElement(
@@ -1238,7 +1245,7 @@ class FountainParser:
         # A scene-heading form (INT./EXT. …) that degraded to here is action, never a cue (C1 guard).
         if (
             self.DUAL_CHARACTER_PATTERN.match(line)
-            and (had_blank_line_before or not self.elements)
+            and (had_blank_line_before or not self._has_visible_content())
             and not self.SCENE_HEADING_PATTERN.match(line)
         ):
             character_name = line.replace("^", "").strip()
@@ -1255,7 +1262,7 @@ class FountainParser:
         char_ext_match = self.CHARACTER_EXTENSION_PATTERN.match(line)
         if (
             char_ext_match
-            and (had_blank_line_before or not self.elements)
+            and (had_blank_line_before or not self._has_visible_content())
             and not self.SCENE_HEADING_PATTERN.match(line)
         ):
             character_name = char_ext_match.group(1).strip()
@@ -1277,7 +1284,7 @@ class FountainParser:
         # A scene-heading form (INT./EXT. …) that degraded to here is action, never a cue (C1 guard).
         if (
             self.CHARACTER_PATTERN.match(line)
-            and (had_blank_line_before or not self.elements)
+            and (had_blank_line_before or not self._has_visible_content())
             and not self.SCENE_HEADING_PATTERN.match(line)
         ):
             # Look ahead to see if next line is dialogue or parenthetical
@@ -1436,16 +1443,42 @@ class FountainParser:
             scan_idx += 1
         return False
 
+    def _is_transparent_line(self, stripped_line: str) -> bool:
+        """Whether a line is a whole-line note or boneyard (invisible for adjacency).
+
+        Notes ``[[...]]`` and boneyards ``/* ... */`` are stripped from output, so for
+        blank-line adjacency they are transparent: a scene heading or transition flush
+        against one is still preceded/followed by an effective blank line.
+        """
+        return bool(self.NOTE_PATTERN.fullmatch(stripped_line) or self.BONEYARD_PATTERN.match(stripped_line))
+
+    def _has_visible_content(self) -> bool:
+        """Whether any non-note/boneyard element has been emitted yet.
+
+        Used for 'is this the document start' checks: leading notes and boneyards are
+        invisible, so a heading after them is still effectively the first body element.
+        """
+        return any(element.type not in (ElementType.NOTE, ElementType.BONEYARD) for element in self.elements)
+
     def _is_blank_line_after(self) -> bool:
         """Check if there is a blank line (or EOF) after the current line.
 
+        Note and boneyard lines are skipped as transparent, so a heading followed by an
+        annotation and then a blank line still counts as having a blank line after it.
+
         Returns:
-            bool: True if the next line is empty or we are at the end of the document.
+            bool: True if the next visible line is empty or we are at the end of the document.
         """
         next_idx = self.current_line + 1
-        if next_idx >= len(self.lines):
-            return True  # EOF counts as blank after
-        return not self.lines[next_idx].strip()
+        while next_idx < len(self.lines):
+            stripped = self.lines[next_idx].strip()
+            if not stripped:
+                return True
+            if self._is_transparent_line(stripped):
+                next_idx += 1
+                continue
+            return False
+        return True  # EOF counts as blank after
 
     def _is_dialogue_line(self, had_blank_line_before: bool = False) -> bool:
         """Check if current line is dialogue based on previous elements.

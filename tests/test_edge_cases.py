@@ -1675,6 +1675,24 @@ More action here."""
         assert len(actions) == 1
         assert actions[0].text == "Before after"
 
+    def test_notes_and_boneyard_transparent_to_heading_adjacency(self):
+        """A note or boneyard flush against a heading/transition does not demote it.
+
+        Notes and boneyards are invisible in output, so they are transparent for the
+        blank-line adjacency that scene headings and transitions require.
+        """
+        note_after = self.parser.parse("A.\n\nINT. HOUSE - DAY\n[[note]]\n\nB.")
+        assert any(element.type == ElementType.SCENE_HEADING for element in note_after.elements)
+
+        note_before = self.parser.parse("A.\n\n[[note]]\nINT. HOUSE - DAY\n\nB.")
+        assert any(element.type == ElementType.SCENE_HEADING for element in note_before.elements)
+
+        boneyard_start = self.parser.parse("/* comment */\nINT. HOUSE - DAY\n\nAction.")
+        assert any(element.type == ElementType.SCENE_HEADING for element in boneyard_start.elements)
+
+        transition_note = self.parser.parse("A.\n\nCUT TO:\n[[note]]\n\nB.")
+        assert any(element.type == ElementType.TRANSITION for element in transition_note.elements)
+
     def test_multiline_note_preserves_surrounding_text(self):
         """Body text before ``[[`` and after ``]]`` of a multi-line note survives.
 
