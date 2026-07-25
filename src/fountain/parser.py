@@ -150,7 +150,7 @@ class FountainParser:
     # Indicates this character speaks simultaneously with previous character
     # Shares the C1/C2 name rules: digit-first allowed, at least one letter required.
     # Example: "MARY^" for dual dialogue with preceding character
-    DUAL_CHARACTER_PATTERN = re.compile(rf"^{_CHAR_NAME}\^\s*$")
+    DUAL_CHARACTER_PATTERN = re.compile(rf"^{_CHAR_NAME}\^+\s*$")
 
     # Forced character name: prefixed with @ to override natural character detection
     # Captures the character name after the @ symbol
@@ -172,7 +172,7 @@ class FountainParser:
     # required (the lookahead scans the name, stopping at the extension's open paren).
     # Examples: "JOHN (V.O.)", "MARY (O.S.)^", "NARRATOR (CONT'D)", "MR. SMITH (V.O.)"
     CHARACTER_EXTENSION_PATTERN = re.compile(
-        rf"^(?={_CHAR_CLASS}*[A-Z])([A-Z0-9]{_CHAR_CLASS}*)\s*\((.+)\)\s*(\^)?\s*$"
+        rf"^(?={_CHAR_CLASS}*[A-Z])([A-Z0-9]{_CHAR_CLASS}*)\s*\((.+)\)\s*(\^+)?\s*$"
     )
     # Transition Patterns
     # Standard transitions: ALL CAPS ending with colon, or specific fade patterns
@@ -1221,7 +1221,7 @@ class FountainParser:
             # cue so _process_dual_dialogue pairs it with the preceding character block.
             forced_metadata: dict[str, MetadataValue] = {"forced": True}
             if character_name.endswith("^"):
-                character_name = character_name[:-1].strip()
+                character_name = character_name.rstrip("^").strip()
                 forced_metadata["dual_dialogue"] = True
             # C7: lift a trailing "(extension)" off the forced name after the caret is
             # handled, so "@McClane (O.S.)" and "@McClane (O.S.) ^" both keep only the bare

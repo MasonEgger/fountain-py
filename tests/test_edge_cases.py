@@ -1779,6 +1779,20 @@ More action here."""
         syn = self.parser.parse("Action.\n\n= A synopsis\n\nMore.")
         assert any(element.type == ElementType.SYNOPSIS and element.text == "A synopsis" for element in syn.elements)
 
+    def test_stacked_carets_parse_as_dual_cue(self):
+        """A cue with multiple trailing carets (``MARY^^^``) is a dual cue, not action.
+
+        A single-caret anchor let stacked carets fall through to action and swallow the
+        dialogue; multiple carets now collapse to a dual-dialogue cue.
+        """
+        doc = self.parser.parse("BRICK\nYo.\n\nMARY^^^\nHo.")
+        assert any(element.type == ElementType.DUAL_DIALOGUE for element in doc.elements)
+
+        # No preceding cue: it degrades to a plain character, still not swallowing dialogue.
+        lone = self.parser.parse("MARY^^^\nHo.")
+        assert lone.elements[0].type == ElementType.CHARACTER
+        assert lone.elements[0].text == "MARY"
+
     def test_orphan_caret_does_not_leave_dual_flag(self):
         """A lone '^' cue with no preceding character is not left flagged as dual dialogue."""
         doc = self.parser.parse("STEEL ^\nAlone.")
