@@ -198,7 +198,7 @@ She smiles and sits down."""
         assert elements[7].text == "She smiles and sits down."
 
     def test_multiline_action_after_dialogue(self):
-        """Test that multi-line action elements are parsed correctly."""
+        """Adjacent action lines after dialogue merge into one paragraph with line breaks kept."""
         text = """JOHN
 I have great news!
 
@@ -209,21 +209,14 @@ The liquid splashes everywhere."""
         document = self.parser.parse(text)
         elements = document.elements
 
-        # Should have: CHARACTER, DIALOGUE, ACTION, ACTION, ACTION
-        assert len(elements) == 5
-
+        # CHARACTER, DIALOGUE, then one ACTION paragraph holding the three adjacent lines.
+        assert len(elements) == 3
         assert elements[0].type == ElementType.CHARACTER
         assert elements[1].type == ElementType.DIALOGUE
-
-        # Each line should be a separate ACTION element
         assert elements[2].type == ElementType.ACTION
-        assert elements[2].text == "He stands up excitedly."
-
-        assert elements[3].type == ElementType.ACTION
-        assert elements[3].text == "His coffee cup falls to the floor."
-
-        assert elements[4].type == ElementType.ACTION
-        assert elements[4].text == "The liquid splashes everywhere."
+        assert elements[2].text == (
+            "He stands up excitedly.\nHis coffee cup falls to the floor.\nThe liquid splashes everywhere."
+        )
 
     def test_multiline_dialogue_without_breaks(self):
         """Test that multi-line dialogue without line breaks is correctly classified."""
@@ -328,21 +321,19 @@ Regular action without tabs."""
         document = self.parser.parse(text)
         elements = document.elements
 
-        # Should have: CHARACTER, DIALOGUE, ACTION, ACTION, ACTION
-        assert len(elements) == 5
+        # CHARACTER, DIALOGUE, then one merged ACTION paragraph for the three adjacent lines.
+        assert len(elements) == 3
 
         assert elements[0].type == ElementType.CHARACTER
         assert elements[1].type == ElementType.DIALOGUE
 
-        # Each tab becomes four spaces in the stored text
+        # Each tab becomes four spaces; the three adjacent lines keep their line breaks.
         assert elements[2].type == ElementType.ACTION
-        assert elements[2].text == "    This action is indented with a tab."
-
-        assert elements[3].type == ElementType.ACTION
-        assert elements[3].text == "        This action is indented with two tabs."
-
-        assert elements[4].type == ElementType.ACTION
-        assert elements[4].text == "Regular action without tabs."
+        assert elements[2].text == (
+            "    This action is indented with a tab.\n"
+            "        This action is indented with two tabs.\n"
+            "Regular action without tabs."
+        )
 
     def test_dual_dialogue(self):
         """Test dual dialogue parsing with ^ syntax."""

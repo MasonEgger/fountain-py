@@ -768,6 +768,34 @@ class TestSpecCompliance:
         reparsed = self.parser.parse(rendered)
         assert [element.type for element in reparsed.elements] == [ElementType.TRANSITION]
 
+    def test_consecutive_action_lines_form_one_paragraph(self):
+        """Consecutive non-blank action lines join into one ACTION element, line breaks kept.
+
+        Fountain treats every carriage return as intentional, so a block of adjacent action
+        lines is one paragraph with internal line breaks, not one margined element per line.
+        """
+        doc = self.parser.parse("Line one\nLine two\nLine three")
+        actions = [element for element in doc.elements if element.type == ElementType.ACTION]
+        assert len(actions) == 1
+        assert actions[0].text == "Line one\nLine two\nLine three"
+
+    def test_blank_line_separates_action_paragraphs(self):
+        """A blank line still starts a new action paragraph."""
+        doc = self.parser.parse("Para one.\n\nPara two.")
+        actions = [element for element in doc.elements if element.type == ElementType.ACTION]
+        assert len(actions) == 2
+        assert actions[0].text == "Para one."
+        assert actions[1].text == "Para two."
+
+    def test_action_paragraph_renders_line_breaks_in_one_div(self):
+        """Merged action lines render as one action div; pre-wrap CSS shows the line breaks."""
+        from fountain.renderer import HTMLRenderer
+
+        doc = self.parser.parse("Line one\nLine two")
+        html = HTMLRenderer().render(doc)
+        assert html.count('class="fountain-action"') == 1
+        assert "Line one<br>Line two" in html
+
     # -- Step 5.1: A1 Multi-line Title Page Values Preserve Line Structure --
 
     def test_title_page_multiline_value_preserved(self):
@@ -1798,9 +1826,12 @@ Hello /* hidden */ world."""
             parser = FountainParser()
             numeric_doc = parser.parse(f"{numeric_line}\nHello there.")
             numeric_types = [element.type for element in numeric_doc.elements]
-            assert numeric_types == [ElementType.ACTION, ElementType.ACTION], (
+            # No letter, so it is not a cue: the numeric line and the following line are one
+            # merged action paragraph, never CHARACTER + DIALOGUE.
+            assert numeric_types == [ElementType.ACTION], (
                 f"{numeric_line!r} has no letter and should stay ACTION, got {numeric_types}"
             )
+            assert numeric_doc.elements[0].text == f"{numeric_line}\nHello there."
 
     # -- Step 7.3: Blank Line After a Cue Disqualifies It (C3) --
 
@@ -2123,8 +2154,7 @@ Hello /* hidden */ world."""
         with_body = self.parser.parse("He opens the card: a threat.\nSome action here.")
         assert with_body.metadata == {}
         body_actions = [element.text for element in with_body.elements if element.type == ElementType.ACTION]
-        assert "He opens the card: a threat." in body_actions
-        assert "Some action here." in body_actions
+        assert body_actions == ["He opens the card: a threat.\nSome action here."]
 
         # A leading blank line still yields body content, not a phantom key.
         leading_blank = self.parser.parse("\nHe opens the card: a threat.\nSome action here.")

@@ -293,6 +293,12 @@ class FountainParser:
         # parse() call never depends on or mutates validation state.
         self._validating = False
         self.diagnostics: list[ValidationIssue] = []
+        # Raw (pre-strip) lines of the action paragraph currently being accumulated, so
+        # consecutive action lines merge into one element with their line breaks kept.
+        self._action_raw: list[str] = []
+        # Source line index of the last line added to the current action paragraph; only a
+        # directly-adjacent next line merges, so a boneyard gap does not join across it.
+        self._action_last_line = -1
 
     def parse(self, text: str) -> FountainDocument:
         """Parse Fountain text and return a FountainDocument.
@@ -405,6 +411,8 @@ class FountainParser:
         self.note_buffer = []
         self.note_start_line = 0
         self.diagnostics = []
+        self._action_raw = []
+        self._action_last_line = -1
 
         # First pass: extract title page
         metadata = self._parse_title_page()
@@ -456,8 +464,28 @@ class FountainParser:
 
             element = self._parse_line(line, previous_line_was_blank, raw_line)
             if element:
-                self._finalize_inline(element)
-                self.elements.append(element)
+                if (
+                    element.type == ElementType.ACTION
+                    and not previous_line_was_blank
+                    and self.current_line == self._action_last_line + 1
+                    and self.elements
+                    and self.elements[-1].type == ElementType.ACTION
+                ):
+                    # Continuation of the current action paragraph: keep the line break
+                    # (Fountain treats every carriage return as intentional) by re-deriving
+                    # the merged paragraph's clean text and spans over the joined raw lines.
+                    # Only a directly-adjacent line merges, so a boneyard gap does not join.
+                    self._action_raw.append(element.text)
+                    self._action_last_line = self.current_line
+                    paragraph = self.elements[-1]
+                    paragraph.text, paragraph.formatting = self._extract_inline("\n".join(self._action_raw))
+                else:
+                    if element.type == ElementType.ACTION:
+                        # Start a new action paragraph; remember its raw text for merging.
+                        self._action_raw = [element.text]
+                        self._action_last_line = self.current_line
+                    self._finalize_inline(element)
+                    self.elements.append(element)
 
             previous_line_was_blank = False
             self.current_line += 1

@@ -556,9 +556,9 @@ The parser is designed to be forgiving. Malformed or ambiguous text defaults to 
     >>> parser = FountainParser()
     >>> document = parser.parse(script)
     >>> 
-    >>> # All lines become action elements
+    >>> # The three adjacent lines merge into one action paragraph
     >>> len(document.elements)
-    3
+    1
     >>> all(el.type == ElementType.ACTION for el in document.elements)
     True
 
