@@ -1826,6 +1826,17 @@ More action here."""
         multi_actions = [element for element in multi.elements if element.type == ElementType.ACTION]
         assert multi_actions[0].text == "One two three"
 
+    def test_unclosed_note_broken_by_blank_reports_diagnostic(self):
+        """An unclosed note broken by a blank line reports unclosed-note, like the EOF case."""
+        doc = self.parser.parse("INT. HOUSE - DAY\n\n[[this never closes\n\nJOHN\nHi.")
+        assert any(issue.code == "unclosed-note" for issue in doc.issues)
+
+    def test_title_page_only_document_is_not_empty(self):
+        """A title-page-only document is valid, not an empty document."""
+        doc = self.parser.parse("Title: Foo\nAuthor: Bar")
+        assert doc.metadata.get("title") == "Foo"
+        assert not any(issue.code == "empty-document" for issue in doc.issues)
+
     def test_parse_surfaces_diagnostics_on_document(self):
         """parse() attaches the diagnostics it detects to the returned document's issues."""
         boneyard_doc = self.parser.parse("INT. HOUSE - DAY\n\n/* open boneyard")

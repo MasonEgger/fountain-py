@@ -532,18 +532,9 @@ class FountainParser:
                     message="Boneyard comment opened with '/*' but never closed",
                 )
             )
-        if self.in_note:
-            self.diagnostics.append(
-                ValidationIssue(
-                    line_number=self.note_start_line,
-                    severity="error",
-                    code=CODE_UNCLOSED_NOTE,
-                    message="Note opened with '[[' but never closed",
-                )
-            )
-
         # A note that opened with '[[' but reached end of input never closed. Recover its
-        # buffered lines as action rather than dropping them (and the rest of the body).
+        # buffered lines as action rather than dropping them; the flush also records the
+        # unclosed-note diagnostic (shared with the blank-line-break path).
         if self.in_note:
             self._flush_open_note_as_text()
 
@@ -562,8 +553,9 @@ class FountainParser:
         # Post-process for dual dialogue pairing
         self._process_dual_dialogue()
 
-        # An empty parse that nothing else already explains is itself worth flagging.
-        if not self.elements and not self.diagnostics:
+        # An empty parse that nothing else already explains is itself worth flagging. A
+        # title-page-only document (metadata but no body elements) is valid, not empty.
+        if not self.elements and not self.diagnostics and not metadata:
             self.diagnostics.append(
                 ValidationIssue(
                     line_number=1,
@@ -839,6 +831,16 @@ class FountainParser:
         This mutates parser state: it clears the open-note flag and buffer, then appends
         one ACTION element per non-empty buffered line to :attr:`elements`.
         """
+        # The '[[' never closed, so record the diagnostic here: both the blank-line break
+        # and the end-of-input recovery flow through this method.
+        self.diagnostics.append(
+            ValidationIssue(
+                line_number=self.note_start_line,
+                severity="error",
+                code=CODE_UNCLOSED_NOTE,
+                message="Note opened with '[[' but never closed",
+            )
+        )
         buffered_lines = self.note_buffer
         note_start = self.note_start_line
         self.in_note = False
