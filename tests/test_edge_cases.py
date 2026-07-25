@@ -1668,6 +1668,29 @@ More action here."""
             ElementType.DIALOGUE,
         ]
 
+    def test_emphasis_round_trips_through_fountain(self):
+        """Emphasis survives parse -> FountainRenderer -> parse with the same spans.
+
+        The parser strips emphasis delimiters; the Fountain renderer must re-emit them,
+        including nested emphasis and backslash-escaped literal asterisks.
+        """
+        from fountain.renderer import FountainRenderer
+
+        for source in (
+            "He said **bold** and *italic* and _under_ words.",
+            "*italic **both** italic*",
+            "Steel enters **\\*9765\\***",
+        ):
+            doc = self.parser.parse(source)
+            rendered = FountainRenderer().render(doc)
+            reparsed = self.parser.parse(rendered)
+            original = doc.elements[0]
+            round_tripped = reparsed.elements[0]
+            assert round_tripped.text == original.text
+            assert [(span.start, span.end, span.format_type) for span in round_tripped.formatting] == [
+                (span.start, span.end, span.format_type) for span in original.formatting
+            ]
+
     # -- Step 4.4: Mid-Line Boneyard Stripped from Text (E1) --
 
     def test_midline_boneyard_stripped_from_text(self):

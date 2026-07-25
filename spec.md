@@ -402,8 +402,7 @@ Mason ruled on these in the 2026-07-03 review; each ruling is recorded inline, a
 4. **`FountainElement.text` is documented as "Clean text content with Fountain markup removed" (src/fountain/elements.py:146, 153)** but emphasis delimiters remain in the text (audit D4) and BONEYARD/NOTE elements keep their delimiters verbatim.
    Fixing D4 resolves the emphasis half; the docstring still needs to state what BONEYARD and NOTE carry.
    Ruling (2026-07-03): fix it; land D4, then rewrite the docstring so it is accurate about BONEYARD and NOTE contents.
-5. **FountainRenderer round-trip claims** (README.md:81-89 "Round-Trip Conversion"; docstring at src/fountain/renderer.py:656-672) overstate today's fidelity: blank lines are dropped, dual dialogue vanishes, and emphasis markup is not re-emitted (A4, A4b, and the documented `_apply_formatting_removal` limitation).
-   Fix A4/A4b, then rewrite the round-trip docs to state the remaining limitation precisely.
+5. **FountainRenderer round-trip claims** (README.md; docstring at src/fountain/renderer.py) — resolved. Blank lines survive (A4), dual dialogue survives (A4b), and inline emphasis is re-emitted from the recorded spans (`_apply_formatting_removal`), including nesting and escaped literals. The round-trip docs now state the remaining normalization (multiple blank lines collapse to one) precisely.
 6. **CHANGELOG.md claims "Tab-to-spaces conversion verified in HTML output"** but tabs survive in element text and are converted to `&nbsp;` only at render time, and space indentation collapses in browsers (audit A5/D10).
    Reword after the A5 fix or before publishing the changelog.
    Ruling (2026-07-03): just update the changelog; nothing has shipped yet.

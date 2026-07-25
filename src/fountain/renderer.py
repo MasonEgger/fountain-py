@@ -878,7 +878,13 @@ class FountainRenderer:
             >>> renderer._render_element(element)
             'INT. OFFICE - DAY #42#'
         """
-        text = self._apply_formatting_removal(element.text, element.formatting)
+        # Verbatim types (boneyard, note, page break) keep their raw text: the parser
+        # never stripped emphasis from them, so re-emitting or escaping markers here would
+        # corrupt content like the ``*`` in ``/* comment */``.
+        if element.type in (ElementType.BONEYARD, ElementType.NOTE, ElementType.PAGE_BREAK):
+            text = element.text
+        else:
+            text = self._apply_formatting_removal(element.text, element.formatting)
 
         if element.type == ElementType.SCENE_HEADING:
             # Check if this was a forced scene heading
@@ -1002,36 +1008,48 @@ class FountainRenderer:
         return f"{left_block}\n\n{right_block}"
 
     def _apply_formatting_removal(self, text: str, formatting: list[FormatSpan]) -> str:
-        """Remove HTML formatting and restore Fountain markup formatting.
+        """Re-emit Fountain emphasis markers around the formatted spans.
 
-        Currently returns the original text without modification. This is a
-        known limitation of the round-trip conversion process.
+        The parser strips emphasis delimiters and records content-only spans, so this
+        reinserts the matching markers (``**``, ``*``, ``_``, ``***``) at each span's
+        boundaries. Overlapping and nested spans are opened and closed with a stack, the
+        same sweep the HTML renderer uses, so the result is well-formed. Literal ``*``,
+        ``_`` and ``\\`` characters in the clean text are backslash-escaped so they are
+        not re-read as emphasis, keeping ``parse -> render -> parse`` stable.
 
         Args:
-            text: The text content of the element.
-            formatting: List of formatting spans detected during parsing.
+            text: The element's clean text (emphasis delimiters already stripped).
+            formatting: Content-only spans indexing into ``text``.
 
         Returns:
-            The original text without formatting markup restoration.
-
-        Limitation:
-            The current parser strips formatting markers (*bold*, _italic_, etc.)
-            during parsing and tracks their positions in FormatSpan objects.
-            However, to achieve true round-trip fidelity, we would need to store
-            the original markup characters and their positions. This is a design
-            trade-off that prioritizes clean parsed output over perfect round-trip
-            conversion of formatting.
-
-        Future Enhancement:
-            A future version could store original formatting markers in metadata
-            to enable perfect round-trip conversion of formatted text.
+            Fountain markup with the emphasis delimiters restored.
         """
-        if not formatting:
-            return text
+        markers = {"bold": "**", "italic": "*", "underline": "_", "bold_italic": "***"}
 
-        # For simplicity in the export renderer, we'll just return the original text
-        # The formatting spans indicate where formatting was detected, but for
-        # a true round-trip we'd need to store the original markup positions
-        # This is a limitation of the current approach - we lose the exact
-        # original formatting markup positions during parsing
-        return text
+        def escape_literal(char: str) -> str:
+            return "\\" + char if char in ("*", "_", "\\") else char
+
+        if not formatting:
+            return "".join(escape_literal(char) for char in text)
+
+        def active_formats(position: int) -> list[str]:
+            covering = [span for span in formatting if span.start <= position < span.end]
+            covering.sort(key=lambda span: (span.start, -(span.end - span.start), span.format_type))
+            return [span.format_type for span in covering]
+
+        result_parts: list[str] = []
+        open_stack: list[str] = []
+        for position in range(len(text)):
+            desired = active_formats(position)
+            common = 0
+            while common < len(open_stack) and common < len(desired) and open_stack[common] == desired[common]:
+                common += 1
+            while len(open_stack) > common:
+                result_parts.append(markers[open_stack.pop()])
+            for format_type in desired[common:]:
+                result_parts.append(markers[format_type])
+                open_stack.append(format_type)
+            result_parts.append(escape_literal(text[position]))
+        while open_stack:
+            result_parts.append(markers[open_stack.pop()])
+        return "".join(result_parts)

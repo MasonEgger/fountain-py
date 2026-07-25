@@ -836,22 +836,16 @@ class TestFountainRenderer:
         assert "~Oh what a beautiful morning" in lines
 
     def test_render_formatting(self):
-        """Test that text with formatting is preserved."""
-        formatting = [
-            FormatSpan(5, 9, "bold"),
-            FormatSpan(14, 20, "italic"),
-            FormatSpan(25, 35, "underline"),
-            FormatSpan(40, 51, "bold_italic"),
-        ]
-        dialogue_element = FountainElement(
-            ElementType.DIALOGUE, "This **bold** *italic* _underline_ ***bold italic***", formatting, 1
-        )
-
-        document = FountainDocument([dialogue_element])
+        """Emphasis markers are re-emitted from the parsed spans on render."""
+        source = "JOHN\nThis **bold** *italic* _underline_ ***bold italic***"
+        document = FountainParser().parse(source)
         fountain = self.renderer.render(document)
 
-        # The text should be preserved even if formatting marks aren't perfectly reconstructed
-        assert "This **bold** *italic* _underline_ ***bold italic***" in fountain
+        # Each emphasis run comes back with its Fountain delimiters restored.
+        assert "**bold**" in fountain
+        assert "*italic*" in fountain
+        assert "_underline_" in fountain
+        assert "***bold italic***" in fountain
 
     def test_render_dual_dialogue_element(self):
         """Test dual dialogue elements are skipped in rendering."""

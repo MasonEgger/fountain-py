@@ -303,13 +303,13 @@ Round-Trip Capabilities and Limitations
 - Scene numbers and character extensions
 - Forced elements (scenes, actions, transitions)
 - Element order and hierarchy
+- Inline emphasis (bold, italic, underline), including nesting and escaped literals
 
 **Limitations:**
 
-- Exact whitespace formatting may differ
-- Inline formatting positions are not perfectly preserved
+- Multiple consecutive blank lines between paragraphs are normalized to one
 - Original capitalization in natural elements is maintained
-- Comments in boneyard are preserved but may be reformatted
+- Comments in boneyard are dropped from rendered output (a writer-only tool)
 
 .. doctest::
 
