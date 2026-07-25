@@ -1087,11 +1087,16 @@ class FountainParser:
             # dropped. Leading tabs are retained verbatim (the spec keeps tabs in
             # Action); the renderer converts them to spacing for display.
             text = self.FORCED_ACTION_PATTERN.sub(r"\1", line).rstrip()
+            # Record the forced flag so the Fountain renderer re-emits the '!'. Without it a
+            # forced action whose text starts with '.'/'>'/etc. round-trips to a different
+            # element type.
+            forced_action_metadata: dict[str, MetadataValue] = {"forced": True}
             return FountainElement(
                 type=ElementType.ACTION,
                 text=text,
                 formatting=self._extract_formatting(text),
                 line_number=self.current_line + 1,
+                metadata=forced_action_metadata,
             )
 
         # Check for sections

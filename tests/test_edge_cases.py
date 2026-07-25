@@ -767,6 +767,23 @@ class TestSpecCompliance:
         keyed = self.parser.parse("Custom Field: Custom Value\n\nINT. HOUSE - DAY")
         assert keyed.metadata.get("custom field") == "Custom Value"
 
+    def test_forced_action_round_trips(self):
+        """A forced action whose text starts with a special char survives a round trip.
+
+        Without the forced flag, the Fountain renderer drops the ``!`` and the text
+        re-parses as a scene heading / transition.
+        """
+        from fountain.renderer import FountainRenderer
+
+        doc = self.parser.parse("!.This looks like a scene heading")
+        assert doc.elements[0].type == ElementType.ACTION
+        assert doc.elements[0].text == ".This looks like a scene heading"
+
+        rendered = FountainRenderer().render(doc)
+        reparsed = self.parser.parse(rendered)
+        assert reparsed.elements[0].type == ElementType.ACTION
+        assert reparsed.elements[0].text == ".This looks like a scene heading"
+
     def test_forced_transition_round_trips(self):
         """A forced transition keeps its forced flag so it survives a Fountain round trip.
 
