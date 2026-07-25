@@ -1764,6 +1764,27 @@ More action here."""
         assert characters[0].text == "STEEL"
         assert not (characters[0].metadata and characters[0].metadata.get("dual_dialogue"))
 
+    def test_stacked_character_extensions(self):
+        """A cue with stacked extensions like ``(V.O.) (CONT'D)`` is a character, not action.
+
+        The extension pattern allowed only one parenthesized group, so a common two-part
+        extension fell through to action and swallowed the following dialogue.
+        """
+        doc = self.parser.parse("JOHN (V.O.) (CONT'D)\nHi.")
+        assert [element.type for element in doc.elements] == [ElementType.CHARACTER, ElementType.DIALOGUE]
+        assert doc.elements[0].text == "JOHN"
+        assert doc.elements[0].metadata is not None
+        assert doc.elements[0].metadata.get("extension")
+
+        # The dual-dialogue variant with a trailing caret still pairs.
+        dual = self.parser.parse("BRICK\nYo.\n\nJOHN (V.O.) (CONT'D)^\nHi.")
+        assert any(element.type == ElementType.DUAL_DIALOGUE for element in dual.elements)
+
+        # Forced @ cue with stacked extensions works too.
+        forced = self.parser.parse("@mcclane (V.O.) (CONT'D)\nHi.")
+        assert forced.elements[0].type == ElementType.CHARACTER
+        assert forced.elements[0].text == "mcclane"
+
     def test_forced_character_requires_a_letter(self):
         """A forced ``@`` cue with no alphabetical character is not a valid character.
 

@@ -164,7 +164,7 @@ class FountainParser:
     # '(' so it cannot backtrack into the extension parens; this keeps matching linear on a
     # crafted line with many unclosed parens instead of quadratic.
     # Example: "McClane (O.S.)" captures name "McClane" and extension "O.S.".
-    FORCED_EXTENSION_PATTERN = re.compile(r"^([^(]*)\s*\(([^)]+)\)$")
+    FORCED_EXTENSION_PATTERN = re.compile(r"^([^(]*)\s*\((.+)\)$")
 
     # Character with extensions: CHARACTER_NAME (extension) with optional dual dialogue caret
     # Captures character name, extension (V.O., O.S., CONT'D, etc.), and dual dialogue marker
@@ -172,7 +172,7 @@ class FountainParser:
     # required (the lookahead scans the name, stopping at the extension's open paren).
     # Examples: "JOHN (V.O.)", "MARY (O.S.)^", "NARRATOR (CONT'D)", "MR. SMITH (V.O.)"
     CHARACTER_EXTENSION_PATTERN = re.compile(
-        rf"^(?={_CHAR_CLASS}*[A-Z])([A-Z0-9]{_CHAR_CLASS}*)\s*\(([^)]+)\)\s*(\^)?\s*$"
+        rf"^(?={_CHAR_CLASS}*[A-Z])([A-Z0-9]{_CHAR_CLASS}*)\s*\((.+)\)\s*(\^)?\s*$"
     )
     # Transition Patterns
     # Standard transitions: ALL CAPS ending with colon, or specific fade patterns
