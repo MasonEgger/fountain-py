@@ -1645,6 +1645,14 @@ More action here."""
         assert len(actions) == 1
         assert actions[0].text == "Before after"
 
+    def test_unclosed_boneyard_recovers_pretext(self):
+        """An unclosed boneyard emits the body text before the '/*' and reports the issue."""
+        doc = self.parser.parse("Some real action.\ntext /* dangles")
+        combined = " ".join(element.text for element in doc.elements)
+        assert "Some real action." in combined
+        assert "text" in combined
+        assert any(issue.code == "unclosed-boneyard" for issue in doc.issues)
+
     def test_dialogue_continues_across_interior_lyric_or_note(self):
         """A character who sings or has a note mid-speech keeps speaking in dialogue.
 

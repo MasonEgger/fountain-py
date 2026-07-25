@@ -541,8 +541,11 @@ class FountainParser:
             self._flush_open_note_as_text()
 
         # An unclosed boneyard buffered its pre-text on the opening line; emit it so the
-        # body text before '/*' is not lost when no '*/' ever arrives.
+        # body text before '/*' is not lost when no '*/' ever arrives. Clear in_boneyard
+        # first, or the reprocessed pre-text falls back into the still-open boneyard branch
+        # and is dropped.
         if self.in_boneyard and self._boneyard_pretext:
+            self.in_boneyard = False
             pretext_element = self._parse_line(self._boneyard_pretext, self._boneyard_pretext_blank)
             self._boneyard_pretext = ""
             if pretext_element:
