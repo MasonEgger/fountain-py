@@ -107,49 +107,43 @@ Multi-line values are supported - subsequent lines without colons are appended t
 Line-One Title Page Detection
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The title page pass decides whether a document even has a title page by looking at the first meaningful line.
-The heuristic is deliberately broad and is a documented contract: any leading, non-indented line that contains a colon and is not a scene heading opens the title page as a metadata key.
-This is convenient for real title pages, but it means a first line that only happens to contain a colon is captured as metadata rather than body content.
+The title page pass decides whether a document has a title page by looking at the first meaningful line.
+A colon-bearing line opens a title-page key only when it looks like one: it must carry a non-empty value or an indented continuation, and it must name a recognized field (``Title``, ``Author``, ``Contact``, and so on) or be a capitalized label such as ``Custom Field:``.
 
-For example, prose like ``He opens the card:`` on line one becomes a ``he opens the card`` field, not an action element:
+A colon on line one is therefore not enough on its own.
+Prose like ``He opens the card: a threat.`` has a lowercase label, so it stays body action rather than becoming a phantom field:
 
 .. doctest::
 
     >>> from fountain.parser import FountainParser
     >>> parser = FountainParser()
-    >>> document = parser.parse("He opens the card:")
-    >>> 'he opens the card' in document.metadata
-    True
+    >>> document = parser.parse("He opens the card: a threat.")
+    >>> document.metadata
+    {}
     >>> [element.type.value for element in document.elements]
-    []
+    ['action']
 
-The same rule applies to ``FADE IN:``, a tab-indented ``CUT TO:``, and similar lines when they appear first.
-Changing this heuristic would break documents that rely on it, so it stays fixed.
+A bare ``FADE IN:`` or ``CUT TO:`` has an empty value and no indented continuation, so it parses as a body transition instead of a ``fade in`` field:
 
-Two escape routes that look like they should disable detection do **not**, and it is worth knowing why:
+.. doctest::
 
-- A **leading blank line** does not help.
-  The parser skips leading blank lines before the title page, so the colon line still opens a metadata key:
+    >>> document = parser.parse("FADE IN:\n\nINT. HOUSE - DAY")
+    >>> document.metadata
+    {}
+    >>> [element.type.value for element in document.elements]
+    ['transition', 'scene_heading']
 
-  .. doctest::
+A forced ``>CUT TO:`` on the first line is likewise a body transition, not a metadata key:
 
-      >>> document = parser.parse("\nHe opens the card:\nSome action here.")
-      >>> 'he opens the card' in document.metadata
-      True
+.. doctest::
 
-- A **forced marker on line one** does not help either.
-  A ``>CUT TO:`` first line is consumed as a metadata key, because forced-transition classification runs in the body pass, after the title page pass has already claimed the line:
+    >>> document = parser.parse(">CUT TO:\n\nINT. HOUSE - DAY")
+    >>> document.metadata
+    {}
+    >>> [element.type.value for element in document.elements]
+    ['transition', 'scene_heading']
 
-  .. doctest::
-
-      >>> document = parser.parse(">CUT TO:\n\nINT. HOUSE - DAY")
-      >>> '>cut to' in document.metadata
-      True
-      >>> any(element.type.value == 'transition' for element in document.elements)
-      False
-
-The reliable way to keep a colon-bearing line in the body is to give the document an explicit title page, even a single ``Title:`` field, followed by a blank line.
-Once the title page ends, forced markers such as ``>CUT TO:`` take effect normally in the body:
+A recognized field or a capitalized custom label opens the title page as expected, and a real title page followed by a blank line works normally:
 
 .. doctest::
 

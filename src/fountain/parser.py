@@ -585,6 +585,32 @@ class FountainParser:
 
         return issues
 
+    # Recognized title-page fields (lowercase). A first line naming one of these opens a
+    # title page even when it is not a capitalized label (e.g. "draft date"). Arbitrary
+    # capitalized labels are also accepted so custom keys keep working.
+    TITLE_PAGE_KEYS: frozenset[str] = frozenset(
+        {
+            "title",
+            "credit",
+            "author",
+            "authors",
+            "source",
+            "notes",
+            "draft date",
+            "date",
+            "contact",
+            "copyright",
+            "revision",
+            "revised",
+            "version",
+            "format",
+            "created",
+            "writers",
+            "producer",
+            "director",
+        }
+    )
+
     def _parse_title_page(self) -> dict[str, str]:
         """Parse title page metadata from the beginning of the document.
 
@@ -654,7 +680,7 @@ class FountainParser:
             # "int. house - day - 3:00 pm" contains a colon (from the time) but is a
             # scene heading, so it must fall through to body classification rather
             # than opening a bogus "int. house - day - 3" key.
-            if ":" in line and not self.SCENE_HEADING_PATTERN.match(line):
+            if self._opens_title_page_key(line):
                 key, value = line.split(":", 1)
                 key = key.strip().lower()
                 value = value.strip()
@@ -677,6 +703,41 @@ class FountainParser:
             metadata[current_key] = metadata[current_key].strip()
 
         return metadata
+
+    def _opens_title_page_key(self, line: str) -> bool:
+        """Whether a non-indented line opens a title-page key rather than being body.
+
+        A colon alone is not enough: ``FADE IN:`` and prose like ``He opens the card: a
+        threat.`` also contain a colon. A title-page key must (1) not be a scene heading,
+        (2) carry a non-empty value or be continued on an indented line (so a bare
+        ``FADE IN:`` is excluded), and (3) name a recognized field or be a capitalized
+        label (so a lowercase sentence fragment is body prose, not a key).
+
+        Args:
+            line: The stripped line under consideration.
+
+        Returns:
+            True when the line should open a title-page key.
+        """
+        if ":" not in line or self.SCENE_HEADING_PATTERN.match(line):
+            return False
+        raw_key, value = line.split(":", 1)
+        raw_key = raw_key.strip()
+        if not value.strip() and not self._next_line_is_indented():
+            return False
+        if raw_key.lower() in self.TITLE_PAGE_KEYS:
+            return True
+        words = raw_key.split()
+        return bool(words) and all(word[0].isupper() or word[0].isdigit() for word in words)
+
+    def _next_line_is_indented(self) -> bool:
+        """Whether the line after the current one is an indented value continuation (A2)."""
+        next_index = self.current_line + 1
+        if next_index >= len(self.lines):
+            return False
+        raw_next = self.lines[next_index]
+        leading_spaces = len(raw_next) - len(raw_next.lstrip(" "))
+        return raw_next.startswith("\t") or leading_spaces >= 3
 
     def _flush_open_note_as_text(self) -> None:
         """Break an open multi-line note and re-emit its buffered lines as action.

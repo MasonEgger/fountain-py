@@ -717,6 +717,36 @@ class TestSpecCompliance:
         assert doc.metadata.get("author") == "Jane"
         assert doc.metadata.get("network") == "HBO"
 
+    def test_first_line_fade_in_is_transition_not_metadata(self):
+        """A leading ``FADE IN:`` is a body transition, not a title-page key.
+
+        The value after the colon is empty and there is no indented continuation, so it
+        cannot be a title-page key. Before the gate it was consumed as ``{'fade in': ''}``
+        and the transition was lost from the body.
+        """
+        doc = self.parser.parse("FADE IN:\n\nINT. HOUSE - DAY\n\nHe runs.")
+        assert doc.metadata == {}
+        assert any(element.type == ElementType.TRANSITION and element.text == "FADE IN:" for element in doc.elements)
+
+    def test_first_line_cut_to_is_transition_not_metadata(self):
+        """A leading ``CUT TO:`` is a body transition, not a title-page key."""
+        doc = self.parser.parse("CUT TO:\n\nINT. HOUSE - DAY")
+        assert "cut to" not in doc.metadata
+        assert any(element.type == ElementType.TRANSITION and element.text == "CUT TO:" for element in doc.elements)
+
+    def test_first_line_colon_prose_is_action_not_metadata(self):
+        """A prose sentence with a colon on line one is action, not a title-page key.
+
+        ``He opens the card`` is not a recognized field and is not a capitalized label
+        (it has lowercase words), so it is body prose rather than a key.
+        """
+        doc = self.parser.parse("He opens the card: a threat.\n\nINT. HOUSE - DAY")
+        assert doc.metadata == {}
+        assert any(
+            element.type == ElementType.ACTION and "He opens the card: a threat." in element.text
+            for element in doc.elements
+        )
+
     # -- Step 5.1: A1 Multi-line Title Page Values Preserve Line Structure --
 
     def test_title_page_multiline_value_preserved(self):
@@ -2055,62 +2085,38 @@ Hello /* hidden */ world."""
 
     # -- Step 9.1: A3 Title Page Detection Heuristic (documented contract) --
 
-    def test_title_page_detection_heuristic(self):
-        """A3: any first line with a colon that fails the scene-heading guard opens the title page.
+    def test_title_page_detection_requires_a_real_key(self):
+        """A3 (revised): a colon-bearing first line is metadata only when it looks like a key.
 
-        This pins the documented line-one title-page detection heuristic. The first pass
-        (``_parse_title_page``) claims any leading, non-indented line that contains a colon
-        and is not a scene heading as a metadata key. So prose like ``He opens the card:``
-        becomes a title-page field, not a body ACTION element, when it is the first line.
-
-        The test also pins the ACTUAL behavior of the two escape routes named in the audit,
-        both of which turn out NOT to disable detection from line one:
-
-        1. The parser skips leading blank lines before the title page, so a leading blank
-           line does not disable detection: the colon line still opens a metadata key.
-        2. A forced ``>CUT TO:`` on line one is consumed as a metadata key rather than a
-           transition, because the forced-transition classifier runs only in the body pass.
-
-        The reliable way to reach the body is an explicit title page (a real key such as
-        ``Title:``) terminated by a blank line; forced markers then take effect in the body.
-        Changing any of this is a breaking change.
+        A title-page key must carry a non-empty value or an indented continuation, and
+        name a recognized field or a capitalized label. A bare ``FADE IN:`` / ``CUT TO:``
+        (empty value) and prose like ``He opens the card:`` (lowercase label) are body
+        content, not metadata. This gate keeps a transition on the first line from being
+        silently consumed as a phantom metadata key.
         """
-        # Main heuristic: a bare colon-bearing first line opens the title page.
+        # Prose with a colon on line one is action, not a phantom metadata key.
         doc = self.parser.parse("He opens the card:")
-        assert "he opens the card" in doc.metadata, (
-            f"'He opens the card:' on line one must open the title page (A3 contract), got metadata {doc.metadata}"
-        )
-        assert not any(element.type == ElementType.ACTION for element in doc.elements), (
-            "The colon-bearing first line is title-page metadata, not a body ACTION element, "
-            f"got {[(element.type.value, element.text) for element in doc.elements]}"
-        )
+        assert doc.metadata == {}
+        assert any(element.type == ElementType.ACTION for element in doc.elements)
 
-        # The heuristic still holds with body content after it: the colon line stays
-        # metadata and only the following non-key line becomes ACTION.
-        with_body = self.parser.parse("He opens the card:\nSome action here.")
-        assert "he opens the card" in with_body.metadata
+        with_body = self.parser.parse("He opens the card: a threat.\nSome action here.")
+        assert with_body.metadata == {}
         body_actions = [element.text for element in with_body.elements if element.type == ElementType.ACTION]
-        assert body_actions == ["Some action here."]
+        assert "He opens the card: a threat." in body_actions
+        assert "Some action here." in body_actions
 
-        # Pinned divergence 1: a leading blank line does NOT disable detection. The parser
-        # skips leading blanks, so the colon line still opens the title page.
-        leading_blank = self.parser.parse("\nHe opens the card:\nSome action here.")
-        assert "he opens the card" in leading_blank.metadata, (
-            "A leading blank line does not disable title-page detection: the colon line "
-            f"still opens a metadata key, got {leading_blank.metadata}"
-        )
+        # A leading blank line still yields body content, not a phantom key.
+        leading_blank = self.parser.parse("\nHe opens the card: a threat.\nSome action here.")
+        assert leading_blank.metadata == {}
 
-        # Pinned divergence 2: a forced '>CUT TO:' on line one is consumed as a metadata
-        # key, not a transition, because forced-transition classification runs only in the
-        # body pass.
+        # A forced '>CUT TO:' on line one now parses as a body transition, not a key.
         forced_first = self.parser.parse(">CUT TO:\n\nINT. HOUSE - DAY")
-        assert ">cut to" in forced_first.metadata, (
-            f"'>CUT TO:' on line one is claimed by the title-page pass as a metadata key, got {forced_first.metadata}"
-        )
-        assert not any(element.type == ElementType.TRANSITION for element in forced_first.elements)
+        assert forced_first.metadata == {}
+        forced_transitions = [element for element in forced_first.elements if element.type == ElementType.TRANSITION]
+        assert len(forced_transitions) == 1
+        assert forced_transitions[0].text == "CUT TO:"
 
-        # Reliable escape hatch: an explicit title page followed by a blank line lets a
-        # forced '>CUT TO:' in the body parse as a TRANSITION.
+        # A real title page still parses, and a forced '>CUT TO:' in the body still works.
         with_title = self.parser.parse("Title: My Script\n\n>CUT TO:\n\nINT. HOUSE - DAY")
         assert with_title.metadata.get("title") == "My Script"
         transitions = [element for element in with_title.elements if element.type == ElementType.TRANSITION]
