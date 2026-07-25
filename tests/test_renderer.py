@@ -106,6 +106,24 @@ class TestHTMLRenderer:
         assert "<b>" not in html
         assert "&lt;b&gt;" in html
 
+    def test_custom_title_page_key_is_html_escaped(self):
+        """A custom title-page key is HTML-escaped in both the class attribute and the label.
+
+        The key is interpolated into ``class="..."`` and the label text, so an unescaped
+        key like ``X"><img/src=x>`` would break out of the attribute and inject live markup.
+        """
+        # Parser-reachable: a single-word capitalized key carrying a tag payload.
+        document = FountainParser().parse("X><img/src=x/onerror=alert(1)>: y\n\nINT. HOUSE - DAY")
+        html = self.renderer.render(document)
+        assert "<img" not in html
+        assert "&lt;img" in html
+
+        # Hand-built document with a script-injecting key, in the standalone page too.
+        injected = FountainDocument([], {'evil"><script>alert(1)</script>': "v"})
+        page = self.renderer.render_page(injected)
+        assert "<script>alert(1)" not in page
+        assert "&lt;script&gt;" in page
+
     def test_metadata_rendering(self):
         metadata = {
             "title": "My Great Script",

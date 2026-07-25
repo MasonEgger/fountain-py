@@ -382,12 +382,14 @@ class HTMLRenderer:
                 value_html = value_html.replace("\n", "<br>")
             html_parts.append(f'<{tag} class="{css_class}">{prefix}{value_html}</{tag}>')
 
-        # Render any custom/unknown metadata fields after known fields
+        # Render any custom/unknown metadata fields after known fields. The key is
+        # attacker-controlled (arbitrary title-page keys are supported), so escape it in
+        # both the class attribute and the label text, exactly as the value is escaped.
         for key, value in metadata.items():
             if key in _KNOWN_TITLE_FIELDS:
                 continue
-            css_class = key.replace(" ", "-")
-            field_label = key.replace("_", " ").title()
+            css_class = self._escape_html(key.replace(" ", "-"))
+            field_label = self._escape_html(key.replace("_", " ").title())
             value_html = self._escape_html(value).replace("\n", "<br>")
             html_parts.append(f'<p class="fountain-custom-field {css_class}">{field_label}: {value_html}</p>')
 
