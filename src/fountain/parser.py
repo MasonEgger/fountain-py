@@ -218,7 +218,10 @@ class FountainParser:
     # Synopsis: prefixed with = for scene/section summaries
     # Removes the = prefix to get synopsis content
     # Example: "= John meets Mary for the first time"
-    SYNOPSIS_PATTERN = re.compile(r"^=\s*")
+    # A synopsis is a single leading '=' followed by content. The (?!=) guard keeps a run
+    # of equals signs (e.g. "==") out, so it is not read as a synopsis of "="; two equals
+    # are neither a synopsis nor a page break (which needs 3+) and fall through to action.
+    SYNOPSIS_PATTERN = re.compile(r"^=(?!=)\s*")
 
     # Page breaks: three or more equals signs on a line
     # Forces a page break in formatted output
@@ -1905,13 +1908,18 @@ class FountainParser:
 
                     # Create dual dialogue element
                     if prev_dialogue and curr_dialogue:
+                        # The left character anchors the pair; clear any caret flag it
+                        # carries (a both-caret pair) so it is not left latently dual.
+                        left_character = self.elements[prev_char_idx]
+                        if left_character.metadata:
+                            left_character.metadata.pop("dual_dialogue", None)
                         dual_element = FountainElement(
                             type=ElementType.DUAL_DIALOGUE,
                             text="",  # Dual dialogue doesn't have direct text
                             formatting=[],
                             line_number=element.line_number,
                             metadata={
-                                "left_character": self.elements[prev_char_idx],
+                                "left_character": left_character,
                                 "left_dialogue": prev_dialogue,
                                 "right_character": element,
                                 "right_dialogue": curr_dialogue,
@@ -1926,5 +1934,11 @@ class FountainParser:
                         # Adjust index
                         i = start_idx + 1
                         continue
+
+                # A dual-flagged cue that never paired (a lone '^', or no dialogue on both
+                # sides) is not dual: clear the latent flag so a non-dual character is not
+                # left marked as dual dialogue.
+                if element.metadata:
+                    element.metadata.pop("dual_dialogue", None)
 
             i += 1

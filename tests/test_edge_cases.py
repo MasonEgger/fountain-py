@@ -1668,6 +1668,23 @@ More action here."""
             ElementType.DIALOGUE,
         ]
 
+    def test_double_equals_is_not_a_synopsis(self):
+        """Two equals signs are neither a synopsis nor a page break; they fall to action."""
+        doc = self.parser.parse("Action.\n\n==\n\nMore.")
+        assert not any(element.type == ElementType.SYNOPSIS for element in doc.elements)
+
+        # A real synopsis (single =) still works.
+        syn = self.parser.parse("Action.\n\n= A synopsis\n\nMore.")
+        assert any(element.type == ElementType.SYNOPSIS and element.text == "A synopsis" for element in syn.elements)
+
+    def test_orphan_caret_does_not_leave_dual_flag(self):
+        """A lone '^' cue with no preceding character is not left flagged as dual dialogue."""
+        doc = self.parser.parse("STEEL ^\nAlone.")
+        characters = [element for element in doc.elements if element.type == ElementType.CHARACTER]
+        assert len(characters) == 1
+        assert characters[0].text == "STEEL"
+        assert not (characters[0].metadata and characters[0].metadata.get("dual_dialogue"))
+
     def test_forced_character_requires_a_letter(self):
         """A forced ``@`` cue with no alphabetical character is not a valid character.
 
