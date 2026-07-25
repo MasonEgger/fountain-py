@@ -1487,13 +1487,15 @@ class FountainParser:
         if prev_element.type == ElementType.DIALOGUE and not had_blank_line_before:
             return True
 
-        # A lyric or standalone note inside a dialogue block does not end the block: a
-        # character who sings (or carries an editorial note) mid-speech and then keeps
-        # speaking stays in dialogue. Look back past any LYRICS/NOTE lines to the element
-        # that anchors the block; a blank line still ends it (had_blank_line_before).
-        if prev_element.type in (ElementType.LYRICS, ElementType.NOTE) and not had_blank_line_before:
+        # A lyric, standalone note, or boneyard comment inside a dialogue block does not end
+        # the block: a character who sings (or carries an editorial note or a commented-out
+        # line) mid-speech and then keeps speaking stays in dialogue. Look back past those
+        # non-terminating lines to the element that anchors the block; a blank line still
+        # ends it (had_blank_line_before).
+        non_terminating = (ElementType.LYRICS, ElementType.NOTE, ElementType.BONEYARD)
+        if prev_element.type in non_terminating and not had_blank_line_before:
             for earlier in reversed(self.elements):
-                if earlier.type in (ElementType.LYRICS, ElementType.NOTE):
+                if earlier.type in non_terminating:
                     continue
                 return earlier.type in (
                     ElementType.CHARACTER,

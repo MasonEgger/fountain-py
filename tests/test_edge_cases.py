@@ -1691,6 +1691,14 @@ More action here."""
             ElementType.DIALOGUE,
         ]
 
+        boneyard_doc = self.parser.parse("STEEL\nHello.\n/* aside */\nGoodbye.")
+        assert [element.type for element in boneyard_doc.elements] == [
+            ElementType.CHARACTER,
+            ElementType.DIALOGUE,
+            ElementType.BONEYARD,
+            ElementType.DIALOGUE,
+        ]
+
     def test_double_equals_is_not_a_synopsis(self):
         """Two equals signs are neither a synopsis nor a page break; they fall to action."""
         doc = self.parser.parse("Action.\n\n==\n\nMore.")
