@@ -99,14 +99,17 @@ class FountainParser:
     """
 
     # Scene Heading Patterns
-    # Matches standard scene heading prefixes: INT, EXT, EST, I/E, INTERIOR, EXTERIOR, INT/EXT, INT./EXT
+    # Matches the scene heading prefixes the Fountain spec recognizes: INT, EXT, EST, I/E,
+    # INT/EXT, INT./EXT. The spelled-out INTERIOR/EXTERIOR are deliberately excluded (they
+    # are not spec prefixes, and accepting them turns ordinary prose like "Interior design
+    # is a career." into a false scene heading under case-insensitive matching).
     # Each prefix is followed by a separator: a period (dot form, optional space before it) or a
     # space (space form). Requiring a separator provides a prefix boundary so a word that merely
     # starts with the prefix letters, like "INTERNAL", stays ACTION rather than matching on "INT".
     # Case-insensitive matching allows for "int." or "Int." variations.
     # Examples: "INT. COFFEE SHOP - DAY", "EXT PARK - NIGHT", "I/E. CAR - CONTINUOUS"
     SCENE_HEADING_PATTERN = re.compile(
-        r"^(?:INT|EXT|EST|I/E|INTERIOR|EXTERIOR|INT/EXT|INT\./EXT)(?:\s*\.|\s)",
+        r"^(?:INT|EXT|EST|I/E|INT/EXT|INT\./EXT)(?:\s*\.|\s)",
         re.IGNORECASE,
     )
 

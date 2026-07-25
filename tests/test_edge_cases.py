@@ -28,8 +28,10 @@ class TestSceneHeadingEdgeCases:
             ("I/E. CAR - MOVING", True),
             ("INT.HOUSE-DAY", True),  # no spaces
             ("EXT .PARK - NIGHT", True),  # space before period
-            ("INTERIOR. HOUSE - DAY", True),  # full word
-            ("EXTERIOR. PARK - NIGHT", True),  # full word
+            ("INTERIOR. HOUSE - DAY", False),  # INTERIOR/EXTERIOR are not spec prefixes
+            ("EXTERIOR. PARK - NIGHT", False),  # INTERIOR/EXTERIOR are not spec prefixes
+            ("INTERIOR decorators arrived.", False),  # prose starting with INTERIOR is action
+            ("Interior design is a career.", False),  # case-insensitive guard must not fire on prose
             ("INT/EXT. HOUSE - DAY", True),  # slash variation
             ("INT./EXT. HOUSE - DAY", True),  # period slash variation
             ("INT HOUSE - DAY", True),  # space form recognized per spec (B1)
@@ -359,7 +361,7 @@ FADE IN:
 
 = Setup and introduction
 
-INTERIOR. CAFÉ - DAY #1#
+INT. CAFÉ - DAY #1#
 
 This is action text with **bold**, *italic*, _underline_, and ***bold italic*** formatting.
 
