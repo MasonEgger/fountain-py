@@ -1668,6 +1668,19 @@ More action here."""
             ElementType.DIALOGUE,
         ]
 
+    def test_forced_character_requires_a_letter(self):
+        """A forced ``@`` cue with no alphabetical character is not a valid character.
+
+        The Fountain spec requires a character name to contain at least one letter, even
+        when forced, so ``@23`` is not a cue while ``@McClane`` is.
+        """
+        no_letter = self.parser.parse("@23\nHello.")
+        assert not any(element.type == ElementType.CHARACTER for element in no_letter.elements)
+
+        valid = self.parser.parse("@McClane\nHi.")
+        assert valid.elements[0].type == ElementType.CHARACTER
+        assert valid.elements[0].text == "McClane"
+
     def test_inline_note_removal_collapses_double_space(self):
         """Removing a mid-line note leaves a single space, not two."""
         doc = self.parser.parse("Action [[a note]] here")

@@ -1182,13 +1182,17 @@ class FountainParser:
             # unconditionally. Unlike natural cues (which stay gated on the dialogue
             # lookahead below), a forced cue is a cue whether dialogue, a blank line,
             # action, or EOF follows — never demote it back to ACTION with the '@' kept.
-            return FountainElement(
-                type=ElementType.CHARACTER,
-                text=character_name,
-                formatting=[],
-                line_number=self.current_line + 1,
-                metadata=forced_metadata,
-            )
+            # Spec: a character name must contain at least one alphabetical character, even
+            # when forced. A '@' cue with no letter (e.g. "@23") is not a valid character,
+            # so it falls through to normal classification (ultimately action).
+            if any(character.isalpha() for character in character_name):
+                return FountainElement(
+                    type=ElementType.CHARACTER,
+                    text=character_name,
+                    formatting=[],
+                    line_number=self.current_line + 1,
+                    metadata=forced_metadata,
+                )
 
         # Check for dual dialogue character (CHARACTER^) — requires blank line before or first element.
         # A scene-heading form (INT./EXT. …) that degraded to here is action, never a cue (C1 guard).
