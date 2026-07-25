@@ -14,7 +14,7 @@ A Python library for parsing [Fountain markup](https://fountain.io/), the screen
 - **Type-Safe**: Built with full type hints and strict mypy compliance
 - **Multiple Render Modes**: HTML fragments for embedding, full pages with CSS, or raw CSS for custom styling
 - **Zero Dependencies**: Pure Python with no runtime dependencies
-- **Well-Tested**: 304 tests, 99% coverage, doctests across all modules
+- **Well-Tested**: 313 tests, 99% coverage, doctests across all modules
 - **Modern Python**: Supports Python 3.10 through 3.14
 
 ## Quick Start
