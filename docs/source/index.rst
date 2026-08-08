@@ -1,13 +1,13 @@
 fountain-py
 ===========
 
-.. image:: https://img.shields.io/badge/python-3.10%2B-blue.svg
-   :target: https://www.python.org/downloads/
-   :alt: Python versions
+.. image:: https://img.shields.io/pypi/v/fountain-py.svg
+   :target: https://pypi.org/project/fountain-py/
+   :alt: PyPI version
 
-.. image:: https://img.shields.io/badge/coverage-99%25-brightgreen.svg
-   :target: https://github.com/MasonEgger/fountain-py
-   :alt: Test coverage
+.. image:: https://img.shields.io/pypi/pyversions/fountain-py.svg
+   :target: https://pypi.org/project/fountain-py/
+   :alt: Python versions
 
 **fountain-py** is a Python library for parsing and rendering `Fountain <https://fountain.io/>`_, the plain-text screenwriting format.
 It turns a Fountain script into structured Python objects you can analyze, and renders it back out as HTML or Fountain.
@@ -51,7 +51,7 @@ Quick Example
 Start Here
 ----------
 
-- :doc:`Installation <installation>`: install from source (PyPI publication is pending).
+- :doc:`Installation <installation>`: install with ``pip install fountain-py``.
 - :doc:`Quick Start <quickstart>`: parse a screenplay and render it to HTML in minutes.
 - :doc:`What Is Fountain? <explanation/what-is-fountain>`: the format, and what fountain-py does with it.
 - :doc:`How fountain-py Works <explanation/pipeline>`: the parse, structure, and render pipeline.
@@ -115,6 +115,7 @@ Documentation
    contributing/development
    contributing/testing
    contributing/documentation
+   contributing/releasing
 
 Indices and Tables
 ==================
