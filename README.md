@@ -9,11 +9,13 @@ A Python library for parsing [Fountain markup](https://fountain.io/), the screen
 
 ## Features
 
-- **Full Fountain Spec Compliance**: Parses all Fountain elements including scenes, dialogue, action, transitions, notes, dual dialogue, lyrics, and more
-- **Type-Safe**: Built with full type hints and strict mypy compliance
+- **Full Fountain Support**: Parses all Fountain elements including scenes, dialogue, action, transitions, notes, dual dialogue, lyrics, and inline emphasis
+- **Validation**: Reports structural problems (unclosed comments and notes, orphaned character cues) through a validation API
 - **Multiple Render Modes**: HTML fragments for embedding, full pages with CSS, or raw CSS for custom styling
+- **Round-Trip and Export**: Write a parsed script back to clean Fountain, or export it to JSON
+- **Type-Safe**: Built with full type hints and strict mypy compliance
 - **Zero Dependencies**: Pure Python with no runtime dependencies
-- **Well-Tested**: 314 tests, 99% coverage, doctests across all modules
+- **Well-Tested**: Unit tests and doctests across every module, with high coverage enforced in CI
 - **Modern Python**: Supports Python 3.10 through 3.14
 
 ## Quick Start
