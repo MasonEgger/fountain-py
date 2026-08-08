@@ -32,21 +32,21 @@ Running Tests
 Test Organization
 -----------------
 
-- ``tests/test_parser.py`` — Core parser functionality
-- ``tests/test_renderer.py`` — HTML and Fountain renderers (``TestHTMLRenderer``, ``TestFountainRenderer``)
-- ``tests/test_document.py`` — Document analysis methods
-- ``tests/test_edge_cases.py`` — Edge cases and spec compliance (``TestSpecCompliance`` class)
-- ``tests/test_quickstart_examples.py`` — Validates all quickstart documentation examples
-- ``tests/conftest.py`` — Shared fixtures and sample ``.fountain`` file loading
+- ``tests/test_parser.py``: Core parser functionality
+- ``tests/test_renderer.py``: HTML and Fountain renderers (``TestHTMLRenderer``, ``TestFountainRenderer``)
+- ``tests/test_document.py``: Document analysis methods
+- ``tests/test_edge_cases.py``: Edge cases and spec compliance (``TestSpecCompliance`` class)
+- ``tests/test_quickstart_examples.py``: Validates all quickstart documentation examples
+- ``tests/conftest.py``: Shared fixtures and sample ``.fountain`` file loading
 
 Writing Tests
 -------------
 
 Follow test-driven development:
 
-1. **RED** — Write a failing test that describes the expected behavior
-2. **GREEN** — Write the minimal code to make it pass
-3. **REFACTOR** — Clean up while keeping tests green
+1. **RED**: Write a failing test that describes the expected behavior
+2. **GREEN**: Write the minimal code to make it pass
+3. **REFACTOR**: Clean up while keeping tests green
 
 Guidelines:
 

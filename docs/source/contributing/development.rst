@@ -63,7 +63,7 @@ Making Changes
 --------------
 
 1. Create a branch from ``main``
-2. Write tests first (TDD — see :doc:`testing`)
+2. Write tests first (TDD, see :doc:`testing`)
 3. Implement your changes
 4. Run ``just test`` to verify everything passes
 5. Open a pull request against ``main``

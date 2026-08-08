@@ -6,10 +6,10 @@ All notable changes to fountain-py will be documented in this file.
 The format is based on `Keep a Changelog <https://keepachangelog.com/en/1.0.0/>`_,
 and this project adheres to `Semantic Versioning <https://semver.org/spec/v2.0.0.html>`_.
 
-Version 0.1.0 — 2026-04-09
+Version 0.1.0: 2026-04-09
 ----------------------------
 
-Parser — Full Fountain Spec Compliance
+Parser: Full Fountain Spec Compliance
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * Two-pass parser: title page metadata extraction, then line-by-line element classification
@@ -34,9 +34,9 @@ Renderers
 
 * ``HTMLRenderer`` with three output modes:
 
-  * ``render(doc)`` — pure HTML fragment for embedding (no ``<style>`` tags)
-  * ``render_page(doc)`` — standalone HTML with embedded CSS
-  * ``get_css()`` — raw CSS string for external stylesheet use
+  * ``render(doc)``: pure HTML fragment for embedding (no ``<style>`` tags)
+  * ``render_page(doc)``: standalone HTML with embedded CSS
+  * ``get_css()``: raw CSS string for external stylesheet use
 
 * ``FountainRenderer`` for round-trip conversion back to Fountain markup
 * All CSS classes namespaced with ``fountain-`` prefix to prevent framework collisions
@@ -48,12 +48,12 @@ Document Analysis
 ~~~~~~~~~~~~~~~~~
 
 * ``FountainDocument`` container with element access and metadata
-* ``get_characters()`` — extract unique character names
-* ``get_scenes()`` — list scene heading elements
-* ``get_statistics()`` — element counts by type, character count, scene count
-* ``to_html()`` — convenience method for standalone HTML output
-* ``to_json()`` — JSON serialization
-* ``to_dict()`` — dictionary conversion
+* ``get_characters()``: extract unique character names
+* ``get_scenes()``: list scene heading elements
+* ``get_statistics()``: element counts by type, character count, scene count
+* ``to_html()``: convenience method for standalone HTML output
+* ``to_json()``: JSON serialization
+* ``to_dict()``: dictionary conversion
 
 Type System
 ~~~~~~~~~~~
