@@ -1,14 +1,14 @@
 Installation
 ============
 
-**fountain-py** is not on PyPI yet (the 0.1.0 release is pending), so install it from source for now.
-Once it is published, ``pip install fountain-py`` will be the one-line option.
+The **fountain-py** package is not on PyPI yet (the 0.1.0 release is pending), so install it from source for now.
+After the release lands on PyPI, ``pip install fountain-py`` becomes the one-line option.
 
 Requirements
 ------------
 
 - **Python 3.10 or higher** (3.10, 3.11, 3.12, 3.13, 3.14 supported)
-- No external dependencies for core functionality
+- No external dependencies for core features
 
 Install from Source
 -------------------

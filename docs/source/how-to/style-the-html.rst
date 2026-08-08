@@ -8,7 +8,7 @@ To change how it looks, override the ``fountain-`` CSS classes with your own rul
 Start from the shipped CSS
 --------------------------
 
-``get_css()`` returns the default stylesheet as a string, so you can see exactly
+``get_css()`` returns the default style sheet as a string, so you can see
 which classes exist and what they set:
 
 .. code-block:: python
@@ -17,9 +17,9 @@ which classes exist and what they set:
 
    print(HTMLRenderer().get_css())
 
-Every class is listed in :doc:`../reference/rendering`.
+:doc:`../reference/rendering` lists every class.
 
-Override with your own rules
+Override with Your Own Rules
 ----------------------------
 
 Render a fragment, include the default CSS, then add your overrides *after* it so

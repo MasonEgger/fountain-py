@@ -8,7 +8,8 @@ Guide for contributing to fountain-py development.
 How to Contribute
 -----------------
 
-We welcome contributions! This section covers:
+We welcome contributions!
+This section covers:
 
 * **Development**: Setting up your development environment
 * **Testing**: Writing and running tests

@@ -1,7 +1,8 @@
 Rendering Reference
 ===================
 
-fountain-py renders a parsed document two ways: :class:`~fountain.renderer.HTMLRenderer` produces HTML, and :class:`~fountain.renderer.FountainRenderer` writes the document back out as Fountain.
+fountain-py renders a parsed document two ways.
+:class:`~fountain.renderer.HTMLRenderer` produces HTML, and :class:`~fountain.renderer.FountainRenderer` writes the document back out as Fountain.
 For how rendering fits the pipeline, see :doc:`../explanation/pipeline`; for task-focused recipes, see the How-to Guides.
 
 .. doctest::
@@ -31,7 +32,8 @@ For how rendering fits the pipeline, see :doc:`../explanation/pipeline`; for tas
 HTML Rendering
 --------------
 
-The :class:`~fountain.renderer.HTMLRenderer` is the primary renderer for web display and print output. It generates complete HTML with embedded CSS that follows industry-standard screenplay formatting conventions.
+The :class:`~fountain.renderer.HTMLRenderer` is the primary renderer for web display and print output.
+It generates complete HTML with embedded CSS that follows industry-standard screenplay formatting conventions.
 
 Basic HTML Rendering
 ~~~~~~~~~~~~~~~~~~~~
@@ -140,7 +142,7 @@ Element Type   CSS Class                              Description
 ============== ====================================== ================================================
 Title Page     ``.fountain-title-page``               Container for all title page metadata
                ``.fountain-title``                    Main screenplay title (24pt, uppercase)
-               ``.fountain-author``                   Author name(s)
+               ``.fountain-author``                   Author names
                ``.fountain-draft-date``               Draft date and version info
 Script Body    ``.fountain-script``                   Main container (Courier font, 70% width)
                ``.fountain-script-body``              Container for screenplay elements
@@ -160,10 +162,11 @@ Action/Other   ``.fountain-action``                   Narrative text (left-align
                ``.fountain-lyrics``                   Song lyrics (centered, italic)
 ============== ====================================== ================================================
 
-The default theme uses Courier New font with traditional screenplay spacing and can be customized through CSS.
+The default theme uses Courier New font with traditional screenplay spacing, and you can customize it through CSS.
 
-Notes, sections, synopses, and boneyard are writer tools, so they are omitted from the formatted output by default.
-Both ``render()`` (the HTML fragment) and ``render_page()`` (the standalone page) drop them entirely: they emit no markup and generate no CSS class, so there is no ``.fountain-note``, ``.fountain-section``, ``.fountain-synopsis``, or ``.fountain-boneyard`` rule to style.
+Notes, sections, synopses, and boneyard are writer tools, so the formatted output omits them by default.
+Both ``render()`` (the HTML fragment) and ``render_page()`` (the standalone page) drop them entirely.
+They emit no markup and generate no CSS class, so there is no ``.fountain-note``, ``.fountain-section``, ``.fountain-synopsis``, or ``.fountain-boneyard`` rule to style.
 The parser still records these elements on the :class:`~fountain.document.FountainDocument`, so you can read them from ``document.elements`` even though they never reach the rendered screenplay.
 
 Inline Formatting in Output
@@ -209,7 +212,7 @@ The renderer walks the elements in order and applies each element's inline forma
 Saving Rendered Content
 -----------------------
 
-HTML output can be saved to files for viewing or printing:
+You can save HTML output to files for viewing or printing:
 
 .. code-block:: python
 
@@ -293,7 +296,7 @@ Round-Trip Capabilities and Limitations
 
 **Limitations:**
 
-- Multiple consecutive blank lines between paragraphs are normalized to one
+- Consecutive blank lines between paragraphs are normalized to one
 - Original capitalization in natural elements is maintained
 - Comments in boneyard are dropped from rendered output (a writer-only tool)
 
@@ -380,7 +383,7 @@ The key requirements for custom renderers:
 Error Handling in Rendering
 ----------------------------
 
-Renderers are designed to be robust and handle edge cases gracefully:
+Renderers handle edge cases without raising errors:
 
 .. doctest::
 

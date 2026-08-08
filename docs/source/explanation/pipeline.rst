@@ -35,7 +35,7 @@ of precedence:
 Parsing is lenient by design.
 ``parse()`` never raises; it makes a reasonable choice for ambiguous input and
 moves on.
-When you need to know what it silently tolerated (an unclosed comment, an orphaned
+When you need to know what it let through (an unclosed comment, an orphaned
 cue), :meth:`~fountain.parser.FountainParser.validate` reports the same run as a
 list of diagnostics.
 See :doc:`../how-to/validate-a-file`.
@@ -66,10 +66,10 @@ A document renders two ways.
 fragment (``render``), a standalone page with embedded CSS (``render_page``, which
 is what :meth:`~fountain.document.FountainDocument.to_html` calls), and the raw CSS
 on its own (``get_css``).
-Every CSS class it emits is prefixed with ``fountain-``.
+Every CSS class it emits carries a ``fountain-`` prefix.
 
 :class:`~fountain.renderer.FountainRenderer` goes the other direction and writes the
 document back out as Fountain text.
 Parsing and then rendering with ``FountainRenderer`` is a round trip.
-What that round trip preserves, and where it loses information, is covered in
-:doc:`roundtrip-and-notes`.
+:doc:`roundtrip-and-notes` covers what that round trip preserves and where it loses
+information.

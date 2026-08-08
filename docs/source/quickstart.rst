@@ -7,7 +7,8 @@ It takes about five minutes.
 Prerequisites
 -------------
 
-fountain-py installed. It is not on PyPI yet, so install it from source (see :doc:`installation` for details):
+fountain-py installed.
+The package is not on PyPI yet, so install it from source (see :doc:`installation` for details):
 
 .. code-block:: bash
 

@@ -1,7 +1,7 @@
 Validate a Fountain File
 ========================
 
-Fountain parsing is lenient: ``parse()`` never raises, and it silently tolerates
+Fountain parsing is lenient: ``parse()`` never raises, and it tolerates
 structural problems like an unclosed comment.
 When you want to *know* about those problems (for a linter, an editor, or a CI
 check), use ``validate()``.
@@ -97,7 +97,7 @@ The ``code`` is what you match on in your own tooling:
      - A ``[[`` note was opened but never closed.
    * - ``orphan-character-cue``
      - warning
-     - An uppercase line looked like a character cue but no dialogue followed, so it was treated as action.
+     - An uppercase line looked like a character cue but no dialogue followed, so the parser treated it as action.
    * - ``empty-document``
      - warning
      - The input parsed to zero elements.

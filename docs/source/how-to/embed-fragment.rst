@@ -7,7 +7,7 @@ CMS), render a *fragment* rather than a standalone page.
 ``render()`` returns just the screenplay markup, with no ``<html>``, ``<head>``,
 or ``<style>`` wrapper.
 ``get_css()`` returns the matching CSS as a plain string.
-Drop the fragment into your page body and the CSS into your stylesheet or a
+Drop the fragment into your page body and the CSS into your style sheet or a
 ``<style>`` block:
 
 .. code-block:: python
@@ -33,8 +33,8 @@ Drop the fragment into your page body and the CSS into your stylesheet or a
 Every class the fragment uses is prefixed with ``fountain-``, so it will not
 collide with your own styles.
 If your site already ships the CSS once (for example in a static-site build), call
-``get_css()`` a single time and reuse it across pages rather than inlining it into
-each fragment.
+``get_css()`` a single time.
+Reuse it across pages rather than inlining it into each fragment.
 
 For the full list of CSS classes, see :doc:`../reference/rendering`.
 To restyle the output, see :doc:`style-the-html`.

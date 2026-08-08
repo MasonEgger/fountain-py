@@ -52,7 +52,7 @@ Start Here
 ----------
 
 - :doc:`Installation <installation>`: install from source (PyPI publication is pending).
-- :doc:`Quick Start <quickstart>`: parse a screenplay and render it to HTML in a few minutes.
+- :doc:`Quick Start <quickstart>`: parse a screenplay and render it to HTML in minutes.
 - :doc:`What Is Fountain? <explanation/what-is-fountain>`: the format, and what fountain-py does with it.
 - :doc:`How fountain-py Works <explanation/pipeline>`: the parse, structure, and render pipeline.
 - :doc:`API Reference <api/parser>`: the class and method reference.

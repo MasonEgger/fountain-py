@@ -39,7 +39,7 @@ What the Round Trip Drops
 The round trip does not promise to preserve every character of the original text.
 The most important case to understand is notes.
 
-A **standalone note**, one that sits on its own between blank lines, is kept:
+A **standalone note**, one that sits on its own between blank lines, survives:
 
 .. code-block:: text
 
@@ -49,7 +49,7 @@ A **standalone note**, one that sits on its own between blank lines, is kept:
 
    Action here.
 
-An **inline note**, one embedded inside a line of action or dialogue, is dropped on
+An **inline note**, one embedded inside a line of action or dialogue, disappears on
 render:
 
 .. code-block:: python
@@ -60,15 +60,15 @@ render:
    >>> FountainRenderer().render(doc)
    'John enters and sits.'
 
-The note text is removed from the line, and the line round-trips without it.
+The renderer removes the note text from the line, and the line round-trips without it.
 
 Why Inline Notes Are Lossy
 --------------------------
 
-The two kinds of note are stored differently.
+The parser stores the two kinds of note differently.
 A standalone note becomes its own element, so the renderer can write it straight
 back out.
-An inline note is stripped from the surrounding text during parsing and recorded as
+Parsing strips an inline note from the surrounding text and records it as
 metadata on the element, and the renderer emits the cleaned line rather than
 splicing the note back into it.
 

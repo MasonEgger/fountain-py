@@ -1,9 +1,9 @@
 Round-Trip Back to Clean Fountain
 =================================
 
-To write a parsed document back out as Fountain text (for example to normalize a
-messy file, or to save a cleaned copy), use
-:class:`~fountain.renderer.FountainRenderer`.
+:class:`~fountain.renderer.FountainRenderer` writes a parsed document back out as
+Fountain text.
+Use it to normalize a messy file or to save a cleaned copy.
 
 .. code-block:: python
 
@@ -24,5 +24,5 @@ notes and boneyard comments.
 
 If notes matter to you, keep them on their own lines so they survive the round
 trip.
-The full contract, and why inline notes are lost, is in
-:doc:`../explanation/roundtrip-and-notes`.
+:doc:`../explanation/roundtrip-and-notes` covers the full contract and why the
+round trip drops inline notes.

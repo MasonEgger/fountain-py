@@ -1,10 +1,10 @@
 Changelog
 =========
 
-All notable changes to fountain-py will be documented in this file.
+This file documents all notable changes to fountain-py.
 
-The format is based on `Keep a Changelog <https://keepachangelog.com/en/1.0.0/>`_,
-and this project adheres to `Semantic Versioning <https://semver.org/spec/v2.0.0.html>`_.
+This changelog follows `Keep a Changelog <https://keepachangelog.com/en/1.0.0/>`_,
+and the project uses `Semantic Versioning <https://semver.org/spec/v2.0.0.html>`_.
 
 Version 0.1.0: 2026-04-09
 ----------------------------
@@ -20,8 +20,8 @@ Parser: Full Fountain Spec Compliance
 * Section level metadata (``# Act`` = level 1, ``## Scene`` = level 2, etc.)
 * Ellipsis protection on forced scene headings (``.`` + alphanumeric only)
 * Arbitrary title page keys (any ``Key: Value`` pair accepted)
-* Blank-line-before requirement for natural scene headings, character names, and transitions
-* Blank-line-after requirement for transitions
+* Requires a blank line before natural scene headings, character names, and transitions
+* Requires a blank line after transitions
 * Inline note stripping (``[[notes]]`` removed from element text in non-note elements)
 * Multi-line note support
 * Dialogue continuation with whitespace-only lines
@@ -36,7 +36,7 @@ Renderers
 
   * ``render(doc)``: pure HTML fragment for embedding (no ``<style>`` tags)
   * ``render_page(doc)``: standalone HTML with embedded CSS
-  * ``get_css()``: raw CSS string for external stylesheet use
+  * ``get_css()``: raw CSS string for external style sheet use
 
 * ``FountainRenderer`` for round-trip conversion back to Fountain markup
 * All CSS classes namespaced with ``fountain-`` prefix to prevent framework collisions

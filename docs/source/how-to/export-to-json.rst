@@ -1,8 +1,9 @@
 Export a Screenplay to JSON
 ===========================
 
-To hand a parsed script to another program (a web front end, a data pipeline, a
-different language), export it as JSON or a plain dictionary.
+You can hand a parsed script to another program: a web front end, a data pipeline,
+a different language.
+Export it as JSON or a plain dictionary.
 
 ``to_json()`` returns a JSON string:
 

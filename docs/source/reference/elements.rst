@@ -1,7 +1,8 @@
 Understanding Fountain Elements
 ===============================
 
-The element system is the foundation of fountain-py's document representation. Every piece of a Fountain screenplay is parsed into structured :class:`~fountain.elements.FountainElement` objects with specific types, text content, formatting information, and metadata.
+The element system is the foundation of fountain-py's document representation.
+The parser turns every piece of a Fountain screenplay into structured :class:`~fountain.elements.FountainElement` objects with specific types, text content, formatting information, and metadata.
 
 Overview of the Element System
 ------------------------------
@@ -80,7 +81,8 @@ Scene Structure Elements
         True
 
 **ACTION**
-    Narrative description of what happens on screen. This is the default element type.
+    Narrative description of what happens on screen.
+    This is the default element type.
     
     - General narrative text
     - Stage directions and descriptions
@@ -163,7 +165,7 @@ Dialogue Elements
     The words spoken by characters.
     
     - Always follows CHARACTER or PARENTHETICAL elements
-    - Can span multiple lines without blank line separation
+    - Can span several lines without blank line separation
     - Supports inline formatting
 
     .. doctest::
@@ -243,7 +245,7 @@ Document Structure Elements
     Hierarchical section headings for document organization.
     
     - Format: ``# Act I``, ``## Scene 1``, ``### Subplot``
-    - Similar to Markdown headers
+    - Like Markdown headers
 
     .. doctest::
 
@@ -302,7 +304,7 @@ Special Elements
 ~~~~~~~~~~~~~~~~
 
 **CENTERED**
-    Text that should be centered on the page.
+    Text centered on the page.
     
     - Format: ``>THE END<``
     - Often used for titles or special announcements
@@ -384,7 +386,7 @@ Element Structure Deep Dive
 Understanding FormatSpan Objects
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Inline formatting is represented by :class:`~fountain.elements.FormatSpan` objects that define regions of formatted text:
+:class:`~fountain.elements.FormatSpan` objects represent inline formatting and define regions of formatted text:
 
 .. doctest::
 
@@ -458,13 +460,13 @@ The document is a flat, ordered list of these elements, so the common tasks
 (filtering by type, pairing characters with dialogue, finding forced elements)
 are plain iteration over ``document.elements``.
 Those recipes live in the How-to Guides, for example
-:doc:`../how-to/extract-character-dialogue`, and the classification rules behind
-each type are in :doc:`parsing-behavior`.
+:doc:`../how-to/extract-character-dialogue`.
+The classification rules behind each type are in :doc:`parsing-behavior`.
 
 Next Steps
 ----------
 
-Now that you understand the element system, learn how to:
+Now that you understand the element system, explore:
 
 - :doc:`rendering` - Convert elements to HTML output
 - :doc:`../api/elements` - Complete API reference for element classes

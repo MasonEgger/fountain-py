@@ -17,10 +17,10 @@ For just the cast, use
 Pair Characters with Their Lines
 --------------------------------
 
-To collect what each character says, walk the elements: a
-``CHARACTER`` element starts a speech, and the ``DIALOGUE`` and
-``PARENTHETICAL`` elements that follow belong to it until the next non-dialogue
-element:
+To collect what each character says, walk the elements.
+A ``CHARACTER`` element starts a speech.
+The ``DIALOGUE`` and ``PARENTHETICAL`` elements that follow belong to it until the
+next non-dialogue element:
 
 .. code-block:: python
 
@@ -43,8 +43,8 @@ element:
        print(line)
 
 The final ``elif`` resets the current speaker when anything other than dialogue or
-a parenthetical appears (an action line, a new scene), so lines are attributed to
-the right character.
+a parenthetical appears (an action line, a new scene).
+This keeps each line with the right character.
 
-For how each of these element types is recognized, see
+For how fountain-py recognizes each of these element types, see
 :doc:`../reference/parsing-behavior`.

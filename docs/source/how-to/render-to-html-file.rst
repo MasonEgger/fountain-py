@@ -4,9 +4,9 @@ Render a Screenplay to an HTML File
 Turn a parsed script into a standalone HTML file you can open in a browser or
 send to someone.
 
-Use ``render_page()`` (or the ``to_html()`` shortcut on the document), which
-returns a full HTML page with the screenplay CSS embedded, so the file needs no
-external stylesheet:
+Use ``render_page()``, or the ``to_html()`` shortcut on the document.
+It returns a full HTML page with the screenplay CSS embedded, so the file needs no
+external style sheet:
 
 .. code-block:: python
 
@@ -30,8 +30,8 @@ anything else:
 
 Open ``screenplay.html`` in a browser to view or print it.
 
-The three HTMLRenderer modes (``render_page`` for a standalone page, ``render``
-for a fragment, and ``get_css`` for the CSS on its own) are described in
-:doc:`../reference/rendering`.
+:doc:`../reference/rendering` describes the three HTMLRenderer modes:
+``render_page`` for a standalone page, ``render`` for a fragment, and
+``get_css`` for the CSS on its own.
 To embed the screenplay in an existing page instead of writing a standalone file,
 see :doc:`embed-fragment`.
