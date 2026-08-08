@@ -10,7 +10,7 @@ Basic Usage
 Parsing from a String
 ~~~~~~~~~~~~~~~~~~~~~
 
-The most straightforward way to parse Fountain text is from a string:
+To parse Fountain text from a string:
 
 .. doctest::
 
