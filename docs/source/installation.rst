@@ -1,8 +1,7 @@
 Installation
 ============
 
-The **fountain-py** package is not on PyPI yet (the 0.1.0 release is pending), so install it from source for now.
-After the release lands on PyPI, ``pip install fountain-py`` becomes the one-line option.
+**fountain-py** is on PyPI, so install it with your usual package manager.
 
 Requirements
 ------------
@@ -10,20 +9,18 @@ Requirements
 - **Python 3.10 or higher** (3.10, 3.11, 3.12, 3.13, 3.14 supported)
 - No external dependencies for core features
 
-Install from Source
--------------------
-
-Install the latest code straight from GitHub:
+Install
+-------
 
 .. code-block:: bash
 
-   pip install git+https://github.com/MasonEgger/fountain-py.git
+   pip install fountain-py
 
 Or with `uv <https://docs.astral.sh/uv/>`_:
 
 .. code-block:: bash
 
-   uv pip install git+https://github.com/MasonEgger/fountain-py.git
+   uv add fountain-py
 
 Verify the install:
 
@@ -31,16 +28,14 @@ Verify the install:
 
    python -c "import fountain; print('fountain-py ready')"
 
-After Publication
------------------
+Install the Latest Unreleased Code
+----------------------------------
 
-Once fountain-py is on PyPI, install it with your usual package manager:
+To install straight from the main branch on GitHub, ahead of the next release:
 
 .. code-block:: bash
 
-   pip install fountain-py
-   # or
-   uv add fountain-py
+   pip install git+https://github.com/MasonEgger/fountain-py.git
 
 Development Installation
 ------------------------

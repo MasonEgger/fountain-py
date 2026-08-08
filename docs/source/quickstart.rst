@@ -7,12 +7,11 @@ It takes about five minutes.
 Prerequisites
 -------------
 
-fountain-py installed.
-The package is not on PyPI yet, so install it from source (see :doc:`installation` for details):
+fountain-py installed (see :doc:`installation`):
 
 .. code-block:: bash
 
-   pip install git+https://github.com/MasonEgger/fountain-py.git
+   pip install fountain-py
 
 Parse a Screenplay
 ------------------
