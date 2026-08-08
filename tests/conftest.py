@@ -1,0 +1,38 @@
+# ABOUTME: Pytest configuration and shared fixtures for fountain test suite.
+# Provides sample .fountain file loading and common test document fixtures.
+"""Pytest configuration and fixtures."""
+
+from pathlib import Path
+
+import pytest
+
+
+@pytest.fixture
+def fixtures_dir() -> Path:
+    """Return the path to the fixtures directory."""
+    return Path(__file__).parent / "fixtures"
+
+
+@pytest.fixture
+def simple_fountain_script(fixtures_dir: Path) -> str:
+    """Load the simple fountain script fixture."""
+    return (fixtures_dir / "simple_script.fountain").read_text()
+
+
+@pytest.fixture
+def sample_fountain_text() -> str:
+    """Return a sample Fountain text for testing."""
+    return """Title: Test Script
+Author: Test Author
+
+FADE IN:
+
+INT. COFFEE SHOP - DAY
+
+JOHN enters the coffee shop.
+
+JOHN
+(excited)
+This is a test!
+
+FADE OUT."""

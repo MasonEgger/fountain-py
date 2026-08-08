@@ -1,0 +1,121 @@
+[project]
+name = "fountain-py"
+version = "0.1.0"
+description = "A Python library for parsing Fountain markup, the screenwriting format"
+readme = "README.md"
+authors = [
+    { name = "Mason Egger", email = "mason@masonegger.com" }
+]
+requires-python = ">=3.10"
+dependencies = []
+keywords = ["fountain", "screenplay", "screenwriting", "parser", "theater", "script"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Text Processing :: Markup",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.urls]
+Homepage = "https://github.com/MasonEgger/fountain-py"
+Repository = "https://github.com/MasonEgger/fountain-py"
+Documentation = "https://masonegger.github.io/fountain-py/"
+Issues = "https://github.com/MasonEgger/fountain-py/issues"
+
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fountain"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/fountain/py.typed" = "fountain/py.typed"
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    ".ai-sessions",
+    "CLAUDE.md",
+    "handoff.md",
+    "plan.md",
+    "todo.md",
+    "spec.md",
+    "commit-msg.md",
+    "goal.md",
+    ".github",
+    "justfile",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.12.0",
+    "mypy>=1.17.0",
+]
+docs = [
+    "sphinx>=7.0.0",
+    "furo>=2023.5.20",
+    "sphinx-autodoc-typehints>=1.23.0",
+    "sphinx-copybutton>=0.5.2",
+    "sphinx-autobuild>=2021.3.14",
+    "myst-parser>=2.0.0",
+]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = [
+    "W293",  # blank line contains whitespace
+    "W291",  # trailing whitespace
+    "W292",  # no newline at end of file
+]
+
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q --strict-markers --doctest-modules"
+testpaths = ["tests", "src"]
+python_files = ["test_*.py", "*_test.py", "*.py"]
+filterwarnings = [
+    "error",
+    "ignore::UserWarning",
+    "ignore::DeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["src"]
