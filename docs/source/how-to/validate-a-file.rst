@@ -3,8 +3,8 @@ Validate a Fountain File
 
 Fountain parsing is lenient: ``parse()`` never raises, and it silently tolerates
 structural problems like an unclosed comment.
-When you want to *know* about those problems (for a linter, an editor, or a
-pre-commit check), use ``validate()``.
+When you want to *know* about those problems (for a linter, an editor, or a CI
+check), use ``validate()``.
 
 Check a String
 --------------

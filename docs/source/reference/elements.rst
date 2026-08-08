@@ -1,5 +1,5 @@
 Understanding Fountain Elements
-==============================
+===============================
 
 The element system is the foundation of fountain-py's document representation. Every piece of a Fountain screenplay is parsed into structured :class:`~fountain.elements.FountainElement` objects with specific types, text content, formatting information, and metadata.
 

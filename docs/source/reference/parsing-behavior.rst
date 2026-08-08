@@ -1,17 +1,8 @@
-Parsing Fountain Files
-======================
+Parsing Behavior
+================
 
-The parsing module is the heart of fountain-py, providing a robust parser that converts Fountain-formatted text into structured, programmatically accessible elements. This guide covers everything you need to know about parsing Fountain scripts.
-
-Overview
---------
-
-The :class:`~fountain.parser.FountainParser` class implements a two-pass parsing strategy designed specifically for the Fountain screenplay format:
-
-1. **First pass**: Extracts title page metadata (title, author, draft date, etc.)
-2. **Second pass**: Parses the screenplay body into structured elements (scenes, dialogue, action, etc.)
-
-The parser is designed to be forgiving and follows the Fountain specification's principle of "just write" - if something doesn't match a specific pattern, it defaults to action text.
+This page is the reference for how :class:`~fountain.parser.FountainParser` classifies Fountain text, including the edge cases that trip people up.
+For the design behind it (the two-pass strategy and the "just write" principle), see :doc:`../explanation/pipeline`.
 
 Basic Usage
 -----------
@@ -156,7 +147,7 @@ A recognized field or a capitalized custom label opens the title page as expecte
 Element Classification
 ~~~~~~~~~~~~~~~~~~~~~~
 
-After the title page, the parser classifies each line into one of 14 element types:
+After the title page, the parser classifies each body line into one of 14 element types (the :class:`~fountain.elements.ElementType` enum also defines ``TITLE_PAGE`` for title-page metadata, so the enum has 15 members in total):
 
 - **Scene Headings**: Lines starting with INT., EXT., EST., I/E., or forced with ``.``
 - **Characters**: ALL CAPS names followed by dialogue
@@ -562,17 +553,10 @@ For files that don't exist or have encoding issues, appropriate exceptions are r
     except UnicodeDecodeError:
         print("File encoding issue - expected UTF-8")
 
-Performance Considerations
--------------------------
+Performance
+-----------
 
-The parser is optimized for efficiency:
-
-- **Streaming**: Processes scripts line by line, maintaining minimal memory footprint
-- **Single-pass element parsing**: Each line is classified once
-- **Immutable elements**: Elements are created once and never modified
-- **Regex compilation**: All patterns are pre-compiled as class constants
-
-For large scripts (100+ pages), parsing typically completes in milliseconds:
+The parser reads the script once, line by line, so even a full-length screenplay parses in milliseconds:
 
 .. doctest::
 

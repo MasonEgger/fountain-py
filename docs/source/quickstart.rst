@@ -104,7 +104,7 @@ Open ``coffee_shop.html`` in your browser to see the formatted screenplay.
 Next Steps
 ----------
 
-- :doc:`user-guide/parsing`: how the parser classifies each line, and how to handle edge cases.
-- :doc:`user-guide/elements`: the Fountain element types fountain-py produces.
-- :doc:`user-guide/rendering`: HTML render modes, CSS, and round-tripping back to Fountain.
+- :doc:`explanation/what-is-fountain`: the format and what fountain-py does with it.
+- :doc:`how-to/render-to-html-file`: render a screenplay to a standalone HTML file.
+- :doc:`reference/parsing-behavior`: how the parser classifies each line, including the edge cases.
 - :doc:`api/parser`: the full API reference.

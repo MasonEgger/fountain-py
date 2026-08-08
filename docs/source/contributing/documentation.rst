@@ -29,8 +29,10 @@ Documentation Structure
    ├── installation.rst       # Installation guide
    ├── quickstart.rst         # Tutorial
    ├── changelog.rst          # Release notes
-   ├── user-guide/            # In-depth guides
-   │   ├── parsing.rst
+   ├── how-to/                # Task-focused how-to guides
+   ├── explanation/           # Concepts and design
+   ├── reference/             # Parsing behavior, elements, rendering, CSS classes
+   │   ├── parsing-behavior.rst
    │   ├── elements.rst
    │   └── rendering.rst
    ├── api/                   # Auto-generated API reference

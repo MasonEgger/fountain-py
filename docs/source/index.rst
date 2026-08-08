@@ -80,6 +80,12 @@ Documentation
    :caption: How-to Guides
 
    how-to/validate-a-file
+   how-to/render-to-html-file
+   how-to/embed-fragment
+   how-to/style-the-html
+   how-to/roundtrip-to-fountain
+   how-to/export-to-json
+   how-to/extract-character-dialogue
 
 .. toctree::
    :maxdepth: 2
@@ -91,20 +97,16 @@ Documentation
 
 .. toctree::
    :maxdepth: 2
-   :caption: User Guide
+   :caption: Reference
 
-   user-guide/parsing
-   user-guide/elements
-   user-guide/rendering
-
-.. toctree::
-   :maxdepth: 2
-   :caption: API Reference
-
+   reference/parsing-behavior
+   reference/elements
+   reference/rendering
    api/parser
    api/document
    api/elements
    api/renderer
+   changelog
 
 .. toctree::
    :maxdepth: 2
@@ -113,12 +115,6 @@ Documentation
    contributing/development
    contributing/testing
    contributing/documentation
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Reference
-
-   changelog
 
 Indices and Tables
 ==================
