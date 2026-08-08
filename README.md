@@ -1,8 +1,7 @@
 # Fountain-Py
 
 [![CI](https://github.com/MasonEgger/fountain-py/workflows/CI/badge.svg)](https://github.com/MasonEgger/fountain-py/actions?query=workflow%3ACI)
-[![PyPI version](https://badge.fury.io/py/fountain-py.svg)](https://badge.fury.io/py/fountain-py)
-[![Python versions](https://img.shields.io/pypi/pyversions/fountain-py.svg)](https://pypi.org/project/fountain-py/)
+[![Python versions](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
@@ -10,20 +9,26 @@ A Python library for parsing [Fountain markup](https://fountain.io/), the screen
 
 ## Features
 
-- **Full Fountain Spec Compliance**: Parses all Fountain elements including scenes, dialogue, action, transitions, notes, dual dialogue, lyrics, and more
-- **Type-Safe**: Built with full type hints and strict mypy compliance
+- **Full Fountain Support**: Parses all Fountain elements including scenes, dialogue, action, transitions, notes, dual dialogue, lyrics, and inline emphasis
+- **Validation**: Reports structural problems (unclosed comments and notes, orphaned character cues) through a validation API
 - **Multiple Render Modes**: HTML fragments for embedding, full pages with CSS, or raw CSS for custom styling
+- **Round-Trip and Export**: Write a parsed script back to clean Fountain, or export it to JSON
+- **Type-Safe**: Built with full type hints and strict mypy compliance
 - **Zero Dependencies**: Pure Python with no runtime dependencies
-- **Well-Tested**: 314 tests, 99% coverage, doctests across all modules
+- **Well-Tested**: Unit tests and doctests across every module, with high coverage enforced in CI
 - **Modern Python**: Supports Python 3.10 through 3.14
 
 ## Quick Start
 
 ### Installation
 
+Fountain-Py is not on PyPI yet (the 0.1.0 release is pending), so install it from source:
+
 ```bash
-pip install fountain-py
+pip install git+https://github.com/MasonEgger/fountain-py.git
 ```
+
+Once it is published, `pip install fountain-py` will work.
 
 ### Basic Usage
 

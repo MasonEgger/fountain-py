@@ -1,7 +1,8 @@
 Understanding Fountain Elements
-==============================
+===============================
 
-The element system is the foundation of fountain-py's document representation. Every piece of a Fountain screenplay is parsed into structured :class:`~fountain.elements.FountainElement` objects with specific types, text content, formatting information, and metadata.
+The element system is the foundation of fountain-py's document representation.
+The parser turns every piece of a Fountain screenplay into structured :class:`~fountain.elements.FountainElement` objects with specific types, text content, formatting information, and metadata.
 
 Overview of the Element System
 ------------------------------
@@ -80,7 +81,8 @@ Scene Structure Elements
         True
 
 **ACTION**
-    Narrative description of what happens on screen. This is the default element type.
+    Narrative description of what happens on screen.
+    This is the default element type.
     
     - General narrative text
     - Stage directions and descriptions
@@ -163,7 +165,7 @@ Dialogue Elements
     The words spoken by characters.
     
     - Always follows CHARACTER or PARENTHETICAL elements
-    - Can span multiple lines without blank line separation
+    - Can span several lines without blank line separation
     - Supports inline formatting
 
     .. doctest::
@@ -243,7 +245,7 @@ Document Structure Elements
     Hierarchical section headings for document organization.
     
     - Format: ``# Act I``, ``## Scene 1``, ``### Subplot``
-    - Similar to Markdown headers
+    - Like Markdown headers
 
     .. doctest::
 
@@ -302,7 +304,7 @@ Special Elements
 ~~~~~~~~~~~~~~~~
 
 **CENTERED**
-    Text that should be centered on the page.
+    Text centered on the page.
     
     - Format: ``>THE END<``
     - Often used for titles or special announcements
@@ -384,7 +386,7 @@ Element Structure Deep Dive
 Understanding FormatSpan Objects
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Inline formatting is represented by :class:`~fountain.elements.FormatSpan` objects that define regions of formatted text:
+:class:`~fountain.elements.FormatSpan` objects represent inline formatting and define regions of formatted text:
 
 .. doctest::
 
@@ -451,200 +453,20 @@ Different element types store specific information in their metadata dictionary:
     >>> dual.metadata['right_character'].text
     'JOHN'
 
-Common Element Patterns
------------------------
+Working with Elements
+---------------------
 
-Filtering Elements by Type
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Use list comprehensions to filter elements by type:
-
-.. doctest::
-
-    >>> script = """INT. COFFEE SHOP - DAY
-    ... 
-    ... SARAH
-    ... Good morning!
-    ... 
-    ... JOHN
-    ... (sleepily)
-    ... Morning..."""
-    >>> 
-    >>> document = parser.parse(script)
-    >>> 
-    >>> # Get all dialogue
-    >>> dialogue = [el for el in document.elements if el.type.value == 'dialogue']
-    >>> len(dialogue)
-    2
-    >>> 
-    >>> # Get characters and their dialogue
-    >>> characters = [el for el in document.elements if el.type.value == 'character']
-    >>> len(characters)
-    2
-
-Finding Elements by Content
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Search elements by their text content:
-
-.. doctest::
-
-    >>> script = """INT. HOUSE - DAY"""
-    >>> 
-    >>> document = parser.parse(script)
-    >>> 
-    >>> # Find specific scenes
-    >>> house_scenes = [el for el in document.elements 
-    ...                 if el.type.value == 'scene_heading' and 'HOUSE' in el.text]
-    >>> len(house_scenes)
-    1
-    >>> house_scenes[0].text
-    'INT. HOUSE - DAY'
-
-Extracting Character Information
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Build character lists and dialogue mappings:
-
-.. doctest::
-
-    >>> script = """JOHN
-    ... Hello there!
-    ... 
-    ... SARAH
-    ... Hi back!"""
-    >>> 
-    >>> document = parser.parse(script)
-    >>> 
-    >>> # Extract unique character names
-    >>> character_names = set()
-    >>> for element in document.elements:
-    ...     if element.type.value == 'character':
-    ...         character_names.add(element.text)
-    >>> 
-    >>> sorted(character_names)
-    ['JOHN', 'SARAH']
-
-Creating Element Collections
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Group related elements together:
-
-.. doctest::
-
-    >>> script = """INT. KITCHEN - MORNING
-    ... 
-    ... JOHN
-    ... Good morning!
-    ... 
-    ... SARAH
-    ... Morning to you too!"""
-    >>> 
-    >>> document = parser.parse(script)
-    >>> 
-    >>> # Group dialogue blocks (character + dialogue + parentheticals)
-    >>> dialogue_blocks = []
-    >>> current_block = None
-    >>> 
-    >>> for element in document.elements:
-    ...     if element.type.value == 'character':
-    ...         if current_block:
-    ...             dialogue_blocks.append(current_block)
-    ...         current_block = {'character': element, 'dialogue': [], 'parentheticals': []}
-    ...     elif current_block and element.type.value == 'dialogue':
-    ...         current_block['dialogue'].append(element)
-    ...     elif current_block and element.type.value == 'parenthetical':
-    ...         current_block['parentheticals'].append(element)
-    ...     else:
-    ...         if current_block:
-    ...             dialogue_blocks.append(current_block)
-    ...             current_block = None
-    >>> 
-    >>> if current_block:
-    ...     dialogue_blocks.append(current_block)
-    >>> 
-    >>> len(dialogue_blocks)
-    2
-
-Advanced Element Usage
-----------------------
-
-Working with Forced Elements
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Identify elements that were forced with special syntax:
-
-.. doctest::
-
-    >>> script = """.FLASHBACK SEQUENCE
-    ... 
-    ... @narrator
-    ... This is a voiceover."""
-    >>> 
-    >>> document = parser.parse(script)
-    >>> 
-    >>> # Find forced elements
-    >>> forced_elements = [el for el in document.elements 
-    ...                   if el.metadata and el.metadata.get('forced')]
-    >>> 
-    >>> len(forced_elements)
-    2
-    >>> forced_elements[0].type.value
-    'scene_heading'
-    >>> forced_elements[1].type.value
-    'character'
-
-Processing Inline Formatting
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Extract and process formatted text:
-
-.. doctest::
-
-    >>> script = """JOHN
-    ... This is ***very important*** information!"""
-    >>> 
-    >>> document = parser.parse(script)
-    >>> dialogue = [el for el in document.elements if el.type.value == 'dialogue'][0]
-    >>> 
-    >>> # Find bold-italic text
-    >>> for span in dialogue.formatting:
-    ...     if span.format_type == 'bold_italic':
-    ...         formatted_text = dialogue.text[span.start:span.end]
-    ...         print(f"Bold-italic text: '{formatted_text}'")
-    Bold-italic text: 'very important'
-
-Element Line Numbers
-~~~~~~~~~~~~~~~~~~~~
-
-Track source locations for debugging or editing:
-
-.. doctest::
-
-    >>> script = """Title: My Script
-    ... 
-    ... INT. HOUSE - DAY"""
-    >>> 
-    >>> document = parser.parse(script)
-    >>> 
-    >>> # Find element source lines
-    >>> for element in document.elements:
-    ...     if element.type.value == 'scene_heading':
-    ...         print(f"Scene at line {element.line_number}: {element.text}")
-    Scene at line 3: INT. HOUSE - DAY
-
-Best Practices
---------------
-
-1. **Use ElementType enum values**: Always compare against ``ElementType.SCENE_HEADING`` rather than string literals
-2. **Check metadata safely**: Use ``.get()`` method when accessing optional metadata fields
-3. **Handle formatting spans carefully**: Remember that start/end positions are relative to the clean text, not the original Fountain markup
-4. **Process dual dialogue specially**: Dual dialogue elements contain other elements in their metadata, requiring recursive processing
+The document is a flat, ordered list of these elements, so the common tasks
+(filtering by type, pairing characters with dialogue, finding forced elements)
+are plain iteration over ``document.elements``.
+Those recipes live in the How-to Guides, for example
+:doc:`../how-to/extract-character-dialogue`.
+The classification rules behind each type are in :doc:`parsing-behavior`.
 
 Next Steps
 ----------
 
-Now that you understand the element system, learn how to:
+Now that you understand the element system, explore:
 
 - :doc:`rendering` - Convert elements to HTML output
 - :doc:`../api/elements` - Complete API reference for element classes

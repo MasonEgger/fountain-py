@@ -1,16 +1,9 @@
-Rendering Fountain Documents
-============================
+Rendering Reference
+===================
 
-Once you've parsed a Fountain document, the next step is usually to render it into a specific output format. The fountain-py library provides flexible rendering capabilities through the :class:`~fountain.renderer.HTMLRenderer` and :class:`~fountain.renderer.FountainRenderer` classes.
-
-Overview of the Rendering System
----------------------------------
-
-The rendering architecture follows a strategy pattern design that makes it easy to add new output formats:
-
-- **HTMLRenderer**: Converts documents to HTML with traditional screenplay formatting
-- **FountainRenderer**: Converts documents back to Fountain markup (round-trip conversion)
-- **Extensible Design**: Custom renderers can be created for any output format
+fountain-py renders a parsed document two ways.
+:class:`~fountain.renderer.HTMLRenderer` produces HTML, and :class:`~fountain.renderer.FountainRenderer` writes the document back out as Fountain.
+For how rendering fits the pipeline, see :doc:`../explanation/pipeline`; for task-focused recipes, see the How-to Guides.
 
 .. doctest::
 
@@ -39,7 +32,8 @@ The rendering architecture follows a strategy pattern design that makes it easy 
 HTML Rendering
 --------------
 
-The :class:`~fountain.renderer.HTMLRenderer` is the primary renderer for web display and print output. It generates complete HTML with embedded CSS that follows industry-standard screenplay formatting conventions.
+The :class:`~fountain.renderer.HTMLRenderer` is the primary renderer for web display and print output.
+It generates complete HTML with embedded CSS that follows industry-standard screenplay formatting conventions.
 
 Basic HTML Rendering
 ~~~~~~~~~~~~~~~~~~~~
@@ -148,7 +142,7 @@ Element Type   CSS Class                              Description
 ============== ====================================== ================================================
 Title Page     ``.fountain-title-page``               Container for all title page metadata
                ``.fountain-title``                    Main screenplay title (24pt, uppercase)
-               ``.fountain-author``                   Author name(s)
+               ``.fountain-author``                   Author names
                ``.fountain-draft-date``               Draft date and version info
 Script Body    ``.fountain-script``                   Main container (Courier font, 70% width)
                ``.fountain-script-body``              Container for screenplay elements
@@ -168,22 +162,17 @@ Action/Other   ``.fountain-action``                   Narrative text (left-align
                ``.fountain-lyrics``                   Song lyrics (centered, italic)
 ============== ====================================== ================================================
 
-The default theme uses Courier New font with traditional screenplay spacing and can be customized through CSS.
+The default theme uses Courier New font with traditional screenplay spacing, and you can customize it through CSS.
 
-Notes, sections, synopses, and boneyard are writer tools, so they are omitted from the formatted output by default.
-Both ``render()`` (the HTML fragment) and ``render_page()`` (the standalone page) drop them entirely: they emit no markup and generate no CSS class, so there is no ``.fountain-note``, ``.fountain-section``, ``.fountain-synopsis``, or ``.fountain-boneyard`` rule to style.
+Notes, sections, synopses, and boneyard are writer tools, so the formatted output omits them by default.
+Both ``render()`` (the HTML fragment) and ``render_page()`` (the standalone page) drop them entirely.
+They emit no markup and generate no CSS class, so there is no ``.fountain-note``, ``.fountain-section``, ``.fountain-synopsis``, or ``.fountain-boneyard`` rule to style.
 The parser still records these elements on the :class:`~fountain.document.FountainDocument`, so you can read them from ``document.elements`` even though they never reach the rendered screenplay.
 
-Understanding the Rendering Pipeline
--------------------------------------
+Inline Formatting in Output
+---------------------------
 
-The rendering process follows these steps:
-
-1. **Document Analysis**: Examine document structure and metadata
-2. **Element Processing**: Convert each FountainElement to output format
-3. **Formatting Application**: Apply inline formatting (bold, italic, underline)
-4. **Template Generation**: Wrap elements in appropriate containers and styling
-5. **Output Assembly**: Combine all parts into final output string
+The renderer walks the elements in order and applies each element's inline formatting spans (bold, italic, underline) as it emits HTML:
 
 .. doctest::
 
@@ -223,7 +212,7 @@ The rendering process follows these steps:
 Saving Rendered Content
 -----------------------
 
-HTML output can be saved to files for viewing or printing:
+You can save HTML output to files for viewing or printing:
 
 .. code-block:: python
 
@@ -307,7 +296,7 @@ Round-Trip Capabilities and Limitations
 
 **Limitations:**
 
-- Multiple consecutive blank lines between paragraphs are normalized to one
+- Consecutive blank lines between paragraphs are normalized to one
 - Original capitalization in natural elements is maintained
 - Comments in boneyard are dropped from rendered output (a writer-only tool)
 
@@ -391,58 +380,10 @@ The key requirements for custom renderers:
 3. **Metadata processing** for title page information
 4. **Return string** in your target format
 
-Complete Rendering Workflow Example
-------------------------------------
-
-Here's a comprehensive example showing the full rendering workflow:
-
-.. code-block:: python
-
-    from fountain.parser import FountainParser
-    from fountain.renderer import HTMLRenderer, FountainRenderer
-    
-    # Parse screenplay
-    parser = FountainParser()
-    document = parser.parse_file("my_screenplay.fountain")
-    
-    # Generate standalone HTML with embedded CSS
-    html_renderer = HTMLRenderer()
-    html = html_renderer.render_page(document)
-
-    # Save HTML version
-    with open("my_screenplay.html", "w", encoding="utf-8") as f:
-        f.write(html)
-    
-    # Generate clean Fountain for archival
-    fountain_renderer = FountainRenderer()
-    clean_fountain = fountain_renderer.render(document)
-    
-    # Save clean Fountain version
-    with open("my_screenplay_clean.fountain", "w", encoding="utf-8") as f:
-        f.write(clean_fountain)
-    
-    # Extract statistics
-    stats = document.get_statistics()
-    characters = document.get_character_names()
-    
-    print(f"Rendered screenplay with {stats['total_elements']} elements")
-    print(f"Characters: {', '.join(sorted(characters))}")
-    print(f"Generated HTML: my_screenplay.html")
-    print(f"Generated Fountain: my_screenplay_clean.fountain")
-
-Best Practices
---------------
-
-1. **Use appropriate encoding**: Always save files with UTF-8 encoding to preserve special characters
-2. **Validate round-trips**: When converting formats, verify that essential information is preserved
-3. **Customize CSS carefully**: If modifying HTML output, test with various screenplay elements
-4. **Handle large documents**: For very large screenplays, consider streaming or chunked processing
-5. **Preview before printing**: HTML output is optimized for screen display; test print formatting
-
 Error Handling in Rendering
 ----------------------------
 
-Renderers are designed to be robust and handle edge cases gracefully:
+Renderers handle edge cases without raising errors:
 
 .. doctest::
 
@@ -464,5 +405,5 @@ Next Steps
 Now that you understand rendering, explore:
 
 - :doc:`../api/renderer` - Complete API reference for renderer classes
-- :doc:`parsing` - Review parsing concepts to better understand the document structure
-- :doc:`elements` - Deep dive into element types and their rendering requirements
+- :doc:`parsing-behavior` - How the parser classifies the elements you are rendering
+- :doc:`elements` - The element types and their rendering requirements

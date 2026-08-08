@@ -4,6 +4,8 @@ scratchpad.md
 .claude/*
 commit-msg.md
 goal.md
+.ai-sessions/handoffs/
+.token.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

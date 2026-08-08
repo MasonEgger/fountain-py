@@ -1,17 +1,8 @@
-Parsing Fountain Files
-======================
+Parsing Behavior
+================
 
-The parsing module is the heart of fountain-py, providing a robust parser that converts Fountain-formatted text into structured, programmatically accessible elements. This guide covers everything you need to know about parsing Fountain scripts.
-
-Overview
---------
-
-The :class:`~fountain.parser.FountainParser` class implements a two-pass parsing strategy designed specifically for the Fountain screenplay format:
-
-1. **First pass**: Extracts title page metadata (title, author, draft date, etc.)
-2. **Second pass**: Parses the screenplay body into structured elements (scenes, dialogue, action, etc.)
-
-The parser is designed to be forgiving and follows the Fountain specification's principle of "just write" - if something doesn't match a specific pattern, it defaults to action text.
+This page is the reference for how :class:`~fountain.parser.FountainParser` classifies Fountain text, including the edge cases that trip people up.
+For the design behind it (the two-pass strategy and the "just write" principle), see :doc:`../explanation/pipeline`.
 
 Basic Usage
 -----------
@@ -19,7 +10,7 @@ Basic Usage
 Parsing from a String
 ~~~~~~~~~~~~~~~~~~~~~
 
-The most straightforward way to parse Fountain text is from a string:
+To parse Fountain text from a string:
 
 .. doctest::
 
@@ -65,7 +56,7 @@ To parse a Fountain file from disk, use the :meth:`~fountain.parser.FountainPars
     # Access elements
     print(f"Total elements: {len(document.elements)}")
 
-The file is expected to be UTF-8 encoded, which is standard for Fountain files.
+The file must be UTF-8 encoded, which is standard for Fountain files.
 
 Understanding the Parsing Process
 ---------------------------------
@@ -73,7 +64,8 @@ Understanding the Parsing Process
 Title Page Parsing
 ~~~~~~~~~~~~~~~~~~
 
-The parser first extracts metadata from the title page. Title page fields are key-value pairs at the beginning of the document:
+The parser first extracts metadata from the title page.
+Title page fields are key-value pairs at the beginning of the document:
 
 .. doctest::
 
@@ -102,7 +94,7 @@ The parser first extracts metadata from the title page. Title page fields are ke
     >>> 'john@example.com' in document.metadata['contact']
     True
 
-Multi-line values are supported - subsequent lines without colons are appended to the current field.
+The parser supports multi-line values: later lines without colons append to the current field.
 
 Line-One Title Page Detection
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -110,7 +102,7 @@ Line-One Title Page Detection
 The title page pass decides whether a document has a title page by looking at the first meaningful line.
 A colon-bearing line opens a title-page key only when it looks like one: it must carry a non-empty value or an indented continuation, and it must name a recognized field (``Title``, ``Author``, ``Contact``, and so on) or be a capitalized label such as ``Custom Field:``.
 
-A colon on line one is therefore not enough on its own.
+So a colon on line one is not enough on its own.
 Prose like ``He opens the card: a threat.`` has a lowercase label, so it stays body action rather than becoming a phantom field:
 
 .. doctest::
@@ -143,7 +135,8 @@ A forced ``>CUT TO:`` on the first line is likewise a body transition, not a met
     >>> [element.type.value for element in document.elements]
     ['transition', 'scene_heading']
 
-A recognized field or a capitalized custom label opens the title page as expected, and a real title page followed by a blank line works normally:
+A recognized field or a capitalized custom label opens the title page as expected.
+A real title page followed by a blank line works:
 
 .. doctest::
 
@@ -156,7 +149,8 @@ A recognized field or a capitalized custom label opens the title page as expecte
 Element Classification
 ~~~~~~~~~~~~~~~~~~~~~~
 
-After the title page, the parser classifies each line into one of 14 element types:
+After the title page, the parser classifies each body line into one of 14 element types.
+The :class:`~fountain.elements.ElementType` enum also defines ``TITLE_PAGE`` for title-page metadata, so the enum has 15 members in total:
 
 - **Scene Headings**: Lines starting with INT., EXT., EST., I/E., or forced with ``.``
 - **Characters**: ALL CAPS names followed by dialogue
@@ -200,7 +194,7 @@ The Fountain spec's natural-transition rule recognizes a line as a transition on
 fountain-py deliberately extends that rule to also recognize ``FADE IN:`` and ``FADE OUT.`` as transitions, even though neither ends in ``TO:``.
 These two are the canonical opening and closing transitions of a screenplay, so treating them as transitions matches what writers expect.
 
-This is a deliberate extension, not a spec requirement:
+This is a deliberate extension, not something the spec requires:
 
 .. doctest::
 
@@ -221,10 +215,11 @@ This is a deliberate extension, not a spec requirement:
     ['FADE IN:', 'FADE OUT.']
 
 A leading ``FADE IN:`` is a special case, because of its trailing colon.
-On the very first line, ``FADE IN:`` is consumed as a title-page key (yielding ``{'fade in': ''}`` and no body element), under the line-one title-page rule described in the "Line-One Title Page Detection" section above.
-A leading ``>`` does not rescue it: ``> FADE IN:`` on line one is captured as the metadata key ``> fade in`` for the same reason, and a leading blank line does not help either.
-To keep a first-line ``FADE IN:`` in the body, precede it with an action line, as the doctest above does.
-Because ``FADE OUT.`` has no colon, a first-line ``FADE OUT.`` is not claimed by the title page and is classified as a transition.
+On the first line, the parser consumes ``FADE IN:`` as a title-page key (yielding ``{'fade in': ''}`` and no body element).
+This follows the line-one title-page rule from the preceding "Line-One Title Page Detection" section.
+A leading ``>`` does not rescue it: on line one, the parser captures ``> FADE IN:`` as the metadata key ``> fade in`` for the same reason, and a leading blank line does not help either.
+To keep a first-line ``FADE IN:`` in the body, precede it with an action line, as the preceding doctest does.
+Because ``FADE OUT.`` has no colon, the title page does not claim a first-line ``FADE OUT.``, and the parser classifies it as a transition.
 
 Working with Parsed Documents
 -----------------------------
@@ -405,8 +400,10 @@ Notes: Inline Are Stripped, Standalone Are Kept
 -----------------------------------------------
 
 Fountain notes in ``[[double brackets]]`` behave asymmetrically depending on where they sit.
-An inline note embedded in a line of action has its content stripped out of the line text and is unrecoverable from the parse: neither the note content nor its brackets survive.
-The whitespace seam left where the note stood collapses to a single space, so the surrounding words do not run together or leave a doubled gap.
+An inline note embedded in a line of action has its content stripped from the line text.
+The parser cannot recover it: neither the note content nor its brackets survive.
+The whitespace seam left where the note stood collapses to a single space.
+So the surrounding words do not run together or leave a doubled gap.
 A standalone note on its own line, by contrast, becomes a NOTE element whose text keeps the content verbatim, brackets included.
 
 This asymmetry is a documented contract, not a defect.
@@ -469,7 +466,7 @@ Advanced Features
 Scene Numbers
 ~~~~~~~~~~~~~
 
-Scene numbers can be included in scene headings using ``#number#`` syntax:
+Scene headings can carry scene numbers using ``#number#`` syntax:
 
 .. doctest::
 
@@ -501,7 +498,7 @@ Scene numbers can be included in scene headings using ``#number#`` syntax:
 Dual Dialogue
 ~~~~~~~~~~~~~
 
-Characters speaking simultaneously are marked with ``^``:
+A ``^`` marks characters speaking simultaneously:
 
 .. doctest::
 
@@ -531,7 +528,8 @@ Characters speaking simultaneously are marked with ``^``:
 Error Handling
 --------------
 
-The parser is designed to be forgiving. Malformed or ambiguous text defaults to action:
+The parser is forgiving.
+Malformed or ambiguous text defaults to action:
 
 .. doctest::
 
@@ -551,7 +549,7 @@ The parser is designed to be forgiving. Malformed or ambiguous text defaults to 
     >>> all(el.type == ElementType.ACTION for el in document.elements)
     True
 
-For files that don't exist or have encoding issues, appropriate exceptions are raised:
+For files that don't exist or have encoding issues, the parser raises appropriate exceptions:
 
 .. code-block:: python
 
@@ -562,17 +560,10 @@ For files that don't exist or have encoding issues, appropriate exceptions are r
     except UnicodeDecodeError:
         print("File encoding issue - expected UTF-8")
 
-Performance Considerations
--------------------------
+Performance
+-----------
 
-The parser is optimized for efficiency:
-
-- **Streaming**: Processes scripts line by line, maintaining minimal memory footprint
-- **Single-pass element parsing**: Each line is classified once
-- **Immutable elements**: Elements are created once and never modified
-- **Regex compilation**: All patterns are pre-compiled as class constants
-
-For large scripts (100+ pages), parsing typically completes in milliseconds:
+The parser reads the script once, line by line, so even a full-length screenplay parses in milliseconds:
 
 .. doctest::
 
@@ -594,8 +585,8 @@ For large scripts (100+ pages), parsing typically completes in milliseconds:
 Best Practices
 --------------
 
-1. **Reuse parser instances**: The parser can be reused for multiple documents
-2. **Handle metadata safely**: Use ``.get()`` for optional metadata fields
+1. **Reuse parser instances**: The same parser instance can parse document after document
+2. **Handle metadata**: Use ``.get()`` for optional metadata fields
 3. **Filter efficiently**: Use list comprehensions for element filtering
 4. **Validate element types**: Check element types before accessing type-specific metadata
 
@@ -622,7 +613,7 @@ Here's a complete example showing a typical parsing workflow:
     
     # Analyze structure
     scenes = [el for el in document.elements if el.type == ElementType.SCENE_HEADING]
-    characters = document.get_character_names()  # Uses document's built-in method
+    characters = document.get_characters()  # Uses document's built-in method
     
     print(f"\nScript Statistics:")
     print(f"- Scenes: {len(scenes)}")

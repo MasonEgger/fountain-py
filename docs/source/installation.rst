@@ -1,67 +1,51 @@
 Installation
 ============
 
-**fountain-py** is available on PyPI and can be installed using standard Python package managers.
+The **fountain-py** package is not on PyPI yet (the 0.1.0 release is pending), so install it from source for now.
+After the release lands on PyPI, ``pip install fountain-py`` becomes the one-line option.
 
 Requirements
 ------------
 
 - **Python 3.10 or higher** (3.10, 3.11, 3.12, 3.13, 3.14 supported)
-- No external dependencies for core functionality
+- No external dependencies for core features
 
-Quick Install
--------------
+Install from Source
+-------------------
+
+Install the latest code straight from GitHub:
+
+.. code-block:: bash
+
+   pip install git+https://github.com/MasonEgger/fountain-py.git
+
+Or with `uv <https://docs.astral.sh/uv/>`_:
+
+.. code-block:: bash
+
+   uv pip install git+https://github.com/MasonEgger/fountain-py.git
+
+Verify the install:
+
+.. code-block:: bash
+
+   python -c "import fountain; print('fountain-py ready')"
+
+After Publication
+-----------------
+
+Once fountain-py is on PyPI, install it with your usual package manager:
 
 .. code-block:: bash
 
    pip install fountain-py
-
-Installation Methods
---------------------
-
-Using pip
-~~~~~~~~~
-
-.. code-block:: bash
-
-   # Install the latest stable version
-   pip install fountain-py
-   
-   # Install a specific version
-   pip install fountain-py==0.1.0
-   
-   # Upgrade to the latest version
-   pip install --upgrade fountain-py
-
-Using uv
-~~~~~~~~~
-
-.. code-block:: bash
-
-   # Install fountain-py using uv
-   uv pip install fountain-py
-   
-   # Add to an existing project
+   # or
    uv add fountain-py
-
-Using Poetry
-~~~~~~~~~~~~
-
-.. code-block:: bash
-
-   poetry add fountain-py
-
-Using Pipenv
-~~~~~~~~~~~~
-
-.. code-block:: bash
-
-   pipenv install fountain-py
 
 Development Installation
 ------------------------
 
-To contribute to fountain-py or work with the latest development version:
+To contribute or work against a local checkout:
 
 .. code-block:: bash
 
@@ -69,21 +53,14 @@ To contribute to fountain-py or work with the latest development version:
    git clone https://github.com/MasonEgger/fountain-py.git
    cd fountain-py
 
-Using uv (Recommended for Development)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   # Install all development and docs dependencies (uv recommended)
+   uv sync --dev && uv sync --group docs
 
-.. code-block:: bash
-
-   # Install all development dependencies
-   uv sync --dev
-   
    # Install in editable mode
    uv pip install -e .
 
-Using pip
-~~~~~~~~~
+With pip instead of uv:
 
 .. code-block:: bash
 
-   # Install in editable mode with dev dependencies
    pip install -e ".[dev,docs]"

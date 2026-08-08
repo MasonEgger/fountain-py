@@ -1,7 +1,8 @@
 Testing
 =======
 
-fountain-py uses `pytest <https://docs.pytest.org/>`_ with strict markers and doctest integration. The test suite targets 99%+ code coverage.
+The fountain-py test suite uses `pytest <https://docs.pytest.org/>`_ with strict markers and doctest integration.
+It targets 99%+ code coverage.
 
 Running Tests
 -------------
@@ -32,25 +33,26 @@ Running Tests
 Test Organization
 -----------------
 
-- ``tests/test_parser.py`` — Core parser functionality
-- ``tests/test_renderer.py`` — HTML and Fountain renderers (``TestHTMLRenderer``, ``TestFountainRenderer``)
-- ``tests/test_document.py`` — Document analysis methods
-- ``tests/test_edge_cases.py`` — Edge cases and spec compliance (``TestSpecCompliance`` class)
-- ``tests/test_quickstart_examples.py`` — Validates all quickstart documentation examples
-- ``tests/conftest.py`` — Shared fixtures and sample ``.fountain`` file loading
+- ``tests/test_parser.py``: Core parser features
+- ``tests/test_renderer.py``: HTML and Fountain renderers (``TestHTMLRenderer``, ``TestFountainRenderer``)
+- ``tests/test_document.py``: Document analysis methods
+- ``tests/test_edge_cases.py``: Edge cases and spec compliance (``TestSpecCompliance`` class)
+- ``tests/test_quickstart_examples.py``: Validates all quickstart documentation examples
+- ``tests/conftest.py``: Shared fixtures and sample ``.fountain`` file loading
 
 Writing Tests
 -------------
 
 Follow test-driven development:
 
-1. **RED** — Write a failing test that describes the expected behavior
-2. **GREEN** — Write the minimal code to make it pass
-3. **REFACTOR** — Clean up while keeping tests green
+1. **RED**: Write a failing test that describes the expected behavior
+2. **GREEN**: Write the minimal code to make it pass
+3. **REFACTOR**: Clean up while keeping tests green
 
 Guidelines:
 
-- **Test your logic**, not frameworks. Don't test that pytest works or that Python dicts behave correctly.
+- **Test your logic**, not frameworks.
+  Don't test that pytest works or that Python dicts work.
 - **Test behavior and outcomes**, not implementation details.
 - **Spec compliance tests** go in ``TestSpecCompliance`` in ``test_edge_cases.py``.
 - **Renderer-specific tests** go in the appropriate renderer test class in ``test_renderer.py``.
@@ -68,4 +70,5 @@ Example:
 Coverage
 --------
 
-The project maintains 99%+ code coverage. After running ``just unit-test-cov``, open ``htmlcov/index.html`` to view the coverage report.
+The project maintains 99%+ code coverage.
+After running ``just unit-test-cov``, open ``htmlcov/index.html`` to view the coverage report.

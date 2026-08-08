@@ -4,7 +4,7 @@ Development
 Setting Up Your Environment
 ---------------------------
 
-fountain-py uses `uv <https://docs.astral.sh/uv/>`_ for dependency management and `just <https://github.com/casey/just>`_ as a command runner.
+The fountain-py project uses `uv <https://docs.astral.sh/uv/>`_ for dependency management and `just <https://github.com/casey/just>`_ as a command runner.
 
 .. code-block:: bash
 
@@ -63,15 +63,16 @@ Making Changes
 --------------
 
 1. Create a branch from ``main``
-2. Write tests first (TDD — see :doc:`testing`)
-3. Implement your changes
+2. Write tests first (TDD, see :doc:`testing`)
+3. Make your changes
 4. Run ``just test`` to verify everything passes
 5. Open a pull request against ``main``
 
 Available Commands
 ------------------
 
-Run ``just --list`` to see all commands. Key ones:
+Run ``just --list`` to see all commands.
+Key ones:
 
 .. code-block:: bash
 

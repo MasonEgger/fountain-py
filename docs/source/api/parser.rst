@@ -5,4 +5,4 @@ Parser Module
    :members:
    :show-inheritance:
 
-The parser module is responsible for converting raw Fountain text into structured elements.
+The parser module converts raw Fountain text into structured elements.

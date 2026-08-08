@@ -1,7 +1,8 @@
 Documentation
 =============
 
-fountain-py uses `Sphinx <https://www.sphinx-doc.org/>`_ with the `Furo <https://pradyunsg.me/furo/>`_ theme. Documentation is hosted on GitHub Pages.
+The fountain-py docs use `Sphinx <https://www.sphinx-doc.org/>`_ with the `Furo <https://pradyunsg.me/furo/>`_ theme.
+GitHub Pages hosts them.
 
 Building Docs Locally
 ---------------------
@@ -17,7 +18,8 @@ Building Docs Locally
    # Run doctests in documentation
    just doctest
 
-The built docs will be in ``docs/build/html/``. Open ``docs/build/html/index.html`` in a browser.
+The built docs are in ``docs/build/html/``.
+Open ``docs/build/html/index.html`` in a browser.
 
 Documentation Structure
 -----------------------
@@ -29,8 +31,10 @@ Documentation Structure
    ├── installation.rst       # Installation guide
    ├── quickstart.rst         # Tutorial
    ├── changelog.rst          # Release notes
-   ├── user-guide/            # In-depth guides
-   │   ├── parsing.rst
+   ├── how-to/                # Task-focused how-to guides
+   ├── explanation/           # Concepts and design
+   ├── reference/             # Parsing behavior, elements, rendering, CSS classes
+   │   ├── parsing-behavior.rst
    │   ├── elements.rst
    │   └── rendering.rst
    ├── api/                   # Auto-generated API reference
@@ -46,7 +50,8 @@ Documentation Structure
 Writing Doctests
 ----------------
 
-All code examples in documentation should be valid doctests. Sphinx runs them during ``just doctest`` and they're part of CI.
+Write all code examples in documentation as valid doctests.
+Sphinx runs them during ``just doctest`` and they're part of CI.
 
 In ``.rst`` files, use ``.. doctest::`` blocks:
 
@@ -60,7 +65,7 @@ In ``.rst`` files, use ``.. doctest::`` blocks:
        >>> doc.elements[0].type.value
        'scene_heading'
 
-In Python source, doctests go in docstrings and are run by ``pytest --doctest-modules``.
+In Python source, doctests go in docstrings, and ``pytest --doctest-modules`` runs them.
 
 RST Conventions
 ---------------
