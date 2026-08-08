@@ -1,100 +1,65 @@
-fountain-py: Professional Fountain Script Parser
-================================================
+fountain-py
+===========
 
-.. image:: https://img.shields.io/pypi/v/fountain-py.svg
-   :target: https://pypi.org/project/fountain-py/
-   :alt: PyPI version
-
-.. image:: https://img.shields.io/pypi/pyversions/fountain-py.svg
-   :target: https://pypi.org/project/fountain-py/
+.. image:: https://img.shields.io/badge/python-3.10%2B-blue.svg
+   :target: https://www.python.org/downloads/
    :alt: Python versions
 
 .. image:: https://img.shields.io/badge/coverage-99%25-brightgreen.svg
    :target: https://github.com/MasonEgger/fountain-py
    :alt: Test coverage
 
-**fountain-py** is a robust Python library for parsing and rendering Fountain markup, the plain-text screenwriting format embraced by writers and filmmakers worldwide. Transform your scripts into structured data, analyze character dynamics, and export to multiple formats with ease.
+**fountain-py** is a Python library for parsing and rendering `Fountain <https://fountain.io/>`_, the plain-text screenwriting format.
+It turns a Fountain script into structured Python objects you can analyze, and renders it back out as HTML or Fountain.
 
-Why fountain-py?
-----------------
+Features
+--------
 
-Fountain is the markdown of screenwriting—a simple, human-readable format that lets writers focus on storytelling. **fountain-py** makes it easy to:
-
-- **Parse** Fountain scripts into structured, analyzable data
-- **Extract** insights about characters, dialogue, and scene structure
-- **Render** scripts to HTML with professional screenplay formatting
-- **Build** custom tools for script analysis and production workflows
-
-Key Features
-------------
-
-✨ **Complete Fountain 1.1 Support**
-   Full implementation of the Fountain specification including scenes, dialogue, action, transitions, dual dialogue, and inline formatting
-
-🎭 **Script Intelligence**
-   Extract character lists, analyze dialogue distribution, calculate scene statistics, and identify structural patterns
-
-🎨 **Flexible Rendering**
-   Generate HTML with customizable CSS, preserve round-trip formatting, or create custom renderers for any output format
-
-🚀 **Production Ready**
-   Type-safe API with comprehensive annotations, 99%+ test coverage, and battle-tested parsing engine
-
-🔧 **Developer Experience**
-   Clean, intuitive API design with detailed documentation, practical examples, and extensible architecture
+- Parses the Fountain syntax: scene headings, action, character cues, dialogue, dual dialogue, parentheticals, lyrics, transitions, centered text, sections, synopses, notes, and inline emphasis.
+- Extracts characters, scenes, and statistics from a parsed script.
+- Renders to HTML as a fragment, a standalone page with embedded CSS, or raw CSS, and round-trips back to clean Fountain.
+- Reports parse problems (unclosed boneyard or notes, orphaned character cues) through a validation API.
+- Pure Python, no runtime dependencies, fully type-hinted.
 
 Quick Example
 -------------
 
-Parse a script and extract insights in just a few lines:
-
 .. code-block:: python
 
    from fountain import FountainParser
-   from fountain.renderer import HTMLRenderer
-   
-   # Parse a Fountain script
-   parser = FountainParser()
-   document = parser.parse_file("big_fish.fountain")
-   
-   # Analyze the script
-   characters = document.get_characters()
-   stats = document.get_statistics()
-   print(f"Scenes: {stats['scenes']}")
-   print(f"Characters: {', '.join(sorted(characters)[:5])}")
 
-   # Render to standalone HTML with embedded CSS
-   renderer = HTMLRenderer()
-   html = renderer.render_page(document)
+   script = """Title: The Coffee Shop Connection
+   Author: Jane Doe
 
-   # Save the formatted screenplay
-   with open("big_fish.html", "w") as f:
-       f.write(html)
+   INT. COFFEE SHOP - DAY
+
+   ALICE sits at a corner table, staring at her laptop.
+
+   ALICE
+   Come on, inspiration... where are you?
+   """
+
+   document = FountainParser().parse(script)
+
+   print(document.metadata["title"])   # The Coffee Shop Connection
+   print(document.get_characters())    # ['ALICE']
+
+   # Render a standalone HTML file with embedded CSS
+   with open("coffee_shop.html", "w", encoding="utf-8") as f:
+       f.write(document.to_html())
 
 Start Here
 ----------
 
-**🚀 Installation**
-   Get fountain-py up and running with pip or uv. Includes platform-specific guides and troubleshooting.
-   :doc:`Read the installation guide <installation>`
-
-**⚡ Quick Start**
-   Learn the basics in 10 minutes. Parse your first script, extract character data, and render to HTML.
-   :doc:`Start the tutorial <quickstart>`
-
-**📖 User Guide**
-   Comprehensive guide to parsing, elements, rendering, and advanced features.
-   :doc:`Browse the user guide <user-guide/index>`
-
-**🛠️ API Reference**
-   Complete API documentation with detailed class and method references.
-   :doc:`View API docs <api/index>`
+- :doc:`Installation <installation>`: install from source (PyPI publication is pending).
+- :doc:`Quick Start <quickstart>`: parse a screenplay and render it to HTML in a few minutes.
+- :doc:`User Guide <user-guide/parsing>`: parsing, elements, and rendering in depth.
+- :doc:`API Reference <api/parser>`: the class and method reference.
 
 Project Links
 -------------
 
 - **GitHub Repository**: `github.com/MasonEgger/fountain-py <https://github.com/MasonEgger/fountain-py>`_
-- **PyPI Package**: `pypi.org/project/fountain-py <https://pypi.org/project/fountain-py/>`_
 - **Documentation**: `masonegger.github.io/fountain-py <https://masonegger.github.io/fountain-py/>`_
 - **Issue Tracker**: `Report bugs or request features <https://github.com/MasonEgger/fountain-py/issues>`_
 

@@ -1,7 +1,12 @@
-# ABOUTME: Tests validating all code examples from the quickstart documentation.
+# ABOUTME: Tests validating the documented usage examples against the API.
 # Ensures documentation examples produce correct output and stay in sync with the API.
 #!/usr/bin/env python3
-"""Test all code examples from the quickstart documentation."""
+"""Test the documented usage examples.
+
+Covers the quickstart golden path (parse, read metadata and characters, render
+to HTML) plus the parsing, rendering, and analysis snippets shown across the
+user guide. Keeping these executable is what keeps the docs from drifting.
+"""
 
 import json
 import os

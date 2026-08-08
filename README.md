@@ -1,8 +1,7 @@
 # Fountain-Py
 
 [![CI](https://github.com/MasonEgger/fountain-py/workflows/CI/badge.svg)](https://github.com/MasonEgger/fountain-py/actions?query=workflow%3ACI)
-[![PyPI version](https://badge.fury.io/py/fountain-py.svg)](https://badge.fury.io/py/fountain-py)
-[![Python versions](https://img.shields.io/pypi/pyversions/fountain-py.svg)](https://pypi.org/project/fountain-py/)
+[![Python versions](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
@@ -21,9 +20,13 @@ A Python library for parsing [Fountain markup](https://fountain.io/), the screen
 
 ### Installation
 
+Fountain-Py is not on PyPI yet (the 0.1.0 release is pending), so install it from source:
+
 ```bash
-pip install fountain-py
+pip install git+https://github.com/MasonEgger/fountain-py.git
 ```
+
+Once it is published, `pip install fountain-py` will work.
 
 ### Basic Usage
 

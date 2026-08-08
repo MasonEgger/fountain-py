@@ -423,7 +423,7 @@ Here's a comprehensive example showing the full rendering workflow:
     
     # Extract statistics
     stats = document.get_statistics()
-    characters = document.get_character_names()
+    characters = document.get_characters()
     
     print(f"Rendered screenplay with {stats['total_elements']} elements")
     print(f"Characters: {', '.join(sorted(characters))}")

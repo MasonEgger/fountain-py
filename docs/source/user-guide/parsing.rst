@@ -622,7 +622,7 @@ Here's a complete example showing a typical parsing workflow:
     
     # Analyze structure
     scenes = [el for el in document.elements if el.type == ElementType.SCENE_HEADING]
-    characters = document.get_character_names()  # Uses document's built-in method
+    characters = document.get_characters()  # Uses document's built-in method
     
     print(f"\nScript Statistics:")
     print(f"- Scenes: {len(scenes)}")
