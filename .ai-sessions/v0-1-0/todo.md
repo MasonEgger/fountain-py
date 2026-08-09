@@ -86,7 +86,7 @@ Each step is TDD: failing test first, then the minimal fix, then `just test` cle
 - [x] 12.4 Local end-to-end verification (build, clean-venv install, smoke test, `just test`, cleanup)
 
 ## Release Mechanics (Human-Gated, Mason only)
-- [ ] Merge `init-version` to `main` (Mason merges; agents never do)
-- [ ] Tag `v0.1.0`, create the GitHub Release
-- [ ] Let the gated publish workflow run
-- [ ] Verify the PyPI page and `pip install fountain-py`
+- [x] Merge `init-version` to `main` (Mason merges; agents never do)
+- [x] Tag `v0.1.0`, create the GitHub Release
+- [x] Let the gated publish workflow run
+- [x] Verify the PyPI page and `pip install fountain-py`
