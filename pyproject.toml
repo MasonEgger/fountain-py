@@ -29,6 +29,9 @@ Repository = "https://github.com/MasonEgger/fountain-py"
 Documentation = "https://masonegger.github.io/fountain-py/"
 Issues = "https://github.com/MasonEgger/fountain-py/issues"
 
+[project.scripts]
+fountain = "fountain.cli:main"
+
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/fountain"]

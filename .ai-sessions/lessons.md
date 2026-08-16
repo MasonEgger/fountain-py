@@ -2,6 +2,7 @@
 
 ## Recent
 <!-- 10 most recent lessons, newest first -->
+- `# pragma: no cover` must not sit on a branch that is reachable and observable today; the CLI's `pdf` and `fdx` `render` branches both started with the pragma, but `fdx` runs and prints its message right now (argparse accepts it, no missing dependency blocks it), only `pdf` is genuinely unreachable today because `fpdf` isn't installed. Test the reachable not-yet-wired branch for its current behavior and reserve the pragma for the branch actually blocked by something outside the test environment's control. (2026-08-16)
 - A fixed-width renderer's width contract applies to every output path, not just the obvious ones: `PlainTextRenderer`'s TRANSITION branch used `str.rjust(width)` directly on unwrapped text, skipping the `textwrap.wrap` pass every other element type went through, so a transition longer than `width` overflowed silently. Audit every branch of a fixed-width renderer against the width contract, not just the branches that obviously need wrapping. (2026-08-16)
 - Front-facing accuracy claims (test count, coverage, supported Python range) drift silently after a floor bump or a suite grows, and they live in more than one file: grep the whole tree (README, CHANGELOG, docs/) for the old number and old floor, not just the README, then verify the replacement by running the suites (280 tests, 38 module-level + 446 Sphinx doctests, Python 3.10-3.14 here) rather than estimating. These claims ship to PyPI (README long description, CHANGELOG in the sdist), so a stale count is public. (2026-07-12)
 - hatchling with only a `[tool.hatch.build.targets.wheel]` target leaves the SDIST at its default (all tracked, non-gitignored files), so a repo full of dev artifacts (`.ai-sessions/` agent logs, `CLAUDE.md`, plan/todo/spec) silently ships to PyPI in the sdist even though the wheel is clean. Add a `[tool.hatch.build.targets.sdist]` `exclude` list and verify by rebuilding + inspecting the tarball. Verify a release by building and installing the wheel AND the sdist in a clean venv, not just running the in-repo test suite; packaging leaks are invisible to `pytest`. (2026-07-08)
@@ -11,7 +12,6 @@
 - When documenting parser edge behavior, verify every prose claim by importing the library, not by intuition. Twice in this run a doc step asserted false "workarounds" for colon-bearing first lines (A3, D11): a leading blank line and a leading > do NOT bypass the line-one title-page heuristic; the only reliable body-context fix is a preceding action line. (2026-07-08)
 - Stripping inline-markup delimiters requires re-indexing spans onto the cleaned text, not the source: resolve escapes to placeholders first (so an escaped delimiter is not consumed), mark delimiter chars for deletion, rebuild the clean string, then map each span through a kept-before prefix count. Exclude verbatim element types (notes, boneyard) from the strip so they keep their raw text. (2026-07-08)
 - Ruff F841 does not flag a write-only collection: a `set()` that is assigned and `.add()`-ed but never read counts the `.add()` as a use, so dead accumulator sets slip past lint. Flag write-only collections in review by hand. (2026-07-08)
-- Spec acceptance criteria can contradict earlier spec rules; E10 asked for bracket-stripped NOTE text while body rule 6 mandates verbatim brackets. Resolve toward the established contract (and its passing round-trip test) rather than the newer criterion's literal wording, and record the mismatch for the docs step. (2026-07-08)
 
 <!--
 Category sections live below. Create each one only when at least one
@@ -34,6 +34,9 @@ lesson belongs to it. Use the most specific applicable category.
 
 ## Rendering
 - A fixed-width renderer's width contract applies to every output path, not just the obvious ones: `PlainTextRenderer`'s TRANSITION branch used `str.rjust(width)` directly on unwrapped text, skipping the `textwrap.wrap` pass every other element type went through, so a transition longer than `width` overflowed silently. Audit every branch of a fixed-width renderer against the width contract, not just the branches that obviously need wrapping. (2026-08-16)
+
+## Testing
+- `# pragma: no cover` must not sit on a branch that is reachable and observable today; the CLI's `pdf` and `fdx` `render` branches both started with the pragma, but `fdx` runs and prints its message right now (argparse accepts it, no missing dependency blocks it), only `pdf` is genuinely unreachable today because `fpdf` isn't installed. Test the reachable not-yet-wired branch for its current behavior and reserve the pragma for the branch actually blocked by something outside the test environment's control. (2026-08-16)
 
 ## BPE Workflow
 - Keep step numbering stable across a plan reformat so todo.md stays valid without a parallel rewrite; verify with a step-number diff between the two files (2026-07-08)

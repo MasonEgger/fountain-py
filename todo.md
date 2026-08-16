@@ -14,7 +14,7 @@ Read `plan.md`. Target version 0.2.0. Each Feature step is TDD: failing test fir
 - [x] 3.1 H1: `PlainTextRenderer` in `fountain/renderers/plaintext.py`, writer tools omitted, satisfies `TextRenderer`
 
 ## Section 4: Command-Line Interface
-- [ ] 4.1 I1: `fountain` CLI (`validate`, `render --format ...`), `[project.scripts]` entry, subprocess tests
+- [x] 4.1 I1: `fountain` CLI (`validate`, `render --format ...`), `[project.scripts]` entry, subprocess tests
 
 ## Section 5: FDX Export
 - [ ] 5.1 J1: `FDXRenderer` (stdlib XML), mapping pinned by `tests/fixtures/dual_dialogue.fdx`, writer tools omitted
