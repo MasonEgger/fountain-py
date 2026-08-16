@@ -10,16 +10,18 @@ fountain-py
    :alt: Python versions
 
 **fountain-py** is a Python library for parsing and rendering `Fountain <https://fountain.io/>`_, the plain-text screenwriting format.
-It turns a Fountain script into structured Python objects you can analyze, and renders it back out as HTML or Fountain.
+It turns a Fountain script into structured Python objects you can analyze, and renders it back out as HTML, plain text, Fountain, Final Draft (FDX), PDF, or JSON.
 
 Features
 --------
 
 - Parses the Fountain syntax: scene headings, action, character cues, dialogue, dual dialogue, parentheticals, lyrics, transitions, centered text, sections, synopses, notes, and inline emphasis.
 - Extracts characters, scenes, and statistics from a parsed script.
-- Renders to HTML as a fragment, a standalone page with embedded CSS, or raw CSS, and round-trips back to clean Fountain.
+- Renders to HTML (fragment, standalone page, or raw CSS), plain text, Final Draft (FDX), or PDF, and round-trips back to clean Fountain.
+- Serializes to JSON with ``to_json`` and rebuilds a document with ``from_json``, backed by a versioned schema.
+- Ships a ``fountain`` command-line tool for validating and rendering scripts without writing any Python.
 - Reports parse problems (unclosed boneyard or notes, orphaned character cues) through a validation API.
-- Pure Python, no runtime dependencies, fully type-hinted.
+- Pure Python core with no runtime dependencies (PDF export is an optional ``pdf`` extra), fully type-hinted.
 
 Quick Example
 -------------

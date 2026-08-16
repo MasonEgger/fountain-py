@@ -6,16 +6,18 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-A Python library for parsing [Fountain markup](https://fountain.io/), the screenwriting format. Fountain-Py converts Fountain scripts into structured Python objects and can render them as HTML.
+A Python library for parsing [Fountain markup](https://fountain.io/), the screenwriting format. Fountain-Py converts Fountain scripts into structured Python objects and renders them as HTML, plain text, Fountain, Final Draft (FDX), PDF, or JSON, from Python or the `fountain` command line.
 
 ## Features
 
 - **Full Fountain Support**: Parses all Fountain elements including scenes, dialogue, action, transitions, notes, dual dialogue, lyrics, and inline emphasis
 - **Validation**: Reports structural problems (unclosed comments and notes, orphaned character cues) through a validation API
-- **Multiple Render Modes**: HTML fragments for embedding, full pages with CSS, or raw CSS for custom styling
-- **Round-Trip and Export**: Write a parsed script back to clean Fountain, or export it to JSON
+- **Multiple Output Formats**: Renders to HTML (fragment, full page, or raw CSS), plain text, Fountain, Final Draft (FDX), or PDF
+- **JSON Interchange**: Serializes a parsed script with `to_json()` and rebuilds it with `from_json()`, backed by a versioned schema
+- **Command-Line Interface**: The `fountain` CLI validates and renders scripts without writing any Python
+- **Round-Trip**: Writes a parsed script back to clean Fountain, preserving element structure and inline emphasis
 - **Type-Safe**: Built with full type hints and strict mypy compliance
-- **Zero Dependencies**: Pure Python with no runtime dependencies
+- **Minimal Dependencies**: Pure Python core with no runtime dependencies; PDF export is an optional `pdf` extra
 - **Well-Tested**: Unit tests and doctests across every module, with high coverage enforced in CI
 - **Modern Python**: Supports Python 3.10 through 3.14
 

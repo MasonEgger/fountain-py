@@ -18,7 +18,8 @@ Validate a File
    3:warning:orphan-character-cue:Character cue 'JOHN' has no dialogue following it
 
 Each line has the shape ``line:severity:code:message``.
-The exit code is ``1`` if any issue has severity ``error``, and ``0`` otherwise, so you can wire it into a CI check or a pre-commit hook:
+The exit code is ``1`` if any issue has severity ``error``, and ``0`` otherwise.
+Wire it into a CI check or a commit-time Git hook:
 
 .. code-block:: console
 

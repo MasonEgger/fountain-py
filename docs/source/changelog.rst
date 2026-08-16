@@ -6,6 +6,52 @@ This file documents all notable changes to fountain-py.
 This changelog follows `Keep a Changelog <https://keepachangelog.com/en/1.0.0/>`_,
 and the project uses `Semantic Versioning <https://semver.org/spec/v2.0.0.html>`_.
 
+Version 0.2.0: Unreleased
+----------------------------
+
+JSON Interchange
+~~~~~~~~~~~~~~~~~
+
+* ``to_dict()`` recursively serializes nested elements, including dual-dialogue side elements, fixing a crash on ``to_json()`` for scripts with dual dialogue
+* ``schema_version`` key in the serialized payload, backed by a versioned :doc:`reference/json-schema` reference doc
+* ``from_dict()`` / ``from_json()`` reconstruct a full ``FountainDocument`` from serialized data, round-tripping through ``to_dict()`` / ``to_json()``; raise ``ValueError`` on an unrecognized ``schema_version``
+
+Renderer Protocols
+~~~~~~~~~~~~~~~~~~~
+
+* ``TextRenderer`` and ``BinaryRenderer`` protocols in ``fountain.renderers.base``, formalizing the renderer contract; every existing renderer conforms
+
+Plain-Text Renderer
+~~~~~~~~~~~~~~~~~~~~
+
+* ``PlainTextRenderer`` renders a parsed script to monospace plain text, with configurable width and indents; omits writer-only elements (notes, sections, synopses, boneyard)
+
+Command-Line Interface
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* ``fountain`` CLI with ``validate`` and ``render --format`` subcommands, installed via ``[project.scripts]``
+* Reads from a file path or stdin (``-``); ``validate`` reports one diagnostic per line and exits non-zero on error-severity issues
+
+FDX Export
+~~~~~~~~~~
+
+* ``FDXRenderer`` exports a parsed script to Final Draft's ``.fdx`` XML format using only the standard library, so it adds no runtime dependency
+* Dual dialogue renders as a linked ``<DualDialogue>`` block, pinned against ``tests/fixtures/dual_dialogue.fdx``
+
+PDF Export
+~~~~~~~~~~
+
+* ``PDFRenderer`` renders a parsed script to PDF bytes via the optional ``pdf`` extra (``fpdf2``), with a clear install hint when the extra is missing
+* ``PageGeometry`` presets for Letter, A4, and Half Letter page sizes, plus custom dimensions and a binding offset
+* ``SCREENPLAY`` layout profile controlling font and per-element indents; layouts are pluggable via ``LayoutProfile``
+* CI verifies the core install stays dependency-free and runs the PDF suite separately under the ``pdf`` extra
+
+Documentation
+~~~~~~~~~~~~~
+
+* How-to guides for the CLI, plain-text export, FDX export, and PDF export
+* The JSON how-to now covers ``from_json()`` / ``from_dict()`` round-tripping alongside ``to_json()`` / ``to_dict()``
+
 Version 0.1.0: 2026-04-09
 ----------------------------
 
@@ -66,8 +112,7 @@ Type System
 Quality
 ~~~~~~~
 
-* 314 tests with 99% code coverage
-* 38 module-level doctests + 447 Sphinx doctests
+* Unit tests and doctests across every module, with high coverage enforced in CI
 * Supports Python 3.10, 3.11, 3.12, 3.13, 3.14
 * Zero runtime dependencies
 * CI with GitHub Actions across all supported Python versions
