@@ -503,13 +503,13 @@ Mason ruled on these in the 2026-07-03 review; each ruling is recorded inline, a
    Open: which transforms belong before line classification and which after, and whether the parser should expose formal pipeline stages.
    Needs a design pass against that library's processor model before any refactor; raised in the 2026-07-03 review.
 13. **CLI executable name (0.2.0).** `fountain` is short and memorable but generic; alternatives are `fountainpy` or `fountain-py`.
-   Recommendation: `fountain`, falling back to `fountain-py` if collisions with other tooling are a concern.
+   Ruling (2026-08-15, accepted in review): `fountain`, falling back to `fountain-py` if collisions with other tooling are a concern.
 14. **PDF dependency (0.2.0).** Candidates: `fpdf2` (pure Python, light, no system libraries), `reportlab` (mature, heavier), `weasyprint` (HTML-to-PDF, needs system libraries, a poor fit for an optional extra).
-   Recommendation: `fpdf2` for the `[pdf]` extra; revisit only if its Courier metrics or Unicode handling fall short.
+   Ruling (2026-08-15, accepted in review): `fpdf2` for the `[pdf]` extra; revisit only if its Courier metrics or Unicode handling fall short.
 15. **Stage-play layout profile (0.2.0 or later).** `HALF_LETTER` geometry ships in 0.2.0 either way; the question is whether a `STAGE_PLAY` element-layout profile (acting-edition conventions) ships now or waits.
-   Recommendation: geometry now, `STAGE_PLAY` profile deferred until the profile system proves itself on `SCREENPLAY`.
+   Ruling (2026-08-15, accepted in review): geometry now, `STAGE_PLAY` profile deferred until the profile system proves itself on `SCREENPLAY`.
 16. **FDX mapping for writer tools (0.2.0).** NOTE, SECTION, SYNOPSIS, and BONEYARD are omitted from HTML by the 2026-07-03 ruling; FDX has a ScriptNote concept that could carry notes.
-   Recommendation: omit all four in 0.2.0 for consistency with the HTML contract; a note-to-ScriptNote mapping can land later without breaking anything.
+   Ruling (2026-08-15, accepted in review): omit all four in 0.2.0 for consistency with the HTML contract; a note-to-ScriptNote mapping can land later without breaking anything.
 
 ### Reconciliation of origin/main audit.md (commit 1b71ea2)
 
