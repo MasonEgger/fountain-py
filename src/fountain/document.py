@@ -27,8 +27,9 @@ Example:
 
 import json
 from collections import Counter
+from typing import cast
 
-from fountain.elements import ElementType, FountainElement, ValidationIssue
+from fountain.elements import ElementType, FormatSpan, FormatType, FountainElement, MetadataValue, ValidationIssue
 
 JSON_SCHEMA_VERSION = 1
 """Version of the ``to_dict``/``to_json`` output shape. See :doc:`/reference/json-schema`."""
@@ -91,6 +92,61 @@ def _element_to_dict(element: FountainElement) -> dict[str, object]:
         "line_number": element.line_number,
         "metadata": serialized_metadata,
     }
+
+
+def _element_from_dict(data: dict[str, object]) -> FountainElement:
+    """Rebuild a single FountainElement from its dictionary form, recursing into metadata.
+
+    This is the inverse of :func:`_element_to_dict`; keep the two symmetric. A dict-valued
+    metadata entry is a nested serialized element and becomes a FountainElement again; a
+    list-valued entry maps dict items back through this same helper and leaves non-dict
+    items (plain strings, numbers, booleans) untouched.
+
+    Args:
+        data: Dictionary with keys type, text, formatting, line_number, and metadata,
+            as produced by :func:`_element_to_dict`.
+
+    Returns:
+        The reconstructed FountainElement, with ``type`` an ElementType member and
+        ``formatting`` entries FormatSpan instances.
+
+    Example:
+        Rebuilding a plain element::
+
+            >>> from fountain.elements import ElementType, FountainElement
+            >>> element = FountainElement(ElementType.ACTION, "He runs.", [], 1)
+            >>> _element_from_dict(_element_to_dict(element)) == element
+            True
+    """
+    formatting = [
+        FormatSpan(
+            start=cast(int, span["start"]),
+            end=cast(int, span["end"]),
+            format_type=cast(FormatType, span["format_type"]),
+        )
+        for span in cast("list[dict[str, object]]", data["formatting"])
+    ]
+
+    serialized_metadata = cast("dict[str, object]", data.get("metadata") or {})
+    metadata: dict[str, MetadataValue] = {}
+    for key, value in serialized_metadata.items():
+        if isinstance(value, dict):
+            metadata[key] = _element_from_dict(cast("dict[str, object]", value))
+        elif isinstance(value, list):
+            metadata[key] = [
+                _element_from_dict(cast("dict[str, object]", item)) if isinstance(item, dict) else item
+                for item in value
+            ]
+        else:
+            metadata[key] = cast(MetadataValue, value)
+
+    return FountainElement(
+        type=ElementType(data["type"]),
+        text=cast(str, data["text"]),
+        formatting=formatting,
+        line_number=cast(int, data["line_number"]),
+        metadata=metadata,
+    )
 
 
 class FountainDocument:
@@ -238,6 +294,75 @@ class FountainDocument:
                 True
         """
         return json.dumps(self.to_dict(), indent=2)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, object]) -> "FountainDocument":
+        """Reconstruct a FountainDocument from its dictionary form.
+
+        Inverse of :meth:`to_dict`. Rebuilds every element, including nested
+        FountainElement values in metadata (such as dual-dialogue's left/right
+        character and dialogue blocks), via :func:`_element_from_dict`.
+
+        Args:
+            data: Dictionary with schema_version, metadata, and elements keys,
+                as produced by :meth:`to_dict`.
+
+        Returns:
+            The reconstructed FountainDocument.
+
+        Raises:
+            ValueError: If schema_version does not match JSON_SCHEMA_VERSION.
+
+        Example:
+            Round-tripping a document through its dict form::
+
+                >>> from fountain.elements import ElementType, FountainElement
+                >>> from fountain.document import FountainDocument
+                >>> doc = FountainDocument([FountainElement(ElementType.ACTION, "He runs.", [], 1)])
+                >>> FountainDocument.from_dict(doc.to_dict()).to_dict() == doc.to_dict()
+                True
+
+            An unrecognized schema version is a hard error::
+
+                >>> FountainDocument.from_dict({"schema_version": 999, "metadata": {}, "elements": []})
+                Traceback (most recent call last):
+                ...
+                ValueError: Unsupported schema_version 999; expected 1
+        """
+        schema_version = data["schema_version"]
+        if schema_version != JSON_SCHEMA_VERSION:
+            raise ValueError(f"Unsupported schema_version {schema_version!r}; expected {JSON_SCHEMA_VERSION}")
+
+        metadata = cast("dict[str, str]", data["metadata"])
+        elements = [
+            _element_from_dict(cast("dict[str, object]", element_data))
+            for element_data in cast("list[object]", data["elements"])
+        ]
+        return cls(elements, metadata)
+
+    @classmethod
+    def from_json(cls, text: str) -> "FountainDocument":
+        """Reconstruct a FountainDocument from its JSON string form.
+
+        Args:
+            text: JSON string as produced by :meth:`to_json`.
+
+        Returns:
+            The reconstructed FountainDocument.
+
+        Raises:
+            ValueError: If the decoded schema_version does not match JSON_SCHEMA_VERSION.
+
+        Example:
+            Round-tripping through JSON::
+
+                >>> from fountain.elements import ElementType, FountainElement
+                >>> from fountain.document import FountainDocument
+                >>> doc = FountainDocument([FountainElement(ElementType.ACTION, "He runs.", [], 1)])
+                >>> FountainDocument.from_json(doc.to_json()).to_dict() == doc.to_dict()
+                True
+        """
+        return cls.from_dict(cast("dict[str, object]", json.loads(text)))
 
     def get_characters(self) -> list[str]:
         """Extract and return all unique character names from the document.

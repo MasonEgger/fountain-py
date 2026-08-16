@@ -5,7 +5,7 @@ Read `plan.md`. Target version 0.2.0. Each Feature step is TDD: failing test fir
 ## Section 1: Serialization and JSON Interchange
 - [x] 1.1 F1: recursively serialize nested elements in `to_dict` (fixes the `to_json` dual-dialogue crash)
 - [x] 1.2 F2: `schema_version` key + `reference/json-schema.rst` in the toctree
-- [ ] 1.3 F3: `from_dict` / `from_json` with round-trip and unknown-version `ValueError`
+- [x] 1.3 F3: `from_dict` / `from_json` with round-trip and unknown-version `ValueError`
 
 ## Section 2: Renderer Protocol and Package
 - [ ] 2.1 G1: `TextRenderer` / `BinaryRenderer` protocols in `fountain/renderers/base.py`, exported; existing renderers conform

@@ -6,8 +6,10 @@ Tests for the FountainDocument class.
 
 import json
 
+import pytest
+
 from fountain.document import JSON_SCHEMA_VERSION, FountainDocument
-from fountain.elements import ElementType, FountainElement
+from fountain.elements import ElementType, FormatSpan, FountainElement
 from fountain.parser import FountainParser
 
 
@@ -207,3 +209,41 @@ class TestJsonSerialization:
 
     def test_schema_version_is_module_constant(self):
         assert FountainDocument([]).to_dict()["schema_version"] == JSON_SCHEMA_VERSION
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            pytest.param("BRICK\nHi.\n\nSTEEL^\nHello.", id="dual_dialogue"),
+            pytest.param("This line has **bold** and *italic* and _underline_ text.", id="inline_formatting"),
+            pytest.param("INT. GARDEN - NIGHT #2A#\n\nRoses everywhere.", id="scene_number"),
+            pytest.param("SARAH (V.O.)\nI can see you.", id="character_extension"),
+            pytest.param(
+                "Title: Test Script\nAuthor: Test Author\nDraft date: 2024-01-15\n\nFADE IN:",
+                id="full_title_page",
+            ),
+        ],
+    )
+    def test_from_json_round_trips(self, source):
+        document = FountainParser().parse(source)
+
+        reconstructed = FountainDocument.from_json(document.to_json())
+
+        assert reconstructed.to_dict() == document.to_dict()
+
+    def test_from_dict_reconstructs_types(self):
+        document = FountainParser().parse("SARAH (V.O.)\nI can see you.")
+
+        reconstructed = FountainDocument.from_dict(document.to_dict())
+
+        character = next(element for element in reconstructed.elements if element.type == ElementType.CHARACTER)
+        assert isinstance(character.type, ElementType)
+        dialogue = next(element for element in reconstructed.elements if element.type == ElementType.DIALOGUE)
+        formatted = FountainParser().parse("**bold** text")
+        formatted_reconstructed = FountainDocument.from_dict(formatted.to_dict())
+        formatted_element = formatted_reconstructed.elements[0]
+        assert all(isinstance(span, FormatSpan) for span in formatted_element.formatting)
+        assert isinstance(dialogue.type, ElementType)
+
+    def test_from_dict_unknown_schema_version_raises(self):
+        with pytest.raises(ValueError, match="schema_version"):
+            FountainDocument.from_dict({"schema_version": 999, "metadata": {}, "elements": []})
