@@ -24,7 +24,7 @@ Read `plan.md`. Target version 0.2.0. Each Feature step is TDD: failing test fir
 - [x] 6.2 K1: `PageGeometry` presets `LETTER` / `A4` / `HALF_LETTER` + custom + binding offset
 - [x] 6.3 K2: `SCREENPLAY` `LayoutProfile` dataclass (data only)
 - [x] 6.4 PDFRenderer.render_bytes tying geometry + profile; media box, offset, element order; satisfies `BinaryRenderer`
-- [ ] 6.5 K3b: CI jobs (base-install proves zero-dependency core; `pdf` job runs the PDF suite under the extra)
+- [x] 6.5 K3b: CI jobs (base-install proves zero-dependency core; `pdf` job runs the PDF suite under the extra)
 
 ## Section 7: Documentation and Truth-Up
 - [ ] 7.1 L1: how-tos for CLI, plain-text, FDX, PDF; `from_json` in the JSON how-to; Vale-clean
