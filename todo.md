@@ -3,7 +3,7 @@
 Read `plan.md`. Target version 0.2.0. Each Feature step is TDD: failing test first, minimal fix, `just test` clean. Task steps: Scope / Tooling / Do / Verify / Document.
 
 ## Section 1: Serialization and JSON Interchange
-- [ ] 1.1 F1: recursively serialize nested elements in `to_dict` (fixes the `to_json` dual-dialogue crash)
+- [x] 1.1 F1: recursively serialize nested elements in `to_dict` (fixes the `to_json` dual-dialogue crash)
 - [ ] 1.2 F2: `schema_version` key + `reference/json-schema.rst` in the toctree
 - [ ] 1.3 F3: `from_dict` / `from_json` with round-trip and unknown-version `ValueError`
 

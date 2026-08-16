@@ -31,6 +31,65 @@ from collections import Counter
 from fountain.elements import ElementType, FountainElement, ValidationIssue
 
 
+def _element_to_dict(element: FountainElement) -> dict[str, object]:
+    """Convert a single FountainElement to a dictionary, recursing into metadata.
+
+    Metadata values that are themselves FountainElement instances (or lists of
+    them, as with dual-dialogue's left/right character and dialogue blocks) are
+    serialized through this same helper so the result is entirely JSON-safe.
+
+    Args:
+        element: The FountainElement to convert.
+
+    Returns:
+        Dictionary with keys type, text, formatting, line_number, and metadata,
+        where metadata has been recursively serialized.
+
+    Example:
+        Converting a plain element::
+
+            >>> from fountain.elements import ElementType, FountainElement
+            >>> element = FountainElement(ElementType.ACTION, "He runs.", [], 1)
+            >>> _element_to_dict(element)["type"]
+            'action'
+
+        Converting an element whose metadata nests another element::
+
+            >>> character = FountainElement(ElementType.CHARACTER, "BRICK", [], 1)
+            >>> parent = FountainElement(
+            ...     ElementType.DUAL_DIALOGUE, "", [], 1, {"left_character": character}
+            ... )
+            >>> _element_to_dict(parent)["metadata"]["left_character"]["type"]
+            'character'
+    """
+    metadata = element.metadata or {}
+    serialized_metadata: dict[str, object] = {}
+    for key, value in metadata.items():
+        if isinstance(value, FountainElement):
+            serialized_metadata[key] = _element_to_dict(value)
+        elif isinstance(value, list):
+            serialized_metadata[key] = [
+                _element_to_dict(item) if isinstance(item, FountainElement) else item for item in value
+            ]
+        else:
+            serialized_metadata[key] = value
+
+    return {
+        "type": element.type.value,
+        "text": element.text,
+        "formatting": [
+            {
+                "start": span.start,
+                "end": span.end,
+                "format_type": span.format_type,
+            }
+            for span in element.formatting
+        ],
+        "line_number": element.line_number,
+        "metadata": serialized_metadata,
+    }
+
+
 class FountainDocument:
     """Represents a complete Fountain screenplay document with analysis capabilities.
 
@@ -143,23 +202,7 @@ class FountainDocument:
         """
         return {
             "metadata": self.metadata,
-            "elements": [
-                {
-                    "type": element.type.value,
-                    "text": element.text,
-                    "formatting": [
-                        {
-                            "start": span.start,
-                            "end": span.end,
-                            "format_type": span.format_type,
-                        }
-                        for span in element.formatting
-                    ],
-                    "line_number": element.line_number,
-                    "metadata": element.metadata,
-                }
-                for element in self.elements
-            ],
+            "elements": [_element_to_dict(element) for element in self.elements],
         }
 
     def to_json(self) -> str:
