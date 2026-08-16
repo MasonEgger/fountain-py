@@ -2,6 +2,7 @@
 
 Date: 2026-07-02.
 Reviewed by Mason on 2026-07-03 via `/bpe:review`; his rulings are folded in below, each marked "Ruling (2026-07-03)".
+Revised 2026-08-15: 0.1.0 shipped to PyPI on 2026-08-08, and this revision scopes the 0.2.0 release (see the "0.2.0: Output Modes and Interchange" section).
 This document states the behavior of fountain-py as it exists in this working tree, and the requirements that separate today's behavior from a publishable 0.1.0.
 Actual behavior is the contract: where this spec describes parsing or rendering, it describes what the code does today, verified by the test suite (241 tests passing) and the compliance audit in `.ai-sessions/fountain-compliance-audit.md`.
 Full compliance with the Fountain syntax specification at https://fountain.io/syntax/ is a stated product requirement.
@@ -11,6 +12,8 @@ The gaps between today's behavior and that requirement are enumerated in the Spe
 
 fountain-py is a zero-dependency Python library that parses Fountain screenplay markup into structured objects and renders them as HTML or back to Fountain text.
 The 0.1.0 release ships when the library is spec-compliant per the requirements below, the publish pipeline is hardened per the Path to PyPI section, and the documentation matches the code.
+0.1.0 shipped to PyPI on 2026-08-08 with all of the above true.
+The 0.2.0 release adds output modes and interchange (JSON as a versioned contract with deserialization, a formal renderer protocol, plain-text, FDX, and PDF renderers, and a command-line interface); it ships when the 0.2.0 section below is green under the same quality gates.
 
 ## Public API Contract
 
@@ -348,6 +351,7 @@ Current state, which the release must not regress:
 Python work in this repository uses the `python:python` skill (mmegger-plugins marketplace).
 It is the source of truth for typing standards, ruff/mypy/pytest configuration, uv workflows, and the TDD loop; load it before writing or reviewing any Python in this repo.
 Project commands are wrapped in the `justfile` (`just dev`, `just test`, `just unit-test-cov`, `just docs`); dependency management is uv with `[dependency-groups]`.
+Docs prose is linted with Vale through the repo's `.vale.ini` (per-directory registers matching the Diataxis tree); `vale docs/source/` with zero errors is the docs lint gate.
 
 ## Path to PyPI
 
@@ -370,18 +374,90 @@ Release contract for the first publish:
 Production ready for this library means: every compliance requirement fixed with pinned tests regardless of severity (ruling 2026-07-03: no waivers), the Validation API shipped, the rulings in Open Questions carried out so every published claim is true, the publish pipeline gated as above, a TestPyPI dry run verified, and `pip install fountain-py` on a clean 3.10 through 3.14 interpreter parsing a screenplay and rendering HTML without errors.
 Release mechanics: merge to `main` (Mason merges; agents never do), tag `v0.1.0`, create the GitHub Release, let the gated workflow publish, verify the PyPI page.
 
+## 0.2.0: Output Modes and Interchange
+
+Scoped 2026-08-15.
+The 0.2.0 theme is output modes: finish JSON as a real interchange format, formalize the renderer contract, and add plain-text, FDX, and PDF renderers plus a command-line interface.
+Requirement IDs continue the 0.1.0 lettering: Group F (serialization), G (renderer protocol), H (plain text), I (CLI), J (FDX), K (PDF), L (documentation).
+Every group lands with failing-first tests under the same quality gates as 0.1.0: `just test` clean, coverage 99%+, `mypy --strict src/` green, docs updated and Vale-clean.
+Target version is 0.2.0; the pyproject version bump happens in the release mechanics at the end, not as an early step.
+New renderers live in their own modules so `renderer.py` does not keep growing; the plan decides the exact layout (a `fountain.renderers` package is the working assumption).
+
+### Group F: Serialization and JSON Interchange
+
+- **F1 (high, shipped defect).** `to_dict()` passes element metadata through verbatim, so DUAL_DIALOGUE metadata carries live `FountainElement` objects and `to_json()` raises `TypeError` on any document containing dual dialogue (verified by probe, 2026-08-15; no 0.1.0 test covered JSON of a dual-dialogue scene).
+  `to_dict()` must recursively serialize metadata values: a `FountainElement` value becomes its element dict, and a list of elements becomes a list of element dicts.
+  Acceptance: `to_json()` on a dual-dialogue document returns valid JSON, with the nested character and dialogue elements in the same dict shape as top-level elements.
+- **F2.** The JSON shape becomes a documented, versioned contract.
+  `to_dict()` gains a top-level `"schema_version": 1` key, and a reference page documents every field and every metadata value shape.
+  Acceptance: `to_dict()["schema_version"] == 1`; `docs/source/reference/json-schema.rst` exists, sits in the Reference toctree, and documents the element dict shape including nested dual-dialogue metadata.
+- **F3.** Deserialization: `FountainDocument.from_dict(data)` and `FountainDocument.from_json(text)` reconstruct a document, including `ElementType` values, `FormatSpan` entries, and nested elements in metadata.
+  Acceptance: `FountainDocument.from_json(doc.to_json()).to_dict() == doc.to_dict()` over a corpus that includes dual dialogue, formatting spans, scene numbers, extensions, and title-page metadata; an unknown `schema_version` raises `ValueError`.
+
+### Group G: Renderer Protocol
+
+- **G1.** The renderer contract the docs teach informally becomes a typed protocol.
+  Define a `runtime_checkable` `TextRenderer` protocol (`render(document: FountainDocument) -> str`) and a `BinaryRenderer` protocol (`render_bytes(document: FountainDocument) -> bytes`) for binary formats such as PDF.
+  `HTMLRenderer` and `FountainRenderer` must satisfy `TextRenderer` structurally, with no inheritance changes.
+  Acceptance: `isinstance(HTMLRenderer(), TextRenderer)` holds; both protocols are exported from the package top level; the custom-renderer guidance in the docs teaches the protocol.
+
+### Group H: Plain-Text Renderer
+
+- **H1.** `PlainTextRenderer().render(document) -> str` produces a formatted monospace screenplay: scene headings uppercase and flush left, action wrapped flush left, character cues indented deepest, parentheticals and dialogue in the conventional narrower columns, transitions right-aligned, page breaks as a divider line, one blank line between blocks.
+  Column positions are constructor parameters with screenplay-convention defaults (working defaults: total width 60, dialogue indent 10, parenthetical indent 15, cue indent 22; the plan may tune them against real scripts).
+  Writer tools (NOTE, SECTION, SYNOPSIS, BONEYARD) are omitted, matching the HTML contract.
+  Acceptance: relative-position assertions hold (cue indent > parenthetical indent > dialogue indent > action at 0); wrapped lines never exceed the width; transitions end at the right edge; writer tools never appear; `PlainTextRenderer` satisfies `TextRenderer`.
+
+### Group I: Command-Line Interface
+
+- **I1.** A console script (name per Open Question 13) built on argparse with zero new runtime dependencies.
+  `<cli> validate <file>` prints each `ValidationIssue` as `line:severity:code:message` and exits 1 when any error-severity issue exists, 0 otherwise.
+  `<cli> render <file> --format {html,text,fountain,json,fdx,pdf} [-o OUT]` writes to stdout or OUT; `html` means `render_page` output; `-` as the file reads stdin.
+  Requesting `pdf` without the `[pdf]` extra exits with a clear error naming the install command.
+  Acceptance: a `[project.scripts]` entry exists; subprocess tests cover both subcommands, both exit codes, stdin input, and the missing-extra message.
+
+### Group J: FDX Export
+
+- **J1.** `FDXRenderer().render(document) -> str` emits Final Draft interchange XML using only the standard library.
+  Core mapping: SCENE_HEADING, ACTION, CHARACTER, PARENTHETICAL, DIALOGUE, and TRANSITION map to FDX `<Paragraph Type="...">` elements; the title page maps to the FDX title-page structure; CENTERED and LYRICS map to the nearest FDX equivalent with alignment preserved where FDX supports it.
+  Dual dialogue is emitted as the two character blocks in FDX's dual-dialogue encoding; the exact attribute form is resolved against FDX fixtures during implementation and pinned by tests.
+  Writer tools follow Open Question 16's ruling.
+  Acceptance: output parses with `xml.etree.ElementTree`; a fixture screenplay produces a pinned FDX document; the mapping is covered per element type; `FDXRenderer` satisfies `TextRenderer`.
+
+### Group K: PDF Export (optional extra)
+
+- **K1.** Page geometry is a first-class parameter: presets `LETTER` (8.5 x 11 in), `A4` (210 x 297 mm), and `HALF_LETTER` (5.5 x 8.5 in, the acting-edition booklet size), plus custom dimensions and margins, with a binding-offset option for bound editions.
+  Acceptance: generated PDFs report the preset's page dimensions (read back from the media box in tests); margins and binding offset shift the text block measurably.
+- **K2.** Layout is a data-driven profile, not hardcoded: the default `SCREENPLAY` profile is Courier 12 with the conventional per-element indents, stored as a profile dataclass the renderer consumes.
+  Geometry and profile are orthogonal, so an acting-edition layout profile later (Open Question 15) is an addition, not a rewrite.
+  Acceptance: the profile object carries per-element indent, width, and font values; the renderer reads only profile data; text extracts from the PDF in element order.
+- **K3.** PDF ships as the optional extra `fountain-py[pdf]`; the core stays zero-dependency (dependency choice per Open Question 14).
+  Importing the PDF renderer without the extra raises a helpful error naming the install command.
+  Acceptance: the base install adds no dependencies; installing the extra enables the renderer; CI gains a job that installs the extra and runs the PDF tests, and the base-install job proves the core works without it.
+- **Non-goal (pinned).** Booklet imposition (reordering pages into printer signatures for folding) stays out of scope; `HALF_LETTER` output is the enabling piece, and imposition belongs to print tooling.
+
+### Group L: Documentation and Truth-Up
+
+- **L1.** Each new mode gets a how-to in the existing Diataxis tree: CLI usage, plain-text export, FDX export, and PDF export (geometry and profiles), plus the JSON schema reference (F2) and `from_json` folded into the export how-to.
+  Acceptance: the pages exist, sit in the toctree, pass Vale with zero errors, and every code claim is verified against the implementation.
+- **L2.** README, docs landing page, and CHANGELOG updated for 0.2.0, with no hand-counted metrics reintroduced.
+  Acceptance: the feature lists name the new modes; `sphinx-build` and the doctest suite stay green.
+
+### 0.2.0 Release Mechanics (Human-Gated)
+
+Same shape as 0.1.0, documented in `docs/source/contributing/releasing.rst`: bump the pyproject version to 0.2.0, merge the feature branch to `main` (Mason merges), tag `v0.2.0`, cut the GitHub Release, and the existing workflows publish to PyPI and redeploy the docs.
+
 ## Out of Scope and Scoped Futures
 
 The mkdocs-fountain plugin remains fully out of scope; it imposes no requirements here beyond the renderer's fragment/CSS split, which was designed for that embedding use case.
 
-Ruling (2026-07-03): the following output modes are scoped as post-0.1.0 phases; they are defined now so the 0.1.0 architecture does not paint them into a corner, but none blocks the release.
+Ruling (2026-07-03): PDF, JSON-schema, and XML output modes were scoped here as post-0.1.0 phases.
+Ruling (2026-08-15): all three are promoted into 0.2.0; their spec pass is the "0.2.0: Output Modes and Interchange" section above, with XML sharpened to FDX (Final Draft interchange), the XML dialect that industry tools actually consume.
 
-- **PDF export.** Render a `FountainDocument` to screenplay-formatted PDF: Courier 12pt, standard margins and per-element indents.
-  Requires a dependency decision first, since the zero-dependency core is contract; PDF support likely lands as an optional extra or a companion package.
-- **JSON output mode.** `to_json()` already exists; the work is formalizing its schema (element fields, metadata value shapes) as a documented, versioned contract that external tools can consume.
-- **XML output mode.** A renderer emitting the parsed document as XML with the same fidelity as the JSON form: element types as tags, text as content, metadata as attributes or child nodes.
+Considered and rejected for 0.2.0, recorded so the reasoning survives:
 
-Each mode gets its own spec pass before implementation.
+- **Generic XML.** No identified audience; every known consumer of screenplay XML speaks FDX, which Group J covers.
+- **AsciiDoc.** Screenwriters do not use it, and docs toolchains embedding a screenplay are already served by the HTML fragment plus `get_css()`; anyone who wants it can build it against the Group G renderer protocol.
 
 ## Open Questions
 
@@ -426,6 +502,14 @@ Mason ruled on these in the 2026-07-03 review; each ruling is recorded inline, a
    Mason's planned expanded-markdown library composes parsers with pre- and post-processor stages, and fountain-py should fit that model.
    Open: which transforms belong before line classification and which after, and whether the parser should expose formal pipeline stages.
    Needs a design pass against that library's processor model before any refactor; raised in the 2026-07-03 review.
+13. **CLI executable name (0.2.0).** `fountain` is short and memorable but generic; alternatives are `fountainpy` or `fountain-py`.
+   Recommendation: `fountain`, falling back to `fountain-py` if collisions with other tooling are a concern.
+14. **PDF dependency (0.2.0).** Candidates: `fpdf2` (pure Python, light, no system libraries), `reportlab` (mature, heavier), `weasyprint` (HTML-to-PDF, needs system libraries, a poor fit for an optional extra).
+   Recommendation: `fpdf2` for the `[pdf]` extra; revisit only if its Courier metrics or Unicode handling fall short.
+15. **Stage-play layout profile (0.2.0 or later).** `HALF_LETTER` geometry ships in 0.2.0 either way; the question is whether a `STAGE_PLAY` element-layout profile (acting-edition conventions) ships now or waits.
+   Recommendation: geometry now, `STAGE_PLAY` profile deferred until the profile system proves itself on `SCREENPLAY`.
+16. **FDX mapping for writer tools (0.2.0).** NOTE, SECTION, SYNOPSIS, and BONEYARD are omitted from HTML by the 2026-07-03 ruling; FDX has a ScriptNote concept that could carry notes.
+   Recommendation: omit all four in 0.2.0 for consistency with the HTML contract; a note-to-ScriptNote mapping can land later without breaking anything.
 
 ### Reconciliation of origin/main audit.md (commit 1b71ea2)
 
