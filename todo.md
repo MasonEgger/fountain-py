@@ -31,7 +31,7 @@ Read `plan.md`. Target version 0.2.0. Each Feature step is TDD: failing test fir
 - [x] 7.2 L2: README, landing page, CHANGELOG 0.2.0 truth-up; no hand-counted metrics
 
 ## Section 8: Release Mechanics
-- [ ] 8.1 Bump `pyproject` version to 0.2.0; full `just test` green; `uv build` produces `fountain_py-0.2.0`
+- [x] 8.1 Bump `pyproject` version to 0.2.0; full `just test` green; `uv build` produces `fountain_py-0.2.0`
 
 ## Release (Human-Gated, Mason only)
 - [ ] Merge `0.2.0-dev` to `main` (Mason merges; agents never do)
