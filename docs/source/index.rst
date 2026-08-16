@@ -101,6 +101,7 @@ Documentation
 
    reference/parsing-behavior
    reference/elements
+   reference/json-schema
    reference/rendering
    api/parser
    api/document

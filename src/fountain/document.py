@@ -30,6 +30,9 @@ from collections import Counter
 
 from fountain.elements import ElementType, FountainElement, ValidationIssue
 
+JSON_SCHEMA_VERSION = 1
+"""Version of the ``to_dict``/``to_json`` output shape. See :doc:`/reference/json-schema`."""
+
 
 def _element_to_dict(element: FountainElement) -> dict[str, object]:
     """Convert a single FountainElement to a dictionary, recursing into metadata.
@@ -171,9 +174,10 @@ class FountainDocument:
         for serialization, debugging, and integration with other tools.
 
         Returns:
-            Dictionary containing 'metadata' and 'elements' keys, where elements
-            is a list of dictionaries representing each FountainElement with all
-            its properties including type, text, formatting, line_number, and metadata.
+            Dictionary containing 'schema_version', 'metadata', and 'elements' keys,
+            where elements is a list of dictionaries representing each FountainElement
+            with all its properties including type, text, formatting, line_number, and
+            metadata. See :doc:`/reference/json-schema` for the full documented shape.
 
         Example:
             Converting a simple document to dictionary::
@@ -191,6 +195,8 @@ class FountainDocument:
                 ... ]
                 >>> doc = FountainDocument(elements, {"title": "Test"})
                 >>> result = doc.to_dict()
+                >>> result["schema_version"]
+                1
                 >>> result["metadata"]["title"]
                 'Test'
                 >>> len(result["elements"])
@@ -201,6 +207,7 @@ class FountainDocument:
                 'bold'
         """
         return {
+            "schema_version": JSON_SCHEMA_VERSION,
             "metadata": self.metadata,
             "elements": [_element_to_dict(element) for element in self.elements],
         }

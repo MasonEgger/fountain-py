@@ -6,7 +6,7 @@ Tests for the FountainDocument class.
 
 import json
 
-from fountain.document import FountainDocument
+from fountain.document import JSON_SCHEMA_VERSION, FountainDocument
 from fountain.elements import ElementType, FountainElement
 from fountain.parser import FountainParser
 
@@ -201,3 +201,9 @@ class TestJsonSerialization:
 
         assert nested_keys == {"type", "text", "formatting", "line_number", "metadata"}
         assert nested_keys == top_level_keys
+
+    def test_to_dict_carries_schema_version(self):
+        assert FountainDocument([]).to_dict()["schema_version"] == 1
+
+    def test_schema_version_is_module_constant(self):
+        assert FountainDocument([]).to_dict()["schema_version"] == JSON_SCHEMA_VERSION
