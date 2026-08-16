@@ -11,6 +11,7 @@ from fountain.document import FountainDocument
 from fountain.elements import ElementType, FormatType, FountainElement, MetadataValue, ValidationIssue
 from fountain.parser import FountainParser
 from fountain.renderer import FountainRenderer, HTMLRenderer
+from fountain.renderers.base import BinaryRenderer, TextRenderer
 
 __all__ = [
     "FountainParser",
@@ -22,4 +23,6 @@ __all__ = [
     "HTMLRenderer",
     "FountainRenderer",
     "ValidationIssue",
+    "TextRenderer",
+    "BinaryRenderer",
 ]

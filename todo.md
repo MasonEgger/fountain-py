@@ -8,7 +8,7 @@ Read `plan.md`. Target version 0.2.0. Each Feature step is TDD: failing test fir
 - [x] 1.3 F3: `from_dict` / `from_json` with round-trip and unknown-version `ValueError`
 
 ## Section 2: Renderer Protocol and Package
-- [ ] 2.1 G1: `TextRenderer` / `BinaryRenderer` protocols in `fountain/renderers/base.py`, exported; existing renderers conform
+- [x] 2.1 G1: `TextRenderer` / `BinaryRenderer` protocols in `fountain/renderers/base.py`, exported; existing renderers conform
 
 ## Section 3: Plain-Text Renderer
 - [ ] 3.1 H1: `PlainTextRenderer` in `fountain/renderers/plaintext.py`, writer tools omitted, satisfies `TextRenderer`
