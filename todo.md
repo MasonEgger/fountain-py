@@ -20,7 +20,7 @@ Read `plan.md`. Target version 0.2.0. Each Feature step is TDD: failing test fir
 - [x] 5.1 J1: `FDXRenderer` (stdlib XML), mapping pinned by `tests/fixtures/dual_dialogue.fdx`, writer tools omitted
 
 ## Section 6: PDF Export
-- [ ] 6.1 K3a: `[pdf]` extra on `fpdf2`, `pdf/` subpackage, `require_fpdf()` import guard
+- [x] 6.1 K3a: `[pdf]` extra on `fpdf2`, `pdf/` subpackage, `require_fpdf()` import guard
 - [ ] 6.2 K1: `PageGeometry` presets `LETTER` / `A4` / `HALF_LETTER` + custom + binding offset
 - [ ] 6.3 K2: `SCREENPLAY` `LayoutProfile` dataclass (data only)
 - [ ] 6.4 PDFRenderer.render_bytes tying geometry + profile; media box, offset, element order; satisfies `BinaryRenderer`

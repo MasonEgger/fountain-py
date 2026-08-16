@@ -9,9 +9,8 @@ from fountain.document import FountainDocument
 from fountain.parser import FountainParser
 from fountain.renderer import FountainRenderer, HTMLRenderer
 from fountain.renderers.fdx import FDXRenderer
+from fountain.renderers.pdf._deps import require_fpdf
 from fountain.renderers.plaintext import PlainTextRenderer
-
-PDF_EXTRA_MESSAGE = 'Install the PDF extra: pip install "fountain-py[pdf]"'
 
 
 def _render_html(document: FountainDocument) -> str:
@@ -108,14 +107,13 @@ def _run_render(args: argparse.Namespace) -> int:
     """
     if args.format == "pdf":
         try:
-            import fpdf  # type: ignore[import-untyped]  # noqa: F401
-        except ImportError:
-            print(PDF_EXTRA_MESSAGE, file=sys.stderr)
+            require_fpdf()
+        except ImportError as exc:
+            print(exc, file=sys.stderr)
             return 1
-        # Section 6 replaces this branch with the real PDFRenderer, writing bytes.
-        # Unreachable until fpdf2 is installed as the [pdf] extra, so no test covers it yet.
-        print("PDF rendering is not yet available.", file=sys.stderr)  # pragma: no cover
-        return 1  # pragma: no cover
+        # Step 6.4 replaces this branch with the real PDFRenderer, writing bytes.
+        print("PDF rendering is not yet available.", file=sys.stderr)
+        return 1
 
     render_format = _TEXT_RENDERERS.get(args.format)
     if render_format is None:

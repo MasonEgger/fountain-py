@@ -112,14 +112,17 @@ def test_render_to_output_file(tmp_path: Path) -> None:
     assert result.returncode == 0
 
 
-def test_pdf_without_extra_errors(tmp_path: Path) -> None:
+def test_pdf_format_not_yet_available(tmp_path: Path) -> None:
+    # fpdf2 is a dev dependency, so the CLI reaches past the missing-extra guard
+    # (covered directly against require_fpdf() in tests/test_pdf_deps.py) to the
+    # not-yet-implemented PDFRenderer branch, landing here until Step 6.4.
     script_path = tmp_path / "script.fountain"
     script_path.write_text(WELL_FORMED_SCRIPT, encoding="utf-8")
 
     result = _run_cli(["render", str(script_path), "--format", "pdf"])
 
     assert result.returncode != 0
-    assert 'pip install "fountain-py[pdf]"' in result.stdout + result.stderr
+    assert "PDF rendering is not yet available." in result.stderr
 
 
 def test_render_fdx_to_stdout(tmp_path: Path) -> None:

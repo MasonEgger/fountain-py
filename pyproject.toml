@@ -23,6 +23,9 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
+[project.optional-dependencies]
+pdf = ["fpdf2>=2.7"]
+
 [project.urls]
 Homepage = "https://github.com/MasonEgger/fountain-py"
 Repository = "https://github.com/MasonEgger/fountain-py"
@@ -63,6 +66,7 @@ dev = [
     "pytest-cov>=5.0.0",
     "ruff>=0.12.0",
     "mypy>=1.17.0",
+    "fpdf2>=2.7",
 ]
 docs = [
     "sphinx>=7.0.0",
