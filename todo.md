@@ -17,7 +17,7 @@ Read `plan.md`. Target version 0.2.0. Each Feature step is TDD: failing test fir
 - [x] 4.1 I1: `fountain` CLI (`validate`, `render --format ...`), `[project.scripts]` entry, subprocess tests
 
 ## Section 5: FDX Export
-- [ ] 5.1 J1: `FDXRenderer` (stdlib XML), mapping pinned by `tests/fixtures/dual_dialogue.fdx`, writer tools omitted
+- [x] 5.1 J1: `FDXRenderer` (stdlib XML), mapping pinned by `tests/fixtures/dual_dialogue.fdx`, writer tools omitted
 
 ## Section 6: PDF Export
 - [ ] 6.1 K3a: `[pdf]` extra on `fpdf2`, `pdf/` subpackage, `require_fpdf()` import guard

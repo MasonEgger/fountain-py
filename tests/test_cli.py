@@ -122,14 +122,11 @@ def test_pdf_without_extra_errors(tmp_path: Path) -> None:
     assert 'pip install "fountain-py[pdf]"' in result.stdout + result.stderr
 
 
-def test_render_fdx_not_yet_available(tmp_path: Path) -> None:
-    # fdx is accepted by argparse but not yet wired into _TEXT_RENDERERS. Section 5
-    # adds the fdx entry to _TEXT_RENDERERS and replaces this test with real coverage
-    # of FDXRenderer output.
+def test_render_fdx_to_stdout(tmp_path: Path) -> None:
     script_path = tmp_path / "script.fountain"
     script_path.write_text(WELL_FORMED_SCRIPT, encoding="utf-8")
 
     result = _run_cli(["render", str(script_path), "--format", "fdx"])
 
-    assert result.returncode != 0
-    assert "fdx rendering is not yet available." in result.stdout + result.stderr
+    assert "FinalDraft" in result.stdout
+    assert result.returncode == 0

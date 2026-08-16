@@ -12,6 +12,7 @@ from fountain.elements import ElementType, FormatType, FountainElement, Metadata
 from fountain.parser import FountainParser
 from fountain.renderer import FountainRenderer, HTMLRenderer
 from fountain.renderers.base import BinaryRenderer, TextRenderer
+from fountain.renderers.fdx import FDXRenderer
 from fountain.renderers.plaintext import PlainTextRenderer
 
 __all__ = [
@@ -27,4 +28,5 @@ __all__ = [
     "TextRenderer",
     "BinaryRenderer",
     "PlainTextRenderer",
+    "FDXRenderer",
 ]

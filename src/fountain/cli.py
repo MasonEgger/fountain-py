@@ -8,6 +8,7 @@ from pathlib import Path
 from fountain.document import FountainDocument
 from fountain.parser import FountainParser
 from fountain.renderer import FountainRenderer, HTMLRenderer
+from fountain.renderers.fdx import FDXRenderer
 from fountain.renderers.plaintext import PlainTextRenderer
 
 PDF_EXTRA_MESSAGE = 'Install the PDF extra: pip install "fountain-py[pdf]"'
@@ -33,18 +34,22 @@ def _render_json(document: FountainDocument) -> str:
     return document.to_json()
 
 
-# Format-to-renderer mapping for the text-producing output formats that are wired up so
-# far. Section 5 adds the `fdx` entry once FDXRenderer exists; until then `_run_render`
-# reports fdx as not yet available. pdf is handled separately because it produces bytes
-# and needs the missing-extra guard.
+def _render_fdx(document: FountainDocument) -> str:
+    """Render a document as Final Draft (.fdx) XML."""
+    return FDXRenderer().render(document)
+
+
+# Format-to-renderer mapping for the text-producing output formats. pdf is handled
+# separately because it produces bytes and needs the missing-extra guard.
 _TEXT_RENDERERS: dict[str, Callable[[FountainDocument], str]] = {
     "html": _render_html,
     "text": _render_text,
     "fountain": _render_fountain,
     "json": _render_json,
+    "fdx": _render_fdx,
 }
 
-_FORMAT_CHOICES = (*sorted(_TEXT_RENDERERS), "fdx", "pdf")
+_FORMAT_CHOICES = (*sorted(_TEXT_RENDERERS), "pdf")
 
 
 def _read_source(file: str) -> str:
@@ -114,11 +119,12 @@ def _run_render(args: argparse.Namespace) -> int:
 
     render_format = _TEXT_RENDERERS.get(args.format)
     if render_format is None:
-        # Reached only for formats accepted by argparse but not yet wired up (fdx
-        # before Section 5 lands). Section 5 adds the fdx entry to _TEXT_RENDERERS,
-        # which removes this branch's reachability for that format.
-        print(f"{args.format} rendering is not yet available.", file=sys.stderr)
-        return 1
+        # Unreachable today: every _FORMAT_CHOICES entry besides pdf (handled above)
+        # is a _TEXT_RENDERERS key, so argparse never lets args.format reach here with
+        # no match. Kept as a defensive guard for a future format added to
+        # _FORMAT_CHOICES without a matching _TEXT_RENDERERS entry.
+        print(f"{args.format} rendering is not yet available.", file=sys.stderr)  # pragma: no cover
+        return 1  # pragma: no cover
 
     document = _load_document(args.file)
     output = render_format(document)
