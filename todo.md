@@ -27,7 +27,7 @@ Read `plan.md`. Target version 0.2.0. Each Feature step is TDD: failing test fir
 - [x] 6.5 K3b: CI jobs (base-install proves zero-dependency core; `pdf` job runs the PDF suite under the extra)
 
 ## Section 7: Documentation and Truth-Up
-- [ ] 7.1 L1: how-tos for CLI, plain-text, FDX, PDF; `from_json` in the JSON how-to; Vale-clean
+- [x] 7.1 L1: how-tos for CLI, plain-text, FDX, PDF; `from_json` in the JSON how-to; Vale-clean
 - [ ] 7.2 L2: README, landing page, CHANGELOG 0.2.0 truth-up; no hand-counted metrics
 
 ## Section 8: Release Mechanics

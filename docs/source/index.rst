@@ -85,6 +85,10 @@ Documentation
    how-to/style-the-html
    how-to/roundtrip-to-fountain
    how-to/export-to-json
+   how-to/export-plain-text
+   how-to/export-fdx
+   how-to/export-pdf
+   how-to/use-the-cli
    how-to/extract-character-dialogue
 
 .. toctree::
