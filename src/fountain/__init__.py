@@ -13,6 +13,9 @@ from fountain.parser import FountainParser
 from fountain.renderer import FountainRenderer, HTMLRenderer
 from fountain.renderers.base import BinaryRenderer, TextRenderer
 from fountain.renderers.fdx import FDXRenderer
+from fountain.renderers.pdf.geometry import A4, HALF_LETTER, LETTER, PageGeometry
+from fountain.renderers.pdf.profile import SCREENPLAY, LayoutProfile
+from fountain.renderers.pdf.renderer import PDFRenderer
 from fountain.renderers.plaintext import PlainTextRenderer
 
 __all__ = [
@@ -29,4 +32,11 @@ __all__ = [
     "BinaryRenderer",
     "PlainTextRenderer",
     "FDXRenderer",
+    "PDFRenderer",
+    "PageGeometry",
+    "LayoutProfile",
+    "LETTER",
+    "A4",
+    "HALF_LETTER",
+    "SCREENPLAY",
 ]

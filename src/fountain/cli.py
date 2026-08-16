@@ -9,7 +9,7 @@ from fountain.document import FountainDocument
 from fountain.parser import FountainParser
 from fountain.renderer import FountainRenderer, HTMLRenderer
 from fountain.renderers.fdx import FDXRenderer
-from fountain.renderers.pdf._deps import require_fpdf
+from fountain.renderers.pdf.renderer import PDFRenderer
 from fountain.renderers.plaintext import PlainTextRenderer
 
 
@@ -96,6 +96,31 @@ def _run_validate(args: argparse.Namespace) -> int:
     return 1 if any(issue.severity == "error" for issue in issues) else 0
 
 
+def _run_render_pdf(args: argparse.Namespace) -> int:
+    """Run the `render --format pdf` path, which produces bytes instead of text.
+
+    Args:
+        args: Parsed command-line arguments.
+
+    Returns:
+        The process exit code.
+    """
+    try:
+        renderer = PDFRenderer()
+    except ImportError as exc:
+        print(exc, file=sys.stderr)
+        return 1
+
+    document = _load_document(args.file)
+    output = renderer.render_bytes(document)
+
+    if args.output:
+        Path(args.output).write_bytes(output)
+    else:
+        sys.stdout.buffer.write(output)
+    return 0
+
+
 def _run_render(args: argparse.Namespace) -> int:
     """Run the `render` subcommand.
 
@@ -106,14 +131,7 @@ def _run_render(args: argparse.Namespace) -> int:
         The process exit code.
     """
     if args.format == "pdf":
-        try:
-            require_fpdf()
-        except ImportError as exc:
-            print(exc, file=sys.stderr)
-            return 1
-        # Step 6.4 replaces this branch with the real PDFRenderer, writing bytes.
-        print("PDF rendering is not yet available.", file=sys.stderr)
-        return 1
+        return _run_render_pdf(args)
 
     render_format = _TEXT_RENDERERS.get(args.format)
     if render_format is None:
