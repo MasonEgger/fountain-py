@@ -11,7 +11,7 @@ Read `plan.md`. Target version 0.2.0. Each Feature step is TDD: failing test fir
 - [x] 2.1 G1: `TextRenderer` / `BinaryRenderer` protocols in `fountain/renderers/base.py`, exported; existing renderers conform
 
 ## Section 3: Plain-Text Renderer
-- [ ] 3.1 H1: `PlainTextRenderer` in `fountain/renderers/plaintext.py`, writer tools omitted, satisfies `TextRenderer`
+- [x] 3.1 H1: `PlainTextRenderer` in `fountain/renderers/plaintext.py`, writer tools omitted, satisfies `TextRenderer`
 
 ## Section 4: Command-Line Interface
 - [ ] 4.1 I1: `fountain` CLI (`validate`, `render --format ...`), `[project.scripts]` entry, subprocess tests
