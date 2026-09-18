@@ -46,6 +46,8 @@ built from the document's title page metadata:
 
 The renderer uses only the standard library's :mod:`xml.etree.ElementTree`, so
 FDX export adds no runtime dependency.
+Because the output is standard XML, any XML tooling can read or transform it.
+Reach for ElementTree, XPath, or lxml instead of parsing the text by hand.
 
 Element Mapping
 -----------------
