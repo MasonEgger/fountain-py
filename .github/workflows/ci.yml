@@ -44,6 +44,47 @@ jobs:
         file: ./coverage.xml
         fail_ci_if_error: false
 
+  base-install:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+
+    - name: Set up Python
+      run: uv python install 3.12
+
+    - name: Install core only (no dev group, no pdf extra)
+      run: uv sync --no-dev
+
+    - name: Verify core parses Fountain text
+      run: uv run --no-dev python -c "import fountain; from fountain import FountainParser; FountainParser().parse('INT. X - DAY')"
+
+    - name: Verify fpdf is absent (zero-dependency core)
+      run: |
+        if uv run --no-dev python -c "import fpdf" 2>/dev/null; then
+          echo "fpdf imported successfully but must be absent from the base install" >&2
+          exit 1
+        fi
+
+  pdf:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+
+    - name: Set up Python
+      run: uv python install 3.12
+
+    - name: Install dependencies (dev group includes fpdf2)
+      run: uv sync --dev
+
+    - name: Run PDF test suite
+      run: uv run pytest tests/test_pdf_renderer.py tests/test_pdf_geometry.py tests/test_pdf_profile.py
+
   build:
     runs-on: ubuntu-latest
     steps:

@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - Unreleased
+
+### Added
+
+#### JSON Interchange
+- `to_dict()` recursively serializes nested elements, including dual-dialogue side elements, fixing a crash on `to_json()` for scripts with dual dialogue
+- `schema_version` key in the serialized payload, backed by a versioned `reference/json-schema` reference doc
+- `from_dict()` / `from_json()` reconstruct a full `FountainDocument` from serialized data, round-tripping through `to_dict()` / `to_json()`; raise `ValueError` on an unrecognized `schema_version`
+
+#### Renderer Protocols
+- `TextRenderer` and `BinaryRenderer` protocols in `fountain.renderers.base`, formalizing the renderer contract; every existing renderer conforms
+
+#### Plain-Text Renderer
+- `PlainTextRenderer` renders a parsed script to monospace plain text, with configurable width and indents; omits writer-only elements (notes, sections, synopses, boneyard)
+
+#### Command-Line Interface
+- `fountain` CLI with `validate` and `render --format` subcommands, installed via `[project.scripts]`
+- Reads from a file path or stdin (`-`); `validate` reports one diagnostic per line and exits non-zero on error-severity issues
+
+#### FDX Export
+- `FDXRenderer` exports a parsed script to Final Draft's `.fdx` XML format using only the standard library, so it adds no runtime dependency
+- Dual dialogue renders as a linked `<DualDialogue>` block, pinned against `tests/fixtures/dual_dialogue.fdx`
+
+#### PDF Export
+- `PDFRenderer` renders a parsed script to PDF bytes via the optional `pdf` extra (`fpdf2`), with a clear install hint when the extra is missing
+- `PageGeometry` presets for Letter, A4, and Half Letter page sizes, plus custom dimensions and a binding offset
+- `SCREENPLAY` layout profile controlling font and per-element indents; layouts are pluggable via `LayoutProfile`
+- CI verifies the core install stays dependency-free and runs the PDF suite separately under the `pdf` extra
+
+#### Documentation
+- How-to guides for the CLI, plain-text export, FDX export, and PDF export
+- The JSON how-to now covers `from_json()` / `from_dict()` round-tripping alongside `to_json()` / `to_dict()`
+
 ## [0.1.0] - 2026-04-09
 
 ### Added
