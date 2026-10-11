@@ -19,7 +19,7 @@ A Python library for parsing [Fountain markup](https://fountain.io/), the screen
 - **Type-Safe**: Built with full type hints and strict mypy compliance
 - **Minimal Dependencies**: Pure Python core with no runtime dependencies; PDF export is an optional `pdf` extra
 - **Well-Tested**: Unit tests and doctests across every module, with high coverage enforced in CI
-- **Modern Python**: Supports Python 3.10 through 3.14
+- **Modern Python**: Supports Python 3.11 through 3.15
 
 ## Quick Start
 
@@ -49,9 +49,9 @@ One large cappuccino, please!
 """)
 
 # Access parsed data
-print(document.metadata["title"])       # "My Screenplay"
-print(document.get_characters())        # ["SARAH"]
-print(len(document.elements))           # 3
+print(document.metadata["title"])  # "My Screenplay"
+print(document.get_characters())  # ["SARAH"]
+print(len(document.elements))  # 3
 
 # Render as HTML fragment (for embedding in web pages)
 renderer = HTMLRenderer()
@@ -115,20 +115,23 @@ git clone https://github.com/MasonEgger/fountain-py.git
 cd fountain-py
 
 # Install with development and docs dependencies
-just dev && uv sync --group docs
+just dev
 ```
 
 ### Running Tests
 
 ```bash
-# Run comprehensive quality checks (tests, coverage, doctests, lint, type check)
+# The gate: lint, format check, mypy strict, and tests (module doctests included)
+just check
+
+# Run only the tests
 just test
 
-# Run only unit tests
-just unit-test
+# Run tests with a coverage report
+just test-cov
 
-# Run tests with coverage
-just unit-test-cov
+# Run the tests on every supported Python version
+just test-all
 
 # Run specific tests
 uv run pytest tests/test_parser.py
@@ -137,9 +140,7 @@ uv run pytest tests/test_parser.py
 ### Code Quality
 
 ```bash
-just lint         # Lint check (ruff)
-just format       # Format code (ruff)
-just type-check   # Type checking (mypy strict)
+just fmt          # Format code and auto-fix lint issues (ruff)
 ```
 
 ## Contributing

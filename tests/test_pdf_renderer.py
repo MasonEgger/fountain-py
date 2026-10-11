@@ -143,8 +143,8 @@ def test_dual_dialogue_renders_both_sides() -> None:
     assert texts == ["JOHN", "Hello!", "SARAH", "Hi there!"]
 
 
-def test_dual_dialogue_with_no_metadata_renders_nothing() -> None:
-    dual_element = FountainElement(ElementType.DUAL_DIALOGUE, "", [], 1, metadata=None)
+def test_dual_dialogue_with_empty_metadata_renders_nothing() -> None:
+    dual_element = FountainElement(ElementType.DUAL_DIALOGUE, "", [], 1, metadata={})
     document = FountainDocument([dual_element])
 
     pdf_bytes = PDFRenderer().render_bytes(document)

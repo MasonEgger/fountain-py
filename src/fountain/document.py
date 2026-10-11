@@ -1,7 +1,7 @@
-# ABOUTME: Complete Fountain document representation and analysis functionality.
+# ABOUTME: Fountain document representation and analysis functionality.
 # Provides FountainDocument class for managing parsed screenplay documents with metadata.
 """
-Complete Fountain document representation and analysis functionality.
+Fountain document representation and analysis functionality.
 
 This module contains the FountainDocument class, which serves as the primary container
 for parsed Fountain screenplay content. It provides methods for document analysis,
@@ -25,11 +25,15 @@ Example:
         ['JOHN']
 """
 
+from __future__ import annotations
+
 import json
 from collections import Counter
-from typing import cast
+from typing import Self, TypeGuard, TypeVar, get_args
 
 from fountain.elements import ElementType, FormatSpan, FormatType, FountainElement, MetadataValue, ValidationIssue
+
+_FieldType = TypeVar("_FieldType")
 
 JSON_SCHEMA_VERSION = 1
 """Version of the ``to_dict``/``to_json`` output shape. See :doc:`/reference/json-schema`."""
@@ -66,9 +70,8 @@ def _element_to_dict(element: FountainElement) -> dict[str, object]:
             >>> _element_to_dict(parent)["metadata"]["left_character"]["type"]
             'character'
     """
-    metadata = element.metadata or {}
     serialized_metadata: dict[str, object] = {}
-    for key, value in metadata.items():
+    for key, value in element.metadata.items():
         if isinstance(value, FountainElement):
             serialized_metadata[key] = _element_to_dict(value)
         elif isinstance(value, list):
@@ -94,13 +97,50 @@ def _element_to_dict(element: FountainElement) -> dict[str, object]:
     }
 
 
+def _require_field(data: dict[str, object], key: str, expected_type: type[_FieldType]) -> _FieldType:
+    """Return ``data[key]``, checking it exists and has the expected type.
+
+    ``from_dict`` reads data that crossed a serialization boundary, so every field is
+    checked here rather than trusted.
+
+    Args:
+        data: The serialized mapping to read from.
+        key: The field to read.
+        expected_type: The type the field's value must be.
+
+    Returns:
+        The field's value.
+
+    Raises:
+        ValueError: If the field is missing or holds a value of another type.
+
+    Example:
+        >>> _require_field({"text": "Hi."}, "text", str)
+        'Hi.'
+        >>> _require_field({"text": 3}, "text", str)
+        Traceback (most recent call last):
+            ...
+        ValueError: Malformed document data: 'text' must be str, got int
+    """
+    value = data.get(key)
+    if not isinstance(value, expected_type):
+        raise ValueError(
+            f"Malformed document data: {key!r} must be {expected_type.__name__}, got {type(value).__name__}"
+        )
+    return value
+
+
+def _is_format_type(value: object) -> TypeGuard[FormatType]:
+    """Whether ``value`` is one of the ``FormatType`` literal strings."""
+    return value in get_args(FormatType)
+
+
 def _element_from_dict(data: dict[str, object]) -> FountainElement:
     """Rebuild a single FountainElement from its dictionary form, recursing into metadata.
 
     This is the inverse of :func:`_element_to_dict`; keep the two symmetric. A dict-valued
     metadata entry is a nested serialized element and becomes a FountainElement again; a
-    list-valued entry maps dict items back through this same helper and leaves non-dict
-    items (plain strings, numbers, booleans) untouched.
+    list-valued entry is a list of nested serialized elements.
 
     Args:
         data: Dictionary with keys type, text, formatting, line_number, and metadata,
@@ -110,6 +150,10 @@ def _element_from_dict(data: dict[str, object]) -> FountainElement:
         The reconstructed FountainElement, with ``type`` an ElementType member and
         ``formatting`` entries FormatSpan instances.
 
+    Raises:
+        ValueError: If a field is missing, has the wrong type, or names an unknown
+            element type or format type.
+
     Example:
         Rebuilding a plain element::
 
@@ -118,33 +162,33 @@ def _element_from_dict(data: dict[str, object]) -> FountainElement:
             >>> _element_from_dict(_element_to_dict(element)) == element
             True
     """
-    formatting = [
-        FormatSpan(
-            start=cast(int, span["start"]),
-            end=cast(int, span["end"]),
-            format_type=cast(FormatType, span["format_type"]),
-        )
-        for span in cast("list[dict[str, object]]", data["formatting"])
-    ]
+    formatting: list[FormatSpan] = []
+    for span in _require_field(data, "formatting", list):
+        if not isinstance(span, dict):
+            raise ValueError(f"Malformed document data: formatting span must be dict, got {type(span).__name__}")
+        format_type = span.get("format_type")
+        if not _is_format_type(format_type):
+            raise ValueError(f"Malformed document data: unknown format_type {format_type!r}")
+        formatting.append(FormatSpan(_require_field(span, "start", int), _require_field(span, "end", int), format_type))
 
-    serialized_metadata = cast("dict[str, object]", data.get("metadata") or {})
     metadata: dict[str, MetadataValue] = {}
-    for key, value in serialized_metadata.items():
+    for key, value in _require_field(data, "metadata", dict).items():
         if isinstance(value, dict):
-            metadata[key] = _element_from_dict(cast("dict[str, object]", value))
+            metadata[key] = _element_from_dict(value)
         elif isinstance(value, list):
-            metadata[key] = [
-                _element_from_dict(cast("dict[str, object]", item)) if isinstance(item, dict) else item
-                for item in value
-            ]
+            if not all(isinstance(item, dict) for item in value):
+                raise ValueError(f"Malformed document data: metadata list {key!r} must hold serialized elements")
+            metadata[key] = [_element_from_dict(item) for item in value]
+        elif value is None or isinstance(value, (str, int)):
+            metadata[key] = value
         else:
-            metadata[key] = cast(MetadataValue, value)
+            raise ValueError(f"Malformed document data: metadata {key!r} has unsupported type {type(value).__name__}")
 
     return FountainElement(
-        type=ElementType(data["type"]),
-        text=cast(str, data["text"]),
+        type=ElementType(_require_field(data, "type", str)),
+        text=_require_field(data, "text", str),
         formatting=formatting,
-        line_number=cast(int, data["line_number"]),
+        line_number=_require_field(data, "line_number", int),
         metadata=metadata,
     )
 
@@ -196,7 +240,7 @@ class FountainDocument:
         elements: list[FountainElement],
         metadata: dict[str, str] | None = None,
         issues: list[ValidationIssue] | None = None,
-    ):
+    ) -> None:
         """Initialize a FountainDocument with elements and optional metadata.
 
         Args:
@@ -225,7 +269,7 @@ class FountainDocument:
     def to_dict(self) -> dict[str, object]:
         """Convert the entire document to a dictionary representation.
 
-        Creates a comprehensive dictionary representation of the document,
+        Creates a dictionary representation of the document,
         including all metadata and element details. This format is useful
         for serialization, debugging, and integration with other tools.
 
@@ -296,7 +340,7 @@ class FountainDocument:
         return json.dumps(self.to_dict(), indent=2)
 
     @classmethod
-    def from_dict(cls, data: dict[str, object]) -> "FountainDocument":
+    def from_dict(cls, data: dict[str, object]) -> Self:
         """Reconstruct a FountainDocument from its dictionary form.
 
         Inverse of :meth:`to_dict`. Rebuilds every element, including nested
@@ -311,7 +355,8 @@ class FountainDocument:
             The reconstructed FountainDocument.
 
         Raises:
-            ValueError: If schema_version does not match JSON_SCHEMA_VERSION.
+            ValueError: If schema_version does not match JSON_SCHEMA_VERSION, or if
+                any field is missing or has the wrong type.
 
         Example:
             Round-tripping a document through its dict form::
@@ -333,15 +378,19 @@ class FountainDocument:
         if schema_version != JSON_SCHEMA_VERSION:
             raise ValueError(f"Unsupported schema_version {schema_version!r}; expected {JSON_SCHEMA_VERSION}")
 
-        metadata = cast("dict[str, str]", data["metadata"])
-        elements = [
-            _element_from_dict(cast("dict[str, object]", element_data))
-            for element_data in cast("list[object]", data["elements"])
-        ]
+        metadata = _require_field(data, "metadata", dict)
+        if not all(isinstance(key, str) and isinstance(value, str) for key, value in metadata.items()):
+            raise ValueError("Malformed document data: title page metadata must map strings to strings")
+
+        elements: list[FountainElement] = []
+        for element_data in _require_field(data, "elements", list):
+            if not isinstance(element_data, dict):
+                raise ValueError(f"Malformed document data: element must be dict, got {type(element_data).__name__}")
+            elements.append(_element_from_dict(element_data))
         return cls(elements, metadata)
 
     @classmethod
-    def from_json(cls, text: str) -> "FountainDocument":
+    def from_json(cls, text: str) -> Self:
         """Reconstruct a FountainDocument from its JSON string form.
 
         Args:
@@ -351,7 +400,8 @@ class FountainDocument:
             The reconstructed FountainDocument.
 
         Raises:
-            ValueError: If the decoded schema_version does not match JSON_SCHEMA_VERSION.
+            ValueError: If the text is not a JSON object, or if :meth:`from_dict`
+                rejects the decoded data.
 
         Example:
             Round-tripping through JSON::
@@ -362,7 +412,10 @@ class FountainDocument:
                 >>> FountainDocument.from_json(doc.to_json()).to_dict() == doc.to_dict()
                 True
         """
-        return cls.from_dict(cast("dict[str, object]", json.loads(text)))
+        data = json.loads(text)
+        if not isinstance(data, dict):
+            raise ValueError(f"Malformed document data: expected a JSON object, got {type(data).__name__}")
+        return cls.from_dict(data)
 
     def get_characters(self) -> list[str]:
         """Extract and return all unique character names from the document.
@@ -398,15 +451,14 @@ class FountainDocument:
                 >>> len(characters)
                 3
         """
-        characters = set()
-        for element in self.elements:
-            if element.type == ElementType.CHARACTER:
-                # Clean up character name (remove parentheticals, etc.)
-                name = element.text.strip().upper()
-                if name.endswith("^"):
-                    name = name[:-1].strip()
-                characters.add(name)
-        return sorted(characters)
+        # Normalize each cue to uppercase and drop a dual dialogue caret
+        return sorted(
+            {
+                element.text.strip().upper().removesuffix("^").strip()
+                for element in self.elements
+                if element.type == ElementType.CHARACTER
+            }
+        )
 
     def get_scenes(self) -> list[str]:
         """Extract and return all scene headings from the document in order.
@@ -436,14 +488,10 @@ class FountainDocument:
                 >>> len(scenes)
                 2
         """
-        scenes = []
-        for element in self.elements:
-            if element.type == ElementType.SCENE_HEADING:
-                scenes.append(element.text.strip())
-        return scenes
+        return [element.text.strip() for element in self.elements if element.type == ElementType.SCENE_HEADING]
 
     def get_statistics(self) -> dict[str, int]:
-        """Generate comprehensive statistics about the document content.
+        """Generate statistics about the document content.
 
         Calculates various statistics about the document including total element
         count, number of unique characters, number of scenes, and counts for
@@ -482,7 +530,7 @@ class FountainDocument:
                 >>> stats['action_count']
                 1
         """
-        type_counts = Counter(el.type for el in self.elements)
+        type_counts = Counter(element.type for element in self.elements)
 
         stats: dict[str, int] = {
             "total_elements": len(self.elements),

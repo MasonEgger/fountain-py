@@ -1,30 +1,20 @@
-# Configuration file for the Sphinx documentation builder.
-#
-# For the full list of built-in configuration values, see the documentation:
-# https://www.sphinx-doc.org/en/master/usage/configuration.html
+# ABOUTME: Sphinx configuration for the fountain-py documentation site.
+# The version comes from the installed package metadata, so docs builds run inside the uv environment.
+from __future__ import annotations
 
-import os
-import sys
 from importlib.metadata import version as get_version
+from typing import TYPE_CHECKING
 
-# -- Path setup --------------------------------------------------------------
-# If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path here.
-sys.path.insert(0, os.path.abspath("../../src"))
+if TYPE_CHECKING:
+    from sphinx.application import Sphinx
 
 # -- Project information -----------------------------------------------------
+# https://www.sphinx-doc.org/en/master/usage/configuration.html
 project = "fountain-py"
 copyright = "2025, Mason Egger"
 author = "Mason Egger"
-
-# Get version dynamically from package metadata
-try:
-    release = get_version("fountain-py")
-    version = release
-except Exception:
-    # Fallback version if package not installed
-    release = "0.2.0"
-    version = "0.2.0"
+release = get_version("fountain-py")
+version = release
 
 # -- General configuration ---------------------------------------------------
 extensions = [
@@ -39,12 +29,12 @@ extensions = [
 ]
 
 templates_path = ["_templates"]
-exclude_patterns = []
+exclude_patterns: list[str] = []
 
 # -- Options for HTML output -------------------------------------------------
 html_theme = "furo"
 html_title = f"{project} {version}"
-html_static_path = []
+html_static_path: list[str] = []
 
 # Furo theme options
 html_theme_options = {
@@ -114,12 +104,14 @@ myst_enable_extensions = [
     "colon_fence",
 ]
 
+
 # Skip regex pattern constants from documentation
-def autodoc_skip_member(app, what, name, obj, skip, options):
+def autodoc_skip_member(app: Sphinx, what: str, name: str, obj: object, skip: bool, options: object) -> bool:
     # Skip all uppercase constants (regex patterns and other constants)
-    if name.isupper() and '_' in name:
+    if name.isupper() and "_" in name:
         return True
     return skip
 
-def setup(app):
-    app.connect('autodoc-skip-member', autodoc_skip_member)
+
+def setup(app: Sphinx) -> None:
+    app.connect("autodoc-skip-member", autodoc_skip_member)

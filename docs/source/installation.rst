@@ -6,7 +6,7 @@ Installation
 Requirements
 ------------
 
-- **Python 3.10 or higher** (3.10, 3.11, 3.12, 3.13, 3.14 supported)
+- **Python 3.11 or higher** (3.11, 3.12, 3.13, 3.14, 3.15 supported)
 - No external dependencies for core features
 
 Install
@@ -48,14 +48,8 @@ To contribute or work against a local checkout:
    git clone https://github.com/MasonEgger/fountain-py.git
    cd fountain-py
 
-   # Install all development and docs dependencies (uv recommended)
-   uv sync --dev && uv sync --group docs
+   # Install the package in editable mode with the dev and docs dependency groups
+   uv sync --group docs
 
-   # Install in editable mode
-   uv pip install -e .
-
-With pip instead of uv:
-
-.. code-block:: bash
-
-   pip install -e ".[dev,docs]"
+The dev and docs dependencies are `dependency groups <https://packaging.python.org/en/latest/specifications/dependency-groups/>`_, not extras, so ``pip install -e ".[dev,docs]"`` does not install them.
+With pip 25.1 or newer, use ``pip install -e . --group dev --group docs`` instead.

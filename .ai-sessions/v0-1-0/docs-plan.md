@@ -254,8 +254,8 @@ No, go ahead.
 
 document = FountainParser().parse(script)
 
-print(document.metadata["title"])   # The Coffee Shop Connection
-print(document.get_characters())    # ['ALICE', 'BOB']
+print(document.metadata["title"])  # The Coffee Shop Connection
+print(document.get_characters())  # ['ALICE', 'BOB']
 
 with open("coffee_shop.html", "w", encoding="utf-8") as f:
     f.write(document.to_html())

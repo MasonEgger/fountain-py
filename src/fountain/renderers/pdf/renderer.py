@@ -1,15 +1,19 @@
 # ABOUTME: PDFRenderer, which ties PageGeometry and LayoutProfile together via fpdf2 to produce PDF bytes.
 # Writer-only tools are omitted; dual dialogue flattens to two sequential blocks; page breaks start a new page.
-from typing import TYPE_CHECKING, cast
+from __future__ import annotations
 
-from fountain.document import FountainDocument
-from fountain.elements import ElementType, FountainElement
+from typing import TYPE_CHECKING
+
+from fountain.elements import ElementType
 from fountain.renderers.pdf._deps import require_fpdf
 from fountain.renderers.pdf.geometry import LETTER, PageGeometry
 from fountain.renderers.pdf.profile import SCREENPLAY, ElementLayout, LayoutProfile
 
 if TYPE_CHECKING:
     from fpdf import FPDF
+
+    from fountain.document import FountainDocument
+    from fountain.elements import FountainElement
 
 _OMITTED_TYPES = frozenset(
     {
@@ -44,7 +48,10 @@ class PDFRenderer:
     """
 
     def __init__(self, geometry: PageGeometry = LETTER, profile: LayoutProfile = SCREENPLAY) -> None:
-        self._pdf_class = cast("type[FPDF]", require_fpdf().FPDF)
+        require_fpdf()
+        from fpdf import FPDF  # deferred: fpdf2 is the optional [pdf] extra, guarded above
+
+        self._pdf_class = FPDF
         self.geometry = geometry
         self.profile = profile
 
@@ -73,7 +80,7 @@ class PDFRenderer:
             self._render_element(pdf, element)
         return bytes(pdf.output())
 
-    def _new_document(self) -> "FPDF":
+    def _new_document(self) -> FPDF:
         """Build an fpdf document sized and margined per ``self.geometry``.
 
         Returns:
@@ -91,7 +98,7 @@ class PDFRenderer:
         pdf.set_font(self.profile.font_name, size=self.profile.font_size_pt)
         return pdf
 
-    def _render_element(self, pdf: "FPDF", element: FountainElement) -> None:
+    def _render_element(self, pdf: FPDF, element: FountainElement) -> None:
         """Write one element's text block, or take its structural action.
 
         Args:
@@ -108,7 +115,7 @@ class PDFRenderer:
             return
         self._write_text_block(pdf, element.type, element.text)
 
-    def _render_dual_dialogue(self, pdf: "FPDF", element: FountainElement) -> None:
+    def _render_dual_dialogue(self, pdf: FPDF, element: FountainElement) -> None:
         """Write a DUAL_DIALOGUE element as the left side's block followed by the right's.
 
         Single-column stacking, matching :class:`~fountain.renderers.plaintext.PlainTextRenderer`.
@@ -118,18 +125,14 @@ class PDFRenderer:
             element: A DUAL_DIALOGUE element carrying left/right character
                 and dialogue metadata.
         """
-        metadata = element.metadata
-        if not metadata:
+        if not element.metadata:
             return
 
-        for character_key, dialogue_key in (("left_character", "left_dialogue"), ("right_character", "right_dialogue")):
-            character = cast(FountainElement, metadata[character_key])
-            self._write_text_block(pdf, character.type, character.text)
-            dialogue = cast("list[FountainElement]", metadata[dialogue_key])
-            for dialogue_element in dialogue:
-                self._write_text_block(pdf, dialogue_element.type, dialogue_element.text)
+        for column in element.dual_dialogue_columns():
+            for column_element in column:
+                self._write_text_block(pdf, column_element.type, column_element.text)
 
-    def _write_text_block(self, pdf: "FPDF", element_type: ElementType, text: str) -> None:
+    def _write_text_block(self, pdf: FPDF, element_type: ElementType, text: str) -> None:
         """Write one wrapped text block at its profile indent/width, then a blank line.
 
         Args:

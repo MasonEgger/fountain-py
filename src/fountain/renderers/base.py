@@ -1,8 +1,11 @@
 # ABOUTME: Structural typing contracts every renderer satisfies.
 # TextRenderer covers string output (HTML, Fountain, plain text, FDX); BinaryRenderer covers byte output (PDF).
-from typing import Protocol, runtime_checkable
+from __future__ import annotations
 
-from fountain.document import FountainDocument
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
+
+if TYPE_CHECKING:
+    from fountain.document import FountainDocument
 
 
 @runtime_checkable

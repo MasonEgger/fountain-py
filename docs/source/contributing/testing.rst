@@ -2,21 +2,25 @@ Testing
 =======
 
 The fountain-py test suite uses `pytest <https://docs.pytest.org/>`_ with strict markers and doctest integration.
-It targets 99%+ code coverage.
+Coverage is reported as information on every run; there is no threshold to hit.
+Parsing and the JSON round trip also carry `hypothesis <https://hypothesis.readthedocs.io/>`_ property tests in ``tests/test_properties.py``.
 
 Running Tests
 -------------
 
 .. code-block:: bash
 
-   # Full quality check (tests + coverage + doctests + lint + type-check + format)
+   # The gate: lint, format check, mypy strict, and tests (module doctests included)
+   just check
+
+   # Tests only
    just test
 
-   # Unit tests only
-   just unit-test
+   # Tests with HTML coverage report
+   just test-cov
 
-   # Unit tests with HTML coverage report
-   just unit-test-cov
+   # Tests on every supported Python version (3.11 through 3.15)
+   just test-all
 
    # Run a specific test file
    uv run pytest tests/test_parser.py
@@ -71,4 +75,4 @@ Coverage
 --------
 
 The project maintains 99%+ code coverage.
-After running ``just unit-test-cov``, open ``htmlcov/index.html`` to view the coverage report.
+After running ``just test-cov``, open ``htmlcov/index.html`` to view the coverage report.

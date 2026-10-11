@@ -7,17 +7,17 @@ from pathlib import Path
 
 import pytest
 
-from fountain.elements import ElementType
+from fountain.elements import ElementType, FormatSpan, FountainElement
 from fountain.parser import FountainParser
 
 
 class TestSceneHeadingEdgeCases:
     """Test scene heading edge cases and variations."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         self.parser = FountainParser()
 
-    def test_scene_heading_variations(self):
+    def test_scene_heading_variations(self) -> None:
         """Test various scene heading formats."""
         test_cases = [
             ("INT. HOUSE - DAY", True),
@@ -51,7 +51,7 @@ class TestSceneHeadingEdgeCases:
                 if doc.elements:
                     assert doc.elements[0].type != ElementType.SCENE_HEADING
 
-    def test_scene_numbers(self):
+    def test_scene_numbers(self) -> None:
         """Test scene headings with scene numbers."""
         text = "INT. HOUSE - DAY #1#"
         doc = self.parser.parse(text)
@@ -65,10 +65,10 @@ class TestSceneHeadingEdgeCases:
 class TestCharacterExtensionEdgeCases:
     """Test character name and extension edge cases."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         self.parser = FountainParser()
 
-    def test_character_with_underscores(self):
+    def test_character_with_underscores(self) -> None:
         """Test character names with underscores."""
         test_cases = [
             "FORCED_CHARACTER (V.O.)\nHello.",
@@ -84,7 +84,7 @@ class TestCharacterExtensionEdgeCases:
             assert doc.elements[0].metadata is not None
             assert "extension" in doc.elements[0].metadata
 
-    def test_character_extensions_combinations(self):
+    def test_character_extensions_combinations(self) -> None:
         """Test various character extension combinations."""
         text = """ALICE (V.O.)
 Alice in voice over.
@@ -106,7 +106,7 @@ Emma shouts."""
         characters = [el for el in doc.elements if el.type == ElementType.CHARACTER]
         assert len(characters) == 5
 
-        extensions = [char.metadata.get("extension") for char in characters]
+        extensions = [character.metadata.get("extension") for character in characters]
         expected_extensions = ["V.O.", "O.S.", "CONT'D", "WHISPERING", "SHOUTING"]
         assert extensions == expected_extensions
 
@@ -114,10 +114,10 @@ Emma shouts."""
 class TestDualDialogueEdgeCases:
     """Test dual dialogue edge cases and complex scenarios."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         self.parser = FountainParser()
 
-    def test_dual_dialogue_with_extensions(self):
+    def test_dual_dialogue_with_extensions(self) -> None:
         """Test dual dialogue with character extensions."""
         text = """ALICE (V.O.)
 Alice in voice over.
@@ -133,13 +133,15 @@ Bob off screen, dual dialogue."""
         dual = dual_elements[0]
         left_char = dual.metadata["left_character"]
         right_char = dual.metadata["right_character"]
+        assert isinstance(left_char, FountainElement)
+        assert isinstance(right_char, FountainElement)
 
         assert left_char.text == "ALICE"
         assert left_char.metadata["extension"] == "V.O."
         assert right_char.text == "BOB"
         assert right_char.metadata["extension"] == "O.S."
 
-    def test_dual_dialogue_separation(self):
+    def test_dual_dialogue_separation(self) -> None:
         """Test that dual dialogue doesn't incorrectly pair across dialogue blocks."""
         text = """JOHN (V.O.)
 This is John speaking.
@@ -163,13 +165,21 @@ David shouts in dual dialogue."""
 
         # First dual dialogue: JOHN <-> SARAH
         first_dual = dual_elements[0]
-        assert first_dual.metadata["left_character"].text == "JOHN"
-        assert first_dual.metadata["right_character"].text == "SARAH"
+        first_left_character = first_dual.metadata["left_character"]
+        first_right_character = first_dual.metadata["right_character"]
+        assert isinstance(first_left_character, FountainElement)
+        assert isinstance(first_right_character, FountainElement)
+        assert first_left_character.text == "JOHN"
+        assert first_right_character.text == "SARAH"
 
         # Second dual dialogue: MARY <-> DAVID
         second_dual = dual_elements[1]
-        assert second_dual.metadata["left_character"].text == "MARY"
-        assert second_dual.metadata["right_character"].text == "DAVID"
+        second_left_character = second_dual.metadata["left_character"]
+        second_right_character = second_dual.metadata["right_character"]
+        assert isinstance(second_left_character, FountainElement)
+        assert isinstance(second_right_character, FountainElement)
+        assert second_left_character.text == "MARY"
+        assert second_right_character.text == "DAVID"
 
         # NARRATOR should be standalone
         narrator_elements = [el for el in doc.elements if el.type == ElementType.CHARACTER and el.text == "NARRATOR"]
@@ -179,10 +189,10 @@ David shouts in dual dialogue."""
 class TestFormattingEdgeCases:
     """Test text formatting edge cases and robustness."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         self.parser = FountainParser()
 
-    def test_single_character_formatting(self):
+    def test_single_character_formatting(self) -> None:
         """Test single character formatting."""
         test_cases = [
             ("*a*", "italic"),
@@ -193,23 +203,23 @@ class TestFormattingEdgeCases:
 
         for text, expected_format in test_cases:
             doc = self.parser.parse(f"JOHN\n{text}")
-            dialogue = next((e for e in doc.elements if e.type == ElementType.DIALOGUE), None)
+            dialogue = next((element for element in doc.elements if element.type == ElementType.DIALOGUE), None)
             assert dialogue is not None
             assert len(dialogue.formatting) == 1
             assert dialogue.formatting[0].format_type == expected_format
 
-    def test_multiple_formatting_spans(self):
+    def test_multiple_formatting_spans(self) -> None:
         """Test multiple formatting spans in one line."""
         text = "JOHN\n*a*b*c*"
         doc = self.parser.parse(text)
 
-        dialogue = next((e for e in doc.elements if e.type == ElementType.DIALOGUE), None)
+        dialogue = next((element for element in doc.elements if element.type == ElementType.DIALOGUE), None)
         assert dialogue is not None
         assert len(dialogue.formatting) == 2
         assert dialogue.formatting[0].format_type == "italic"
         assert dialogue.formatting[1].format_type == "italic"
 
-    def test_unclosed_formatting(self):
+    def test_unclosed_formatting(self) -> None:
         """Test unclosed formatting marks are handled gracefully."""
         test_cases = [
             "*incomplete",
@@ -220,17 +230,17 @@ class TestFormattingEdgeCases:
 
         for text in test_cases:
             doc = self.parser.parse(f"JOHN\n{text}")
-            dialogue = next((e for e in doc.elements if e.type == ElementType.DIALOGUE), None)
+            dialogue = next((element for element in doc.elements if element.type == ElementType.DIALOGUE), None)
             assert dialogue is not None
             # Should not crash and should not have formatting
             assert len(dialogue.formatting) == 0
 
-    def test_complex_formatting_combinations(self):
+    def test_complex_formatting_combinations(self) -> None:
         """Test complex formatting combinations."""
         text = "JOHN\n***bold italic*** mixed with *italic* and **bold**"
         doc = self.parser.parse(text)
 
-        dialogue = next((e for e in doc.elements if e.type == ElementType.DIALOGUE), None)
+        dialogue = next((element for element in doc.elements if element.type == ElementType.DIALOGUE), None)
         assert dialogue is not None
         assert len(dialogue.formatting) == 3
 
@@ -243,10 +253,10 @@ class TestFormattingEdgeCases:
 class TestLyricsSpecCompliance:
     """Test lyrics parsing according to Fountain specification."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         self.parser = FountainParser()
 
-    def test_lyrics_start_with_tilde(self):
+    def test_lyrics_start_with_tilde(self) -> None:
         """Test that lyrics start with ~ according to spec."""
         text = """~This is a lyric line
 ~Another lyric line
@@ -260,7 +270,7 @@ class TestLyricsSpecCompliance:
         assert lyrics[1].text == "Another lyric line"
         assert lyrics[2].text == "Third lyric line"
 
-    def test_lyrics_with_formatting(self):
+    def test_lyrics_with_formatting(self) -> None:
         """Test lyrics with text formatting."""
         text = "~This has **bold** and *italic* formatting"
         doc = self.parser.parse(text)
@@ -271,7 +281,7 @@ class TestLyricsSpecCompliance:
         assert lyrics[0].text == "This has bold and italic formatting"
         assert len(lyrics[0].formatting) == 2
 
-    def test_empty_tilde_not_lyrics(self):
+    def test_empty_tilde_not_lyrics(self) -> None:
         """Test that empty tilde is not parsed as lyrics."""
         text = "~"
         doc = self.parser.parse(text)
@@ -288,10 +298,10 @@ class TestLyricsSpecCompliance:
 class TestParentheticalParsing:
     """Test parenthetical parsing in various contexts."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         self.parser = FountainParser()
 
-    def test_parenthetical_after_character(self):
+    def test_parenthetical_after_character(self) -> None:
         """Test parenthetical immediately after character."""
         text = """JANE
 (excited)
@@ -303,7 +313,7 @@ This is dialogue with a parenthetical!"""
         assert len(parentheticals) == 1
         assert parentheticals[0].text == "(excited)"
 
-    def test_multiple_parentheticals(self):
+    def test_multiple_parentheticals(self) -> None:
         """Test multiple separate parentheticals."""
         text = """JOHN
 (whispering)
@@ -320,7 +330,7 @@ This is loud!"""
         assert parentheticals[0].text == "(whispering)"
         assert parentheticals[1].text == "(shouting)"
 
-    def test_parenthetical_in_dual_dialogue(self):
+    def test_parenthetical_in_dual_dialogue(self) -> None:
         """Test parentheticals within dual dialogue are preserved."""
         text = """ALICE
 (excited)
@@ -338,6 +348,8 @@ Bob responds."""
         dual = dual_elements[0]
         left_dialogue = dual.metadata["left_dialogue"]
         right_dialogue = dual.metadata["right_dialogue"]
+        assert isinstance(left_dialogue, list)
+        assert isinstance(right_dialogue, list)
 
         # Check that parentheticals are preserved in dual dialogue
         assert any(el.type == ElementType.PARENTHETICAL for el in left_dialogue)
@@ -347,10 +359,10 @@ Bob responds."""
 class TestComprehensiveValidation:
     """Comprehensive validation tests covering all element types."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         self.parser = FountainParser()
 
-    def test_all_fountain_elements(self):
+    def test_all_fountain_elements(self) -> None:
         """Test that all 14 Fountain element types can be parsed correctly."""
         comprehensive_test = """Title: Comprehensive Test
 Author: Test Suite
@@ -400,7 +412,7 @@ THE END"""
         doc = self.parser.parse(comprehensive_test)
 
         # Count all element types including those in dual dialogue
-        element_types = {}
+        element_types: dict[str, int] = {}
         for element in doc.elements:
             element_types[element.type.value] = element_types.get(element.type.value, 0) + 1
 
@@ -409,7 +421,9 @@ THE END"""
             if element.type.value == "dual_dialogue" and element.metadata:
                 for side in ["left_dialogue", "right_dialogue"]:
                     if side in element.metadata:
-                        for nested in element.metadata[side]:
+                        nested_elements = element.metadata[side]
+                        assert isinstance(nested_elements, list)
+                        for nested in nested_elements:
                             element_types[nested.type.value] = element_types.get(nested.type.value, 0) + 1
 
         # All 14 Fountain element types should be present
@@ -434,7 +448,7 @@ THE END"""
             assert element_type in element_types, f"Missing element type: {element_type}"
             assert element_types[element_type] > 0, f"No instances of {element_type} found"
 
-    def test_unicode_support(self):
+    def test_unicode_support(self) -> None:
         """Test unicode character support throughout the parser."""
         text = """Title: Unicode Test
 Author: 作者
@@ -463,7 +477,7 @@ More dialogue with unicode content: 中文 test."""
         assert any("—" in el.text for el in dialogue_elements)
         assert any("中文" in el.text for el in dialogue_elements)
 
-    def test_error_handling_robustness(self):
+    def test_error_handling_robustness(self) -> None:
         """Test parser robustness with various edge cases."""
         edge_cases = [
             ("", "Empty document"),
@@ -482,81 +496,81 @@ More dialogue with unicode content: 中文 test."""
                 doc = self.parser.parse(test_case)
                 # Basic validation - should always produce a document
                 assert isinstance(doc.elements, list)
-            except Exception as e:
-                pytest.fail(f"Parser crashed on {description}: {e}")
+            except Exception as error:
+                pytest.fail(f"Parser crashed on {description}: {error}")
 
 
 class TestSpecCompliance:
     """Tests for Fountain spec compliance gaps."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         self.parser = FountainParser()
 
     # -- Step 1: Section Level Metadata --
 
-    def test_section_level_1(self):
+    def test_section_level_1(self) -> None:
         """# produces a SECTION with metadata level 1."""
         doc = self.parser.parse("# Act One")
         assert doc.elements[0].type == ElementType.SECTION
         assert doc.elements[0].metadata["level"] == 1
         assert doc.elements[0].text == "Act One"
 
-    def test_section_level_2(self):
+    def test_section_level_2(self) -> None:
         """## produces a SECTION with metadata level 2."""
         doc = self.parser.parse("## Scene One")
         assert doc.elements[0].type == ElementType.SECTION
         assert doc.elements[0].metadata["level"] == 2
         assert doc.elements[0].text == "Scene One"
 
-    def test_section_level_3(self):
+    def test_section_level_3(self) -> None:
         """### produces a SECTION with metadata level 3."""
         doc = self.parser.parse("### Beat One")
         assert doc.elements[0].type == ElementType.SECTION
         assert doc.elements[0].metadata["level"] == 3
         assert doc.elements[0].text == "Beat One"
 
-    def test_section_level_6(self):
+    def test_section_level_6(self) -> None:
         """###### produces a SECTION with metadata level 6."""
         doc = self.parser.parse("###### Deep Nesting")
         assert doc.elements[0].type == ElementType.SECTION
         assert doc.elements[0].metadata["level"] == 6
         assert doc.elements[0].text == "Deep Nesting"
 
-    def test_section_text_no_hash_symbols(self):
+    def test_section_text_no_hash_symbols(self) -> None:
         """Section text should not contain # symbols."""
         doc = self.parser.parse("## My Section")
         assert "#" not in doc.elements[0].text
 
     # -- Step 2: Ellipsis Protection on Forced Scene Headings --
 
-    def test_ellipsis_not_scene_heading(self):
+    def test_ellipsis_not_scene_heading(self) -> None:
         """...HELLO should be ACTION, not SCENE_HEADING."""
         doc = self.parser.parse("...HELLO")
         assert doc.elements[0].type == ElementType.ACTION
 
-    def test_double_period_not_scene_heading(self):
+    def test_double_period_not_scene_heading(self) -> None:
         """..text should be ACTION, not SCENE_HEADING."""
         doc = self.parser.parse("..text")
         assert doc.elements[0].type == ElementType.ACTION
 
-    def test_ellipsis_spec_example(self):
+    def test_ellipsis_spec_example(self) -> None:
         """...where the carnival is parked (spec example) should be ACTION."""
         doc = self.parser.parse("...where the carnival is parked")
         assert doc.elements[0].type == ElementType.ACTION
 
-    def test_forced_scene_heading_with_period(self):
+    def test_forced_scene_heading_with_period(self) -> None:
         """.SNIPER SCOPE POV should be a forced SCENE_HEADING (spec example)."""
         doc = self.parser.parse(".SNIPER SCOPE POV")
         assert doc.elements[0].type == ElementType.SCENE_HEADING
         assert doc.elements[0].text == "SNIPER SCOPE POV"
 
-    def test_forced_scene_heading_alpha(self):
+    def test_forced_scene_heading_alpha(self) -> None:
         """.A forced heading should be a forced SCENE_HEADING."""
         doc = self.parser.parse(".A forced heading")
         assert doc.elements[0].type == ElementType.SCENE_HEADING
         assert doc.elements[0].text == "A forced heading"
 
-    def test_forced_scene_heading_digit(self):
+    def test_forced_scene_heading_digit(self) -> None:
         """.2nd Floor should be a forced SCENE_HEADING (period + digit)."""
         doc = self.parser.parse(".2nd Floor")
         assert doc.elements[0].type == ElementType.SCENE_HEADING
@@ -564,7 +578,7 @@ class TestSpecCompliance:
 
     # -- Step 6.1: Space-Form Scene Heading Prefixes (B1) --
 
-    def test_scene_heading_space_forms(self):
+    def test_scene_heading_space_forms(self) -> None:
         """Space-form scene heading prefixes parse as SCENE_HEADING (B1).
 
         `INT HOUSE - DAY` and the space forms of EXT, EST, I/E, and INT/EXT are
@@ -586,7 +600,7 @@ class TestSpecCompliance:
         doc = self.parser.parse("INTERNAL AFFAIRS INVESTIGATES.")
         assert doc.elements[0].type == ElementType.ACTION
 
-    def test_scene_heading_requires_blank_after(self):
+    def test_scene_heading_requires_blank_after(self) -> None:
         """A natural scene heading requires a blank line after it (B2).
 
         `EXT. BRICK'S PATIO - DAY` immediately followed by a non-blank line is
@@ -612,7 +626,7 @@ class TestSpecCompliance:
         assert doc.elements[0].type == ElementType.SCENE_HEADING
         assert doc.elements[0].text == "PATIO"
 
-    def test_scene_number_character_restriction(self):
+    def test_scene_number_character_restriction(self) -> None:
         """Scene numbers are limited to alphanumerics, dashes, and periods (B4).
 
         A `#...#` group containing any other character is not a scene number: it
@@ -640,19 +654,19 @@ class TestSpecCompliance:
 
     # -- Step 3: Tab Conversion Verification --
 
-    def test_tab_retained_in_action(self):
+    def test_tab_retained_in_action(self) -> None:
         """A leading tab in action text is retained verbatim (Fountain keeps tabs)."""
         doc = self.parser.parse("\tIndented action")
         assert doc.elements[0].type == ElementType.ACTION
         assert doc.elements[0].text == "\tIndented action"
 
-    def test_double_tab_retained_in_action(self):
+    def test_double_tab_retained_in_action(self) -> None:
         """Each leading tab in action text is retained verbatim."""
         doc = self.parser.parse("\t\tDouble indented")
         assert doc.elements[0].type == ElementType.ACTION
         assert doc.elements[0].text == "\t\tDouble indented"
 
-    def test_tab_action_renders_indentation(self):
+    def test_tab_action_renders_indentation(self) -> None:
         """A tab-indented action retains the tab in text and renders four nbsp per tab.
 
         The Fountain spec keeps tabs in Action. The stored element text keeps the raw
@@ -668,7 +682,7 @@ class TestSpecCompliance:
         html = HTMLRenderer().render(doc)
         assert "&nbsp;&nbsp;&nbsp;&nbsp;Indented action line" in html
 
-    def test_tab_stripped_from_character_name(self):
+    def test_tab_stripped_from_character_name(self) -> None:
         """Tabs in character names are stripped by .strip()."""
         doc = self.parser.parse("\tJOHN\nHello.")
         # The tab-prefixed line should not be parsed as a character
@@ -681,17 +695,17 @@ class TestSpecCompliance:
 
     # -- Step 4: Arbitrary Title Page Keys --
 
-    def test_custom_title_page_key(self):
+    def test_custom_title_page_key(self) -> None:
         """Custom Field: Custom Value should be stored in metadata."""
         doc = self.parser.parse("Custom Field: Custom Value\n\nINT. HOUSE - DAY")
         assert doc.metadata.get("custom field") == "Custom Value"
 
-    def test_revision_title_page_key(self):
+    def test_revision_title_page_key(self) -> None:
         """Revision: Draft 3 should be accepted as a title page key."""
         doc = self.parser.parse("Revision: Draft 3\n\nINT. HOUSE - DAY")
         assert doc.metadata.get("revision") == "Draft 3"
 
-    def test_multiple_arbitrary_keys(self):
+    def test_multiple_arbitrary_keys(self) -> None:
         """Multiple arbitrary keys should all be preserved."""
         script = "Title: Test\nRevision: Draft 3\nSeries: My Show\n\nINT. HOUSE - DAY"
         doc = self.parser.parse(script)
@@ -699,22 +713,22 @@ class TestSpecCompliance:
         assert doc.metadata.get("revision") == "Draft 3"
         assert doc.metadata.get("series") == "My Show"
 
-    def test_arbitrary_key_multiline_value(self):
+    def test_arbitrary_key_multiline_value(self) -> None:
         """Arbitrary keys with multi-line continuation values should work."""
         script = "Custom Field: Line 1\n   Line 2\n\nINT. HOUSE - DAY"
         doc = self.parser.parse(script)
         assert "Line 1" in doc.metadata.get("custom field", "")
         assert "Line 2" in doc.metadata.get("custom field", "")
 
-    def test_title_page_ends_at_blank_line_plus_body(self):
+    def test_title_page_ends_at_blank_line_plus_body(self) -> None:
         """Title page still ends correctly at blank line + body element."""
         script = "Title: Test\nCustom: Value\n\nINT. HOUSE - DAY"
         doc = self.parser.parse(script)
         assert doc.metadata.get("title") == "Test"
         assert doc.metadata.get("custom") == "Value"
-        assert any(e.type == ElementType.SCENE_HEADING for e in doc.elements)
+        assert any(element.type == ElementType.SCENE_HEADING for element in doc.elements)
 
-    def test_standard_and_custom_keys_together(self):
+    def test_standard_and_custom_keys_together(self) -> None:
         """Standard keys (Title, Author) should work alongside custom keys."""
         script = "Title: My Script\nAuthor: Jane\nNetwork: HBO\n\nINT. OFFICE - DAY"
         doc = self.parser.parse(script)
@@ -722,7 +736,7 @@ class TestSpecCompliance:
         assert doc.metadata.get("author") == "Jane"
         assert doc.metadata.get("network") == "HBO"
 
-    def test_first_line_fade_in_is_transition_not_metadata(self):
+    def test_first_line_fade_in_is_transition_not_metadata(self) -> None:
         """A leading ``FADE IN:`` is a body transition, not a title-page key.
 
         The value after the colon is empty and there is no indented continuation, so it
@@ -733,13 +747,13 @@ class TestSpecCompliance:
         assert doc.metadata == {}
         assert any(element.type == ElementType.TRANSITION and element.text == "FADE IN:" for element in doc.elements)
 
-    def test_first_line_cut_to_is_transition_not_metadata(self):
+    def test_first_line_cut_to_is_transition_not_metadata(self) -> None:
         """A leading ``CUT TO:`` is a body transition, not a title-page key."""
         doc = self.parser.parse("CUT TO:\n\nINT. HOUSE - DAY")
         assert "cut to" not in doc.metadata
         assert any(element.type == ElementType.TRANSITION and element.text == "CUT TO:" for element in doc.elements)
 
-    def test_first_line_colon_prose_is_action_not_metadata(self):
+    def test_first_line_colon_prose_is_action_not_metadata(self) -> None:
         """A prose sentence with a colon on line one is action, not a title-page key.
 
         ``He opens the card`` is not a recognized field and is not a capitalized label
@@ -752,7 +766,7 @@ class TestSpecCompliance:
             for element in doc.elements
         )
 
-    def test_capitalized_colon_line_opens_title_page_key(self):
+    def test_capitalized_colon_line_opens_title_page_key(self) -> None:
         """At document start a capitalized ``Key: value`` opens a title-page key.
 
         The Fountain spec accepts any colon-terminated key at the top, so a capitalized
@@ -773,7 +787,7 @@ class TestSpecCompliance:
         fade = self.parser.parse("FADE IN:\n\nINT. HOUSE - DAY")
         assert fade.metadata == {}
 
-    def test_forced_action_round_trips(self):
+    def test_forced_action_round_trips(self) -> None:
         """A forced action whose text starts with a special char survives a round trip.
 
         Without the forced flag, the Fountain renderer drops the ``!`` and the text
@@ -790,7 +804,7 @@ class TestSpecCompliance:
         assert reparsed.elements[0].type == ElementType.ACTION
         assert reparsed.elements[0].text == ".This looks like a scene heading"
 
-    def test_forced_transition_round_trips(self):
+    def test_forced_transition_round_trips(self) -> None:
         """A forced transition keeps its forced flag so it survives a Fountain round trip.
 
         ``> SMASH CUT TO BLACK`` does not end in ``TO:`` and would not re-parse as a
@@ -809,7 +823,7 @@ class TestSpecCompliance:
         reparsed = self.parser.parse(rendered)
         assert [element.type for element in reparsed.elements] == [ElementType.TRANSITION]
 
-    def test_merged_action_emphasis_per_line_and_linear(self):
+    def test_merged_action_emphasis_per_line_and_linear(self) -> None:
         """Multi-line action keeps per-line emphasis and assembles in linear time.
 
         Emphasis is line-bounded, so each continuation line is extracted independently and
@@ -831,7 +845,7 @@ class TestSpecCompliance:
         self.parser.parse(big)
         assert time.perf_counter() - start < 2.0
 
-    def test_consecutive_action_lines_form_one_paragraph(self):
+    def test_consecutive_action_lines_form_one_paragraph(self) -> None:
         """Consecutive non-blank action lines join into one ACTION element, line breaks kept.
 
         Fountain treats every carriage return as intentional, so a block of adjacent action
@@ -842,7 +856,7 @@ class TestSpecCompliance:
         assert len(actions) == 1
         assert actions[0].text == "Line one\nLine two\nLine three"
 
-    def test_blank_line_separates_action_paragraphs(self):
+    def test_blank_line_separates_action_paragraphs(self) -> None:
         """A blank line still starts a new action paragraph."""
         doc = self.parser.parse("Para one.\n\nPara two.")
         actions = [element for element in doc.elements if element.type == ElementType.ACTION]
@@ -850,7 +864,7 @@ class TestSpecCompliance:
         assert actions[0].text == "Para one."
         assert actions[1].text == "Para two."
 
-    def test_action_paragraph_renders_line_breaks_in_one_div(self):
+    def test_action_paragraph_renders_line_breaks_in_one_div(self) -> None:
         """Merged action lines render as one action div; pre-wrap CSS shows the line breaks."""
         from fountain.renderer import HTMLRenderer
 
@@ -861,7 +875,7 @@ class TestSpecCompliance:
 
     # -- Step 5.1: A1 Multi-line Title Page Values Preserve Line Structure --
 
-    def test_title_page_multiline_value_preserved(self):
+    def test_title_page_multiline_value_preserved(self) -> None:
         """A multi-line title page value keeps each line instead of flattening to one space-joined string."""
         from fountain.renderer import HTMLRenderer
 
@@ -876,7 +890,7 @@ class TestSpecCompliance:
         html = HTMLRenderer().render_page(doc)
         assert "Next Level<br>1588 Mission Dr.<br>Solvang, CA" in html
 
-    def test_title_page_single_line_value_stays_plain(self):
+    def test_title_page_single_line_value_stays_plain(self) -> None:
         """A single-line title page value stays a plain string with no trailing newline (A1 regression guard)."""
         doc = self.parser.parse("Title: Big Fish\n\nINT. HOUSE - DAY")
         assert doc.metadata.get("title") == "Big Fish"
@@ -884,14 +898,14 @@ class TestSpecCompliance:
 
     # -- Step 5.2: A2 Title Page Continuation Requires Indentation --
 
-    def test_title_page_continuation_requires_indent(self):
+    def test_title_page_continuation_requires_indent(self) -> None:
         """An indented colon-bearing line stays a value of the current key rather than starting a new key (A2)."""
         script = "Notes:\n    Draft 3: final revisions\n\nINT. HOUSE - DAY"
         doc = self.parser.parse(script)
         assert doc.metadata.get("notes") == "Draft 3: final revisions"
         assert "draft 3" not in doc.metadata
 
-    def test_title_page_unindented_line_ends_page(self):
+    def test_title_page_unindented_line_ends_page(self) -> None:
         """An unindented non-key line ends the title page and becomes a body element, not a value (A2)."""
         script = "Title: X\nUnindented body line\n\nINT. HOUSE - DAY"
         doc = self.parser.parse(script)
@@ -900,7 +914,7 @@ class TestSpecCompliance:
         action_texts = [element.text for element in doc.elements if element.type == ElementType.ACTION]
         assert "Unindented body line" in action_texts
 
-    def test_title_page_guard_case_insensitive(self):
+    def test_title_page_guard_case_insensitive(self) -> None:
         """A lowercase scene-heading first line is a SCENE_HEADING, not title-page metadata (B3).
 
         ``int. house - day - 3:00 pm`` contains a colon (from the time), which naively
@@ -915,7 +929,7 @@ class TestSpecCompliance:
         assert len(scene_headings) == 1
         assert scene_headings[0].text == "int. house - day - 3:00 pm"
 
-    def test_title_page_guard_space_form(self):
+    def test_title_page_guard_space_form(self) -> None:
         """The space-form scene-heading prefix also guards against opening the title page (B3).
 
         ``int house - day - 3:00 pm`` uses the space form (B1) and contains a colon.
@@ -928,156 +942,156 @@ class TestSpecCompliance:
         assert len(scene_headings) == 1
         assert scene_headings[0].text == "int house - day - 3:00 pm"
 
-    def test_title_page_real_key_still_opens_page(self):
+    def test_title_page_real_key_still_opens_page(self) -> None:
         """A genuine non-scene-heading key: value first line still opens the title page (B3 regression)."""
         doc = self.parser.parse("Author: Alice\n\nINT. HOUSE - DAY")
         assert doc.metadata.get("author") == "Alice"
 
     # -- Step 5: Scene Headings Require Blank Line Before --
 
-    def test_scene_heading_with_blank_line_before(self):
+    def test_scene_heading_with_blank_line_before(self) -> None:
         """Scene heading with blank line before should be detected."""
         doc = self.parser.parse("Some action.\n\nINT. HOUSE - DAY")
-        scene_headings = [e for e in doc.elements if e.type == ElementType.SCENE_HEADING]
+        scene_headings = [element for element in doc.elements if element.type == ElementType.SCENE_HEADING]
         assert len(scene_headings) == 1
         assert scene_headings[0].text == "INT. HOUSE - DAY"
 
-    def test_scene_heading_without_blank_line_before(self):
+    def test_scene_heading_without_blank_line_before(self) -> None:
         """Scene heading without blank line before should NOT be detected."""
         doc = self.parser.parse("Some action.\nINT. HOUSE - DAY")
-        scene_headings = [e for e in doc.elements if e.type == ElementType.SCENE_HEADING]
+        scene_headings = [element for element in doc.elements if element.type == ElementType.SCENE_HEADING]
         assert len(scene_headings) == 0
 
-    def test_scene_heading_as_first_element(self):
+    def test_scene_heading_as_first_element(self) -> None:
         """Scene heading as first/only element should still be detected."""
         doc = self.parser.parse("INT. HOUSE - DAY")
         assert doc.elements[0].type == ElementType.SCENE_HEADING
 
-    def test_forced_scene_heading_without_blank_line(self):
+    def test_forced_scene_heading_without_blank_line(self) -> None:
         """Forced scene heading without blank line should still be detected (exempt)."""
         doc = self.parser.parse("Some action.\n.FORCED HEADING")
-        scene_headings = [e for e in doc.elements if e.type == ElementType.SCENE_HEADING]
+        scene_headings = [element for element in doc.elements if element.type == ElementType.SCENE_HEADING]
         assert len(scene_headings) == 1
         assert scene_headings[0].text == "FORCED HEADING"
 
-    def test_scene_heading_after_title_page(self):
+    def test_scene_heading_after_title_page(self) -> None:
         """Scene heading after title page (first body element) should be detected."""
         doc = self.parser.parse("Title: Test\n\nINT. HOUSE - DAY")
-        scene_headings = [e for e in doc.elements if e.type == ElementType.SCENE_HEADING]
+        scene_headings = [element for element in doc.elements if element.type == ElementType.SCENE_HEADING]
         assert len(scene_headings) == 1
 
     # -- Step 6: Character Names Require Blank Line Before --
 
-    def test_character_with_blank_line_before(self):
+    def test_character_with_blank_line_before(self) -> None:
         """Character with blank line before should be detected."""
         doc = self.parser.parse("Some action.\n\nJOHN\nHello.")
-        characters = [e for e in doc.elements if e.type == ElementType.CHARACTER]
+        characters = [element for element in doc.elements if element.type == ElementType.CHARACTER]
         assert len(characters) == 1
         assert characters[0].text == "JOHN"
 
-    def test_character_without_blank_line_before(self):
+    def test_character_without_blank_line_before(self) -> None:
         """Character without blank line before should NOT be detected."""
         doc = self.parser.parse("Some action.\nJOHN\nHello.")
-        characters = [e for e in doc.elements if e.type == ElementType.CHARACTER]
+        characters = [element for element in doc.elements if element.type == ElementType.CHARACTER]
         assert len(characters) == 0
 
-    def test_character_as_first_element(self):
+    def test_character_as_first_element(self) -> None:
         """Character as first element should still be detected."""
         doc = self.parser.parse("JOHN\nHello.")
         assert doc.elements[0].type == ElementType.CHARACTER
 
-    def test_forced_character_without_blank_line(self):
+    def test_forced_character_without_blank_line(self) -> None:
         """Forced character without blank line should still be detected (exempt)."""
         doc = self.parser.parse("Some action.\n@JOHN\nHello.")
-        characters = [e for e in doc.elements if e.type == ElementType.CHARACTER]
+        characters = [element for element in doc.elements if element.type == ElementType.CHARACTER]
         assert len(characters) == 1
 
-    def test_character_extension_with_blank_line(self):
+    def test_character_extension_with_blank_line(self) -> None:
         """Character with extension and blank line before should be detected."""
         doc = self.parser.parse("Some action.\n\nJOHN (V.O.)\nHello.")
-        characters = [e for e in doc.elements if e.type == ElementType.CHARACTER]
+        characters = [element for element in doc.elements if element.type == ElementType.CHARACTER]
         assert len(characters) == 1
 
-    def test_character_extension_without_blank_line(self):
+    def test_character_extension_without_blank_line(self) -> None:
         """Character with extension without blank line should NOT be detected."""
         doc = self.parser.parse("Some action.\nJOHN (V.O.)\nHello.")
-        characters = [e for e in doc.elements if e.type == ElementType.CHARACTER]
+        characters = [element for element in doc.elements if element.type == ElementType.CHARACTER]
         assert len(characters) == 0
 
     # -- Step 7: Transitions Require Blank Lines Before and After --
 
-    def test_transition_with_both_blank_lines(self):
+    def test_transition_with_both_blank_lines(self) -> None:
         """Transition with blank lines before and after should be detected."""
         doc = self.parser.parse("Action.\n\nCUT TO:\n\nINT. HOUSE - DAY")
-        transitions = [e for e in doc.elements if e.type == ElementType.TRANSITION]
+        transitions = [element for element in doc.elements if element.type == ElementType.TRANSITION]
         assert len(transitions) == 1
         assert transitions[0].text == "CUT TO:"
 
-    def test_transition_without_blank_before(self):
+    def test_transition_without_blank_before(self) -> None:
         """Transition without blank line before should NOT be detected."""
         doc = self.parser.parse("Action.\nCUT TO:\n\nINT. HOUSE - DAY")
-        transitions = [e for e in doc.elements if e.type == ElementType.TRANSITION]
+        transitions = [element for element in doc.elements if element.type == ElementType.TRANSITION]
         assert len(transitions) == 0
 
-    def test_transition_without_blank_after(self):
+    def test_transition_without_blank_after(self) -> None:
         """Transition without blank line after should NOT be detected."""
         doc = self.parser.parse("Action.\n\nCUT TO:\nINT. HOUSE - DAY")
-        transitions = [e for e in doc.elements if e.type == ElementType.TRANSITION]
+        transitions = [element for element in doc.elements if element.type == ElementType.TRANSITION]
         assert len(transitions) == 0
 
-    def test_transition_without_any_blanks(self):
+    def test_transition_without_any_blanks(self) -> None:
         """Transition without any blank lines should NOT be detected."""
         doc = self.parser.parse("Action.\nCUT TO:\nINT. HOUSE - DAY")
-        transitions = [e for e in doc.elements if e.type == ElementType.TRANSITION]
+        transitions = [element for element in doc.elements if element.type == ElementType.TRANSITION]
         assert len(transitions) == 0
 
-    def test_forced_transition_without_blanks(self):
+    def test_forced_transition_without_blanks(self) -> None:
         """Forced transition without blank lines should still be detected (exempt)."""
         doc = self.parser.parse("Action.\n>Burn to White.\nMore action.")
-        transitions = [e for e in doc.elements if e.type == ElementType.TRANSITION]
+        transitions = [element for element in doc.elements if element.type == ElementType.TRANSITION]
         assert len(transitions) == 1
 
-    def test_transition_at_end_of_document(self):
+    def test_transition_at_end_of_document(self) -> None:
         """Transition at end of document should be detected (EOF counts as blank after)."""
         doc = self.parser.parse("Action.\n\nCUT TO:")
-        transitions = [e for e in doc.elements if e.type == ElementType.TRANSITION]
+        transitions = [element for element in doc.elements if element.type == ElementType.TRANSITION]
         assert len(transitions) == 1
 
-    def test_fade_in_and_fade_out_transitions(self):
+    def test_fade_in_and_fade_out_transitions(self) -> None:
         """FADE IN: and FADE OUT. should follow the same blank line rules."""
         doc = self.parser.parse("Title: Test\n\nFADE IN:\n\nINT. HOUSE - DAY\n\nAction.\n\nFADE OUT.")
-        transitions = [e for e in doc.elements if e.type == ElementType.TRANSITION]
+        transitions = [element for element in doc.elements if element.type == ElementType.TRANSITION]
         assert len(transitions) == 2
 
     # -- Step 8: Inline Notes Stripped from Elements --
 
-    def test_inline_note_stripped_from_action(self):
+    def test_inline_note_stripped_from_action(self) -> None:
         """Inline note in action text should be stripped."""
         doc = self.parser.parse("John walks [[needs work]] to the door.")
-        actions = [e for e in doc.elements if e.type == ElementType.ACTION]
+        actions = [element for element in doc.elements if element.type == ElementType.ACTION]
         assert len(actions) == 1
         assert "[[" not in actions[0].text
         assert "needs work" not in actions[0].text
         assert "John walks" in actions[0].text
         assert "to the door." in actions[0].text
 
-    def test_inline_note_stripped_from_dialogue(self):
+    def test_inline_note_stripped_from_dialogue(self) -> None:
         """Inline note in dialogue should be stripped."""
         doc = self.parser.parse("JOHN\nI love you [[or do I?]] forever.")
-        dialogues = [e for e in doc.elements if e.type == ElementType.DIALOGUE]
+        dialogues = [element for element in doc.elements if element.type == ElementType.DIALOGUE]
         assert len(dialogues) == 1
         assert "[[" not in dialogues[0].text
         assert "or do I?" not in dialogues[0].text
         assert "I love you" in dialogues[0].text
         assert "forever." in dialogues[0].text
 
-    def test_standalone_note_unchanged(self):
+    def test_standalone_note_unchanged(self) -> None:
         """Standalone note [[text]] should still produce a NOTE element."""
         doc = self.parser.parse("[[This is entirely a note]]")
-        notes = [e for e in doc.elements if e.type == ElementType.NOTE]
+        notes = [element for element in doc.elements if element.type == ElementType.NOTE]
         assert len(notes) == 1
 
-    def test_bracketed_line_with_middle_text_not_single_note(self):
+    def test_bracketed_line_with_middle_text_not_single_note(self) -> None:
         """A line bounded by [[ ]] but with text between two notes is not one NOTE (E13).
 
         ``[[a]] middle [[b]]`` starts with ``[[`` and ends with ``]]`` but carries
@@ -1086,13 +1100,13 @@ class TestSpecCompliance:
         being swallowed verbatim as a single NOTE.
         """
         doc = self.parser.parse("[[a]] middle [[b]]")
-        notes = [e for e in doc.elements if e.type == ElementType.NOTE]
-        actions = [e for e in doc.elements if e.type == ElementType.ACTION]
+        notes = [element for element in doc.elements if element.type == ElementType.NOTE]
+        actions = [element for element in doc.elements if element.type == ElementType.ACTION]
         assert notes == []
         assert len(actions) == 1
         assert actions[0].text == "middle"
 
-    def test_lone_bracket_inside_note(self):
+    def test_lone_bracket_inside_note(self) -> None:
         """A lone ``]`` inside a note does not break recognition; only ``]]`` closes (E10).
 
         ``[[check ref] ok]]`` carries a single ``]`` in the middle of the note text.
@@ -1101,14 +1115,14 @@ class TestSpecCompliance:
         rule 6) rather than falling through to ACTION.
         """
         doc = self.parser.parse("[[check ref] ok]]")
-        notes = [e for e in doc.elements if e.type == ElementType.NOTE]
-        actions = [e for e in doc.elements if e.type == ElementType.ACTION]
+        notes = [element for element in doc.elements if element.type == ElementType.NOTE]
+        actions = [element for element in doc.elements if element.type == ElementType.ACTION]
         assert actions == []
         assert len(notes) == 1
         assert notes[0].text == "[[check ref] ok]]"
         assert "check ref] ok" in notes[0].text
 
-    def test_indented_action_with_trailing_note_keeps_indent(self):
+    def test_indented_action_with_trailing_note_keeps_indent(self) -> None:
         """An indented action line with a trailing inline note keeps its leading indent.
 
         The inline note sits at the END of the line, so removing it must not disturb the
@@ -1117,61 +1131,61 @@ class TestSpecCompliance:
         verbatim in the stored text.
         """
         tab_doc = self.parser.parse("\tIndented action [[note]]")
-        tab_actions = [e for e in tab_doc.elements if e.type == ElementType.ACTION]
+        tab_actions = [element for element in tab_doc.elements if element.type == ElementType.ACTION]
         assert len(tab_actions) == 1
         assert tab_actions[0].text == "\tIndented action"
         assert "[[" not in tab_actions[0].text
 
         space_doc = self.parser.parse("    Spaced action [[note]]")
-        space_actions = [e for e in space_doc.elements if e.type == ElementType.ACTION]
+        space_actions = [element for element in space_doc.elements if element.type == ElementType.ACTION]
         assert len(space_actions) == 1
         assert space_actions[0].text.startswith("    ")
         assert space_actions[0].text == "    Spaced action"
         assert "[[" not in space_actions[0].text
 
-    def test_multiple_inline_notes_stripped(self):
+    def test_multiple_inline_notes_stripped(self) -> None:
         """Multiple inline notes on one line should all be stripped."""
         doc = self.parser.parse("He [[first note]] walked [[second note]] away.")
-        actions = [e for e in doc.elements if e.type == ElementType.ACTION]
+        actions = [element for element in doc.elements if element.type == ElementType.ACTION]
         assert len(actions) == 1
         assert "[[" not in actions[0].text
         assert "first note" not in actions[0].text
         assert "second note" not in actions[0].text
 
-    def test_text_preserved_after_note_stripping(self):
+    def test_text_preserved_after_note_stripping(self) -> None:
         """Text should be otherwise unchanged after note stripping."""
         doc = self.parser.parse("The door opened [[slowly]] and he entered.")
-        actions = [e for e in doc.elements if e.type == ElementType.ACTION]
+        actions = [element for element in doc.elements if element.type == ElementType.ACTION]
         assert len(actions) == 1
         assert "The door opened" in actions[0].text
         assert "and he entered." in actions[0].text
 
     # -- Step 9: Multi-line Notes --
 
-    def test_multiline_note_basic(self):
+    def test_multiline_note_basic(self) -> None:
         """Multi-line note spanning multiple lines should produce a single NOTE element."""
         doc = self.parser.parse("[[This is a note\nthat spans\nmultiple lines]]")
-        notes = [e for e in doc.elements if e.type == ElementType.NOTE]
+        notes = [element for element in doc.elements if element.type == ElementType.NOTE]
         assert len(notes) == 1
         assert "This is a note" in notes[0].text
         assert "that spans" in notes[0].text
         assert "multiple lines" in notes[0].text
 
-    def test_multiline_note_between_elements(self):
+    def test_multiline_note_between_elements(self) -> None:
         """Multi-line note between elements should preserve surrounding elements."""
         script = "INT. HOUSE - DAY\n\n[[This note\nspans lines]]\n\nJOHN\nHello."
         doc = self.parser.parse(script)
-        notes = [e for e in doc.elements if e.type == ElementType.NOTE]
+        notes = [element for element in doc.elements if element.type == ElementType.NOTE]
         assert len(notes) == 1
-        scenes = [e for e in doc.elements if e.type == ElementType.SCENE_HEADING]
+        scenes = [element for element in doc.elements if element.type == ElementType.SCENE_HEADING]
         assert len(scenes) == 1
-        characters = [e for e in doc.elements if e.type == ElementType.CHARACTER]
+        characters = [element for element in doc.elements if element.type == ElementType.CHARACTER]
         assert len(characters) == 1
 
-    def test_multiline_note_full_content(self):
+    def test_multiline_note_full_content(self) -> None:
         """Multi-line note should contain all lines in its text."""
         doc = self.parser.parse("[[Line one\nLine two\nLine three]]")
-        notes = [e for e in doc.elements if e.type == ElementType.NOTE]
+        notes = [element for element in doc.elements if element.type == ElementType.NOTE]
         assert len(notes) == 1
         assert "Line one" in notes[0].text
         assert "Line two" in notes[0].text
@@ -1179,74 +1193,74 @@ class TestSpecCompliance:
 
     # -- Step 10: Dialogue Continuation with Whitespace-Only Lines --
 
-    def test_whitespace_line_continues_dialogue(self):
+    def test_whitespace_line_continues_dialogue(self) -> None:
         """Two-space line within dialogue should continue dialogue, not break to action."""
         doc = self.parser.parse("JOHN\nFirst line.\n  \nSecond line.")
-        characters = [e for e in doc.elements if e.type == ElementType.CHARACTER]
-        dialogues = [e for e in doc.elements if e.type == ElementType.DIALOGUE]
-        actions = [e for e in doc.elements if e.type == ElementType.ACTION]
+        characters = [element for element in doc.elements if element.type == ElementType.CHARACTER]
+        dialogues = [element for element in doc.elements if element.type == ElementType.DIALOGUE]
+        actions = [element for element in doc.elements if element.type == ElementType.ACTION]
         assert len(characters) == 1
         assert len(dialogues) >= 2  # At least first and second dialogue lines
         assert len(actions) == 0
 
-    def test_empty_line_breaks_dialogue(self):
+    def test_empty_line_breaks_dialogue(self) -> None:
         """Truly empty line should break dialogue into action."""
         doc = self.parser.parse("JOHN\nFirst line.\n\nSecond line.")
-        actions = [e for e in doc.elements if e.type == ElementType.ACTION]
+        actions = [element for element in doc.elements if element.type == ElementType.ACTION]
         assert len(actions) >= 1  # "Second line." should be action
 
-    def test_whitespace_continuation_after_parenthetical(self):
+    def test_whitespace_continuation_after_parenthetical(self) -> None:
         """Whitespace continuation should work after parenthetical."""
         doc = self.parser.parse("JOHN\n(beat)\n  \nMore dialogue.")
-        actions = [e for e in doc.elements if e.type == ElementType.ACTION]
+        actions = [element for element in doc.elements if element.type == ElementType.ACTION]
         assert len(actions) == 0
-        dialogues = [e for e in doc.elements if e.type == ElementType.DIALOGUE]
+        dialogues = [element for element in doc.elements if element.type == ElementType.DIALOGUE]
         assert len(dialogues) >= 1
 
     # -- Step 11: Backslash Escaping for Emphasis --
 
-    def test_escaped_asterisk_no_formatting(self):
+    def test_escaped_asterisk_no_formatting(self) -> None:
         r"""He dialed \*69 should have no formatting spans and text contains literal *69."""
         doc = self.parser.parse("He dialed \\*69")
         assert doc.elements[0].type == ElementType.ACTION
         assert "*69" in doc.elements[0].text
         assert doc.elements[0].formatting == []
 
-    def test_escaped_asterisks_within_bold(self):
+    def test_escaped_asterisks_within_bold(self) -> None:
         r"""Text with **\*9765\*** should have bold AND literal asterisks in text."""
         doc = self.parser.parse("Steel enters **\\*9765\\***")
         elem = doc.elements[0]
         assert "*9765*" in elem.text
-        bold_spans = [s for s in elem.formatting if s.format_type == "bold"]
+        bold_spans = [span for span in elem.formatting if span.format_type == "bold"]
         assert len(bold_spans) >= 1
 
-    def test_escaped_underscores_no_formatting(self):
+    def test_escaped_underscores_no_formatting(self) -> None:
         r"""\_not underlined\_ should have no underline formatting."""
         doc = self.parser.parse("\\_not underlined\\_")
         elem = doc.elements[0]
         assert "_not underlined_" in elem.text
-        underline_spans = [s for s in elem.formatting if s.format_type == "underline"]
+        underline_spans = [span for span in elem.formatting if span.format_type == "underline"]
         assert len(underline_spans) == 0
 
-    def test_mixed_escaped_and_real_formatting(self):
+    def test_mixed_escaped_and_real_formatting(self) -> None:
         r"""*italic* and \*not italic\* should have exactly one italic span."""
         doc = self.parser.parse("This is *italic* and \\*not italic\\*")
         elem = doc.elements[0]
-        italic_spans = [s for s in elem.formatting if s.format_type == "italic"]
+        italic_spans = [span for span in elem.formatting if span.format_type == "italic"]
         assert len(italic_spans) == 1
         assert "*not italic*" in elem.text
 
-    def test_no_backslashes_unchanged(self):
+    def test_no_backslashes_unchanged(self) -> None:
         """Text without backslashes should be unchanged (no regression)."""
         doc = self.parser.parse("Normal **bold** text")
         elem = doc.elements[0]
-        bold_spans = [s for s in elem.formatting if s.format_type == "bold"]
+        bold_spans = [span for span in elem.formatting if span.format_type == "bold"]
         assert len(bold_spans) == 1
         assert "Normal" in elem.text
 
     # -- Step 8.3: D4 Emphasis Delimiters Stripped, Spans Cover Content --
 
-    def test_emphasis_delimiters_stripped(self):
+    def test_emphasis_delimiters_stripped(self) -> None:
         """D4: emphasis delimiters are removed from element text and spans cover only content.
 
         Before D4 the parser kept the delimiters in ``element.text`` (``This is **bold**
@@ -1296,7 +1310,7 @@ class TestSpecCompliance:
 
     # -- Step 8.4: D5 Keypad Escape Example Renders Correctly --
 
-    def test_keypad_escape_example(self):
+    def test_keypad_escape_example(self) -> None:
         r"""D5: the spec's keypad escape example renders with ``<strong>*9765*</strong>``.
 
         The line ``Steel enters the code on the keypad: **\*9765\***`` combines two
@@ -1338,7 +1352,7 @@ class TestSpecCompliance:
 
     # -- Step 8.5: D6 Nested Emphasis Does Not Duplicate Text --
 
-    def test_nested_emphasis_no_duplication(self):
+    def test_nested_emphasis_no_duplication(self) -> None:
         """D6: nested emphasis composes into nested tags with each word rendered once.
 
         The spec underlines a phrase that itself contains an italic span, so bold,
@@ -1384,7 +1398,7 @@ class TestSpecCompliance:
 
     # -- Step 8.6: D7 Bold and Underline Get the Italic Space Guards --
 
-    def test_bold_underline_space_guards(self):
+    def test_bold_underline_space_guards(self) -> None:
         r"""D7: a delimiter-adjacent space defeats bold and underline emphasis.
 
         The italic pattern already refuses to match when a whitespace character sits
@@ -1396,7 +1410,7 @@ class TestSpecCompliance:
         suppresses the emphasis, while valid delimiter-adjacent-non-space runs still match.
         """
 
-        def spans_of(source: str, format_type: str) -> list:
+        def spans_of(source: str, format_type: str) -> list[FormatSpan]:
             element = self.parser.parse(source).elements[0]
             return [span for span in element.formatting if span.format_type == format_type]
 
@@ -1422,7 +1436,7 @@ class TestSpecCompliance:
 
     # -- Adversarial review: emphasis nesting, intraword underscore, stray delimiters --
 
-    def test_emphasis_does_not_cross_line_breaks(self):
+    def test_emphasis_does_not_cross_line_breaks(self) -> None:
         """Emphasis delimiters on different lines do not pair (spec: not carried across breaks).
 
         A merged action paragraph carries embedded newlines, so an opening ``*`` on one
@@ -1437,7 +1451,7 @@ class TestSpecCompliance:
         assert "<em>" not in html
         assert "*italic" in html and "carried*" in html
 
-    def test_nested_same_delimiter_emphasis(self):
+    def test_nested_same_delimiter_emphasis(self) -> None:
         """An italic phrase containing a bold word (both asterisks) composes cleanly.
 
         The old regex span-finder could not cross the inner ``**`` inside an outer
@@ -1453,7 +1467,7 @@ class TestSpecCompliance:
         assert html == "<em>italic <strong>both</strong> italic</em>"
         assert "*" not in html
 
-    def test_adjacent_bold_italic_shared_run(self):
+    def test_adjacent_bold_italic_shared_run(self) -> None:
         """``**bold***italic*`` splits the shared ``***`` run into bold close + italic open."""
         from fountain.renderer import HTMLRenderer
 
@@ -1464,7 +1478,7 @@ class TestSpecCompliance:
         assert html == "<strong>bold</strong><em>italic</em>"
         assert "*" not in html
 
-    def test_intraword_underscore_is_literal(self):
+    def test_intraword_underscore_is_literal(self) -> None:
         """Underscores inside a word are literal, per Markdown's intraword rule.
 
         ``some_variable_name`` and ``my_cool_script.py`` must keep their underscores and
@@ -1481,7 +1495,7 @@ class TestSpecCompliance:
             html = HTMLRenderer()._apply_formatting(action.text, action.formatting)
             assert "<u>" not in html
 
-    def test_quadruple_asterisks_leave_no_stray_delimiters(self):
+    def test_quadruple_asterisks_leave_no_stray_delimiters(self) -> None:
         """A run of four asterisks on each side consumes cleanly with no literal ``*`` left."""
         from fountain.renderer import HTMLRenderer
 
@@ -1494,7 +1508,7 @@ class TestSpecCompliance:
 
     # -- Step 8.7: D8 Span Offsets Computed Against Stored Text Including Indentation --
 
-    def test_span_offset_includes_indentation(self):
+    def test_span_offset_includes_indentation(self) -> None:
         """D8: formatting spans index into the stored text, leading indentation included.
 
         The spec's card-style action lines carry deliberate leading indentation. The stored
@@ -1537,7 +1551,7 @@ class TestSpecCompliance:
 
     # -- Step 8.8: D9 Forced Action Retains Indentation After the ! --
 
-    def test_forced_action_retains_indent(self):
+    def test_forced_action_retains_indent(self) -> None:
         """D9: a forced action keeps the indentation that follows the ``!`` marker.
 
         Only the leading ``!`` forcing marker is removed; the whitespace after it is
@@ -1573,7 +1587,7 @@ class TestSpecCompliance:
         assert italic_spans[0].start == 4
         assert action.text[italic_spans[0].start : italic_spans[0].end] == "italic"
 
-    def test_dialogue_not_broken_by_regular_text(self):
+    def test_dialogue_not_broken_by_regular_text(self) -> None:
         """Regular text following a character name should be dialogue, not action."""
         doc = self.parser.parse("JOHN\nHello.\nMore dialogue.")
         types = [el.type for el in doc.elements]
@@ -1581,7 +1595,7 @@ class TestSpecCompliance:
         assert types[1] == ElementType.DIALOGUE
         assert types[2] == ElementType.DIALOGUE
 
-    def test_dialogue_broken_by_scene_heading(self):
+    def test_dialogue_broken_by_scene_heading(self) -> None:
         """A scene heading after dialogue should break the dialogue context."""
         doc = self.parser.parse("\n\nJOHN\nHello.\n\nINT. HOUSE - DAY")
         types = [el.type for el in doc.elements]
@@ -1591,7 +1605,7 @@ class TestSpecCompliance:
 
     # -- CR-2: MetadataValue annotation --
 
-    def test_metadata_annotation_uses_metadatavalue(self):
+    def test_metadata_annotation_uses_metadatavalue(self) -> None:
         """FountainElement.metadata is typed dict[str, MetadataValue] | None (CR-2)."""
         from fountain.elements import FountainElement, MetadataValue
 
@@ -1603,7 +1617,7 @@ class TestSpecCompliance:
 
     # -- Step 2.1: Renderers in top-level __all__ --
 
-    def test_renderers_importable_from_package(self):
+    def test_renderers_importable_from_package(self) -> None:
         """HTMLRenderer and FountainRenderer are importable from the top-level package (Open Question 7)."""
         import fountain
         from fountain import FountainRenderer, HTMLRenderer
@@ -1615,7 +1629,7 @@ class TestSpecCompliance:
 
     # -- Step 2.2: ABOUTME header single-line form (CR-1) --
 
-    def test_aboutme_header_single_line(self):
+    def test_aboutme_header_single_line(self) -> None:
         """Each src/fountain/ module starts with ABOUTME on line one only (CR-1)."""
         import fountain
 
@@ -1636,7 +1650,7 @@ class TestSpecCompliance:
 
     # -- Step 4.1: Boneyard Close with Trailing Text (E2) --
 
-    def test_boneyard_close_with_trailing_text(self):
+    def test_boneyard_close_with_trailing_text(self) -> None:
         """A `*/` with trailing text ends the boneyard; nothing after the close is dropped (E2)."""
         text = """FADE IN:
 
@@ -1663,7 +1677,7 @@ More action here."""
 
     # -- Step 4.2: Single-Line Boneyard with Trailing Text (E3) --
 
-    def test_single_line_boneyard_keeps_trailing_text(self):
+    def test_single_line_boneyard_keeps_trailing_text(self) -> None:
         """A `/* ... */` span with trailing text keeps the remainder; the document is not swallowed (E3)."""
         text = """/* cut this */ keep this
 
@@ -1685,7 +1699,7 @@ More action here."""
 
     # -- Step 4.3: Mid-Line Boneyard Opener (E4) --
 
-    def test_midline_boneyard_opener_rejoins_and_hides_interior(self):
+    def test_midline_boneyard_opener_rejoins_and_hides_interior(self) -> None:
         """A mid-line `/*` opener rejoins its pre-text with the post-close text (E4).
 
         The boneyard removes the interior lines and the newlines between them, so the
@@ -1713,14 +1727,14 @@ More action here."""
         assert "The scene continues." in texts
         assert "More action here." in texts
 
-    def test_multiline_boneyard_rejoins_surrounding_text(self):
+    def test_multiline_boneyard_rejoins_surrounding_text(self) -> None:
         """A boneyard spanning a line break rejoins the surrounding text on one line."""
         doc = self.parser.parse("Before /* boned\nstill boned */ after")
         actions = [element for element in doc.elements if element.type == ElementType.ACTION]
         assert len(actions) == 1
         assert actions[0].text == "Before after"
 
-    def test_notes_and_boneyard_transparent_to_heading_adjacency(self):
+    def test_notes_and_boneyard_transparent_to_heading_adjacency(self) -> None:
         """A note or boneyard flush against a heading/transition does not demote it.
 
         Notes and boneyards are invisible in output, so they are transparent for the
@@ -1738,7 +1752,7 @@ More action here."""
         transition_note = self.parser.parse("A.\n\nCUT TO:\n[[note]]\n\nB.")
         assert any(element.type == ElementType.TRANSITION for element in transition_note.elements)
 
-    def test_multiline_note_preserves_surrounding_text(self):
+    def test_multiline_note_preserves_surrounding_text(self) -> None:
         """Body text before ``[[`` and after ``]]`` of a multi-line note survives.
 
         The multi-line note buffered the whole opening and closing lines, absorbing the
@@ -1753,7 +1767,7 @@ More action here."""
         assert any(element.type == ElementType.NOTE for element in tail_doc.elements)
         assert any(element.type != ElementType.NOTE and "TAIL" in element.text for element in tail_doc.elements)
 
-    def test_unclosed_boneyard_recovers_pretext(self):
+    def test_unclosed_boneyard_recovers_pretext(self) -> None:
         """An unclosed boneyard emits the body text before the '/*' and reports the issue."""
         doc = self.parser.parse("Some real action.\ntext /* dangles")
         combined = " ".join(element.text for element in doc.elements)
@@ -1761,7 +1775,7 @@ More action here."""
         assert "text" in combined
         assert any(issue.code == "unclosed-boneyard" for issue in doc.issues)
 
-    def test_dialogue_continues_across_interior_lyric_or_note(self):
+    def test_dialogue_continues_across_interior_lyric_or_note(self) -> None:
         """A character who sings or has a note mid-speech keeps speaking in dialogue.
 
         A lyric or standalone note inside a dialogue block does not end the block; the
@@ -1792,7 +1806,7 @@ More action here."""
             ElementType.DIALOGUE,
         ]
 
-    def test_double_equals_is_not_a_synopsis(self):
+    def test_double_equals_is_not_a_synopsis(self) -> None:
         """Two equals signs are neither a synopsis nor a page break; they fall to action."""
         doc = self.parser.parse("Action.\n\n==\n\nMore.")
         assert not any(element.type == ElementType.SYNOPSIS for element in doc.elements)
@@ -1801,7 +1815,7 @@ More action here."""
         syn = self.parser.parse("Action.\n\n= A synopsis\n\nMore.")
         assert any(element.type == ElementType.SYNOPSIS and element.text == "A synopsis" for element in syn.elements)
 
-    def test_stacked_carets_parse_as_dual_cue(self):
+    def test_stacked_carets_parse_as_dual_cue(self) -> None:
         """A cue with multiple trailing carets (``MARY^^^``) is a dual cue, not action.
 
         A single-caret anchor let stacked carets fall through to action and swallow the
@@ -1815,7 +1829,7 @@ More action here."""
         assert lone.elements[0].type == ElementType.CHARACTER
         assert lone.elements[0].text == "MARY"
 
-    def test_orphan_caret_does_not_leave_dual_flag(self):
+    def test_orphan_caret_does_not_leave_dual_flag(self) -> None:
         """A lone '^' cue with no preceding character is not left flagged as dual dialogue."""
         doc = self.parser.parse("STEEL ^\nAlone.")
         characters = [element for element in doc.elements if element.type == ElementType.CHARACTER]
@@ -1823,7 +1837,7 @@ More action here."""
         assert characters[0].text == "STEEL"
         assert not (characters[0].metadata and characters[0].metadata.get("dual_dialogue"))
 
-    def test_stacked_character_extensions(self):
+    def test_stacked_character_extensions(self) -> None:
         """A cue with stacked extensions like ``(V.O.) (CONT'D)`` is a character, not action.
 
         The extension pattern allowed only one parenthesized group, so a common two-part
@@ -1844,7 +1858,7 @@ More action here."""
         assert forced.elements[0].type == ElementType.CHARACTER
         assert forced.elements[0].text == "mcclane"
 
-    def test_forced_character_requires_a_letter(self):
+    def test_forced_character_requires_a_letter(self) -> None:
         """A forced ``@`` cue with no alphabetical character is not a valid character.
 
         The Fountain spec requires a character name to contain at least one letter, even
@@ -1857,7 +1871,7 @@ More action here."""
         assert valid.elements[0].type == ElementType.CHARACTER
         assert valid.elements[0].text == "McClane"
 
-    def test_inline_note_removal_collapses_double_space(self):
+    def test_inline_note_removal_collapses_double_space(self) -> None:
         """Removing a mid-line note leaves a single space, not two."""
         doc = self.parser.parse("Action [[a note]] here")
         actions = [element for element in doc.elements if element.type == ElementType.ACTION]
@@ -1868,18 +1882,18 @@ More action here."""
         multi_actions = [element for element in multi.elements if element.type == ElementType.ACTION]
         assert multi_actions[0].text == "One two three"
 
-    def test_unclosed_note_broken_by_blank_reports_diagnostic(self):
+    def test_unclosed_note_broken_by_blank_reports_diagnostic(self) -> None:
         """An unclosed note broken by a blank line reports unclosed-note, like the EOF case."""
         doc = self.parser.parse("INT. HOUSE - DAY\n\n[[this never closes\n\nJOHN\nHi.")
         assert any(issue.code == "unclosed-note" for issue in doc.issues)
 
-    def test_title_page_only_document_is_not_empty(self):
+    def test_title_page_only_document_is_not_empty(self) -> None:
         """A title-page-only document is valid, not an empty document."""
         doc = self.parser.parse("Title: Foo\nAuthor: Bar")
         assert doc.metadata.get("title") == "Foo"
         assert not any(issue.code == "empty-document" for issue in doc.issues)
 
-    def test_parse_surfaces_diagnostics_on_document(self):
+    def test_parse_surfaces_diagnostics_on_document(self) -> None:
         """parse() attaches the diagnostics it detects to the returned document's issues."""
         boneyard_doc = self.parser.parse("INT. HOUSE - DAY\n\n/* open boneyard")
         assert any(issue.code == "unclosed-boneyard" for issue in boneyard_doc.issues)
@@ -1896,7 +1910,7 @@ More action here."""
         # validate() surfaces the same diagnostics parse() records.
         assert [issue.code for issue in self.parser.validate("INT. HOUSE - DAY\n\n/* open")] == ["unclosed-boneyard"]
 
-    def test_emphasis_round_trips_through_fountain(self):
+    def test_emphasis_round_trips_through_fountain(self) -> None:
         """Emphasis survives parse -> FountainRenderer -> parse with the same spans.
 
         The parser strips emphasis delimiters; the Fountain renderer must re-emit them,
@@ -1921,7 +1935,7 @@ More action here."""
 
     # -- Step 4.4: Mid-Line Boneyard Stripped from Text (E1) --
 
-    def test_midline_boneyard_stripped_from_text(self):
+    def test_midline_boneyard_stripped_from_text(self) -> None:
         """A complete mid-line `/* ... */` span is stripped and the seam collapses to one space (E1)."""
         doc = self.parser.parse("Hello /* hidden */ world.")
 
@@ -1932,7 +1946,7 @@ More action here."""
         # The interior never leaks into any element.
         assert not any("hidden" in element.text for element in doc.elements)
 
-    def test_midline_boneyard_stripped_from_dialogue(self):
+    def test_midline_boneyard_stripped_from_dialogue(self) -> None:
         """A mid-line `/* ... */` span inside a dialogue line strips to the collapsed text (E1)."""
         text = """INT. HOUSE - DAY
 
@@ -1948,7 +1962,7 @@ Hello /* hidden */ world."""
 
     # -- Step 4.8: Two-Space vs Blank Line Inside a Note (E6, E7) --
 
-    def test_two_space_line_inside_note_keeps_empty_line(self):
+    def test_two_space_line_inside_note_keeps_empty_line(self) -> None:
         """A two-space connector line inside a note preserves an empty interior line (E6).
 
         A multi-line note whose middle line is exactly two spaces stays open and keeps
@@ -1960,7 +1974,7 @@ Hello /* hidden */ world."""
         assert len(notes) == 1
         assert "\n\n" in notes[0].text
 
-    def test_blank_line_breaks_open_note(self):
+    def test_blank_line_breaks_open_note(self) -> None:
         """A genuinely blank line breaks an open note; the bracket lines fall back to text (E7).
 
         The same note structure as the two-space case, but with a truly empty middle line,
@@ -1978,7 +1992,7 @@ Hello /* hidden */ world."""
         blank_types = [element.type for element in blank_doc.elements]
         assert two_space_types != blank_types
 
-    def test_unclosed_note_at_eof_recovers_text(self):
+    def test_unclosed_note_at_eof_recovers_text(self) -> None:
         """An unclosed ``[[`` note at end of input recovers its lines as action.
 
         Without a trailing blank line to break the note, the buffered bracket lines
@@ -1992,7 +2006,7 @@ Hello /* hidden */ world."""
         assert "Action after." in combined
         assert "More lines." in combined
 
-    def test_two_space_note_line_no_empty_dialogue(self):
+    def test_two_space_note_line_no_empty_dialogue(self) -> None:
         """A two-space line inside an open note injects no empty DIALOGUE element (E8).
 
         A dialogue block followed by a multi-line note whose middle line is exactly two
@@ -2011,7 +2025,7 @@ Hello /* hidden */ world."""
 
     # -- Step 7.1: Punctuated Uppercase Character Cues (C1) --
 
-    def test_punctuated_character_cues(self):
+    def test_punctuated_character_cues(self) -> None:
         """Uppercase cues containing ``.``, ``'``, ``-``, or ``#N`` parse as CHARACTER (C1).
 
         The Fountain spec allows character cues to carry punctuation: ``MR. SMITH``,
@@ -2029,7 +2043,7 @@ Hello /* hidden */ world."""
             )
             assert doc.elements[0].text == cue
 
-    def test_cue_followed_by_punctuated_shout(self):
+    def test_cue_followed_by_punctuated_shout(self) -> None:
         """A cue followed by a punctuated all-caps line yields CHARACTER + DIALOGUE.
 
         Widening the character-cue pattern to accept punctuation (C1) means an
@@ -2046,7 +2060,7 @@ Hello /* hidden */ world."""
         assert doc.elements[0].text == "JOHN"
         assert doc.elements[1].text == "NO. NEVER."
 
-    def test_cue_followed_by_allcaps_dialogue(self):
+    def test_cue_followed_by_allcaps_dialogue(self) -> None:
         """An all-caps line after a cue is that cue's dialogue, not a rival cue (C4).
 
         A shouted line such as ``I SAID NO`` is uppercase and matches the character
@@ -2061,7 +2075,7 @@ Hello /* hidden */ world."""
         assert doc.elements[0].text == "JOHN"
         assert doc.elements[1].text == "I SAID NO"
 
-    def test_allcaps_line_after_cue_is_dialogue(self):
+    def test_allcaps_line_after_cue_is_dialogue(self) -> None:
         """An all-caps line after a cue is that cue's dialogue (C4, plan Step 7.4).
 
         This is the plan's canonically-named pin for defect C4. The behavior was
@@ -2087,7 +2101,7 @@ Hello /* hidden */ world."""
         assert shout_doc.elements[0].text == "JOHN"
         assert shout_doc.elements[1].text == "GET OUT NOW"
 
-    def test_digit_first_character_cue(self):
+    def test_digit_first_character_cue(self) -> None:
         """A digit-first cue with at least one letter parses as CHARACTER (C2).
 
         The Fountain spec allows a cue to begin with a digit, as in ``23 SKIDOO``,
@@ -2117,7 +2131,7 @@ Hello /* hidden */ world."""
 
     # -- Step 7.3: Blank Line After a Cue Disqualifies It (C3) --
 
-    def test_blank_after_cue_disqualifies(self):
+    def test_blank_after_cue_disqualifies(self) -> None:
         """A blank line immediately after a cue disqualifies it (C3).
 
         The Fountain spec requires a character cue to be immediately followed by
@@ -2148,7 +2162,7 @@ Hello /* hidden */ world."""
 
     # -- Step 7.5: Trailing Caret on a Forced Character Creates Dual Dialogue (C5) --
 
-    def test_forced_character_caret_dual_dialogue(self):
+    def test_forced_character_caret_dual_dialogue(self) -> None:
         """A trailing caret on a forced ``@`` cue creates dual dialogue (C5).
 
         A natural ``NAME^`` cue already pairs into a DUAL_DIALOGUE block via the
@@ -2168,11 +2182,16 @@ Hello /* hidden */ world."""
         doc = FountainParser().parse("BRICK\nHere we go.\n\n@McClane ^\nRight behind you.")
         dual_elements = [element for element in doc.elements if element.type == ElementType.DUAL_DIALOGUE]
         assert len(dual_elements) == 1, (
-            f"'BRICK' block + '@McClane ^' should yield one DUAL_DIALOGUE element, got {[e.type for e in doc.elements]}"
+            "'BRICK' block + '@McClane ^' should yield one DUAL_DIALOGUE element, "
+            f"got {[element.type for element in doc.elements]}"
         )
         dual = dual_elements[0]
-        assert dual.metadata["left_character"].text == "BRICK"
-        right_text = dual.metadata["right_character"].text
+        left_character = dual.metadata["left_character"]
+        right_character = dual.metadata["right_character"]
+        assert isinstance(left_character, FountainElement)
+        assert isinstance(right_character, FountainElement)
+        assert left_character.text == "BRICK"
+        right_text = right_character.text
         assert right_text == "McClane", (
             f"right character text should be 'McClane' (caret and @ stripped), got {right_text!r}"
         )
@@ -2190,9 +2209,11 @@ Hello /* hidden */ world."""
         natural = FountainParser().parse("BRICK\nHere we go.\n\nMCCLANE^\nRight behind you.")
         natural_dual = [element for element in natural.elements if element.type == ElementType.DUAL_DIALOGUE]
         assert len(natural_dual) == 1
-        assert natural_dual[0].metadata["right_character"].text == "MCCLANE"
+        natural_right_character = natural_dual[0].metadata["right_character"]
+        assert isinstance(natural_right_character, FountainElement)
+        assert natural_right_character.text == "MCCLANE"
 
-    def test_at_forces_character_unconditionally(self):
+    def test_at_forces_character_unconditionally(self) -> None:
         """``@`` forces CHARACTER unconditionally, never gated on the dialogue lookahead (C6).
 
         The ``@`` prefix is an explicit author override. Per the spec it must force a
@@ -2253,7 +2274,7 @@ Hello /* hidden */ world."""
 
     # -- Step 7.7: Forced Characters Get Extension Extraction (C7) --
 
-    def test_forced_character_extension(self):
+    def test_forced_character_extension(self) -> None:
         """A forced ``@`` cue extracts a trailing ``(extension)`` like a natural cue (C7).
 
         A natural ``MCCLANE (V.O.)`` cue lifts the extension into
@@ -2282,9 +2303,11 @@ Hello /* hidden */ world."""
         combined = FountainParser().parse("BRICK\nHere we go.\n\n@McClane (O.S.) ^\nRight behind you.")
         dual_elements = [element for element in combined.elements if element.type == ElementType.DUAL_DIALOGUE]
         assert len(dual_elements) == 1, (
-            f"'@McClane (O.S.) ^' should pair into one DUAL_DIALOGUE, got {[e.type for e in combined.elements]}"
+            "'@McClane (O.S.) ^' should pair into one DUAL_DIALOGUE, "
+            f"got {[element.type for element in combined.elements]}"
         )
         right = dual_elements[0].metadata["right_character"]
+        assert isinstance(right, FountainElement)
         assert right.text == "McClane", f"combined cue text must be the bare name, got {right.text!r}"
         assert right.metadata["extension"] == "O.S.", (
             f"combined cue must lift the extension, got {right.metadata.get('extension')!r}"
@@ -2305,6 +2328,7 @@ Hello /* hidden */ world."""
         caret_dual = [element for element in caret_only.elements if element.type == ElementType.DUAL_DIALOGUE]
         assert len(caret_dual) == 1
         caret_right = caret_dual[0].metadata["right_character"]
+        assert isinstance(caret_right, FountainElement)
         assert caret_right.text == "McClane"
         assert caret_right.metadata["dual_dialogue"] is True
         assert "extension" not in caret_right.metadata
@@ -2315,7 +2339,7 @@ Hello /* hidden */ world."""
         assert natural_cues[0].text == "MCCLANE"
         assert natural_cues[0].metadata["extension"] == "V.O."
 
-    def test_blank_line_ends_parenthetical_dialogue_block(self):
+    def test_blank_line_ends_parenthetical_dialogue_block(self) -> None:
         """A blank line ends a natural CHARACTER/PARENTHETICAL dialogue block.
 
         Pins the natural-cue path through ``_is_dialogue_line``: after ``JOHN`` and a
@@ -2351,7 +2375,7 @@ Hello /* hidden */ world."""
 
     # -- Step 8.1: D1 Trailing Space After the Colon Defeats a Transition --
 
-    def test_trailing_space_defeats_transition(self):
+    def test_trailing_space_defeats_transition(self) -> None:
         """D1: a trailing space after the colon makes ``CUT TO:`` action, not a transition.
 
         The natural transition rule is end-anchored, so trailing whitespace on an
@@ -2360,7 +2384,8 @@ Hello /* hidden */ world."""
         doc = self.parser.parse("Action.\n\nCUT TO: \n\nINT. HOUSE - DAY")
         transitions = [element for element in doc.elements if element.type == ElementType.TRANSITION]
         assert len(transitions) == 0, (
-            f"'CUT TO: ' with a trailing space must not parse as a transition, got {[t.text for t in transitions]}"
+            "'CUT TO: ' with a trailing space must not parse as a transition, "
+            f"got {[transition.text for transition in transitions]}"
         )
         actions = [element for element in doc.elements if element.type == ElementType.ACTION]
         assert any("CUT TO:" in action.text for action in actions), (
@@ -2376,7 +2401,7 @@ Hello /* hidden */ world."""
 
     # -- Step 8.2: D2 Punctuated Uppercase TO: Lines Are Transitions --
 
-    def test_punctuated_transition(self):
+    def test_punctuated_transition(self) -> None:
         """D2: an uppercase line ending in ``TO:`` with internal punctuation is a transition.
 
         The natural transition pattern must allow punctuation (a hyphen and similar
@@ -2419,7 +2444,7 @@ Hello /* hidden */ world."""
 
     # -- Step 9.1: A3 Title Page Detection Heuristic (documented contract) --
 
-    def test_title_page_detection_requires_a_real_key(self):
+    def test_title_page_detection_requires_a_real_key(self) -> None:
         """A3 (revised): a colon-bearing first line is metadata only when it looks like a key.
 
         A title-page key must carry a non-empty value or an indented continuation, and
@@ -2458,7 +2483,7 @@ Hello /* hidden */ world."""
 
     # -- Step 9.2 (revised): C8 Lyrics Inside a Dialogue Block Do Not End It --
 
-    def test_lyrics_inside_dialogue_do_not_end_block(self):
+    def test_lyrics_inside_dialogue_do_not_end_block(self) -> None:
         """A lyric line inside a dialogue block does not end it; the next line is dialogue.
 
         A character who sings and then keeps speaking stays in the dialogue block, which
@@ -2477,7 +2502,7 @@ Hello /* hidden */ world."""
 
     # -- Step 9.3: D11 FADE IN: and FADE OUT. Are Natural Transitions (deliberate extension) --
 
-    def test_fade_in_out_are_transitions(self):
+    def test_fade_in_out_are_transitions(self) -> None:
         """``FADE IN:`` and ``FADE OUT.`` parse as TRANSITION (D11 deliberate extension).
 
         The Fountain spec's natural-transition rule requires a line to end in ``TO:``.
@@ -2493,7 +2518,7 @@ Hello /* hidden */ world."""
 
     # -- Step 9.4: E9 Inline Notes Are Removed, Standalone Note Lines Are Kept (documented contract) --
 
-    def test_inline_note_removed_standalone_kept(self):
+    def test_inline_note_removed_standalone_kept(self) -> None:
         """Inline ``[[note]]`` content is stripped and unrecoverable; a standalone ``[[note]]`` line is kept (E9).
 
         Fountain notes behave asymmetrically depending on placement. An inline
@@ -2537,17 +2562,17 @@ class TestToolingCompliance:
     def _repo_root(self) -> Path:
         return Path(__file__).resolve().parent.parent
 
-    def test_justfile_has_no_pre_commit_recipe(self):
+    def test_justfile_has_no_pre_commit_recipe(self) -> None:
         """The justfile declares no pre-commit recipe (CR-3)."""
         justfile = self._repo_root() / "justfile"
         assert "pre-commit" not in justfile.read_text(encoding="utf-8")
 
-    def test_contributing_has_no_pre_commit_instruction(self):
+    def test_contributing_has_no_pre_commit_instruction(self) -> None:
         """CONTRIBUTING.md tells no one to install pre-commit hooks (CR-3)."""
         contributing = self._repo_root() / "CONTRIBUTING.md"
         assert "pre-commit" not in contributing.read_text(encoding="utf-8")
 
-    def test_no_pre_commit_in_source_and_config(self):
+    def test_no_pre_commit_in_source_and_config(self) -> None:
         """No tracked source or config file references pre-commit (CR-3).
 
         Scoped to the shipped deliverables (justfile, CONTRIBUTING.md,

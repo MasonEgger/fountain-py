@@ -24,11 +24,17 @@ Example:
     True
 """
 
-import html as html_module
-from typing import cast
+from __future__ import annotations
 
-from fountain.document import FountainDocument
-from fountain.elements import ElementType, FormatSpan, FountainElement
+import html as html_module
+from typing import TYPE_CHECKING
+
+from fountain.elements import ElementType, FormatSpan, FormatType, FountainElement
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
+
+    from fountain.document import FountainDocument
 
 DEFAULT_CSS = """\
 .fountain-script {
@@ -196,6 +202,72 @@ TITLE_PAGE_FIELD_ORDER: list[tuple[str, str, str, str, bool]] = [
 
 # Set of known field keys for quick lookup
 _KNOWN_TITLE_FIELDS = {field[0] for field in TITLE_PAGE_FIELD_ORDER}
+
+# Element types that are writer-only tools and render to nothing in formatted output.
+_WRITER_TOOL_TYPES = (ElementType.NOTE, ElementType.BONEYARD, ElementType.SECTION, ElementType.SYNOPSIS)
+
+
+def _wrap_spans(
+    text: str,
+    formatting: list[FormatSpan],
+    open_markup: Mapping[FormatType, str],
+    close_markup: Mapping[FormatType, str],
+    escape: Callable[[str], str],
+) -> str:
+    """Wrap formatted spans of ``text`` in open/close markup, escaping every character.
+
+    Spans may overlap or nest (e.g. an underlined phrase containing an italic span), so
+    a single-pass segment builder that assumes non-overlapping spans would duplicate the
+    shared content. Instead, sweep character by character, tracking which format types
+    cover each position, and open/close markup with a stack so the output is always
+    well-formed and properly nested (D6). Where two spans only partially overlap, the
+    outer-starting span stays outermost and the inner is split at the boundary, so no
+    character is duplicated or dropped.
+
+    Args:
+        text: The clean element text the spans index into.
+        formatting: Content-only spans over ``text``.
+        open_markup: Markup emitted when a format type opens.
+        close_markup: Markup emitted when a format type closes.
+        escape: Transform applied to each character of ``text``.
+
+    Returns:
+        The escaped text with markup around every span.
+
+    Example:
+        >>> _wrap_spans("a b", [FormatSpan(2, 3, "bold")], {"bold": "["}, {"bold": "]"}, str.upper)
+        'A [B]'
+    """
+    result_parts: list[str] = []
+    open_stack: list[FormatType] = []
+
+    for position, char in enumerate(text):
+        # Sort covering spans outermost-first: earlier start wins, then wider span,
+        # then a stable format order so nesting is deterministic across positions.
+        covering = sorted(
+            (span for span in formatting if span.start <= position < span.end),
+            key=lambda span: (span.start, -(span.end - span.start), span.format_type),
+        )
+        desired = [span.format_type for span in covering]
+
+        # Keep the longest prefix of already-open markup that still matches the
+        # desired nesting; close everything opened above it.
+        common = 0
+        while common < len(open_stack) and common < len(desired) and open_stack[common] == desired[common]:
+            common += 1
+        while len(open_stack) > common:
+            result_parts.append(close_markup[open_stack.pop()])
+
+        for format_type in desired[common:]:
+            result_parts.append(open_markup[format_type])
+            open_stack.append(format_type)
+
+        result_parts.append(escape(char))
+
+    while open_stack:
+        result_parts.append(close_markup[open_stack.pop()])
+
+    return "".join(result_parts)
 
 
 class HTMLRenderer:
@@ -429,62 +501,43 @@ class HTMLRenderer:
             >>> expected == html
             True
         """
-        css_class = element.type.value.replace("_", "-")
         text = self._apply_formatting(element.text, element.formatting)
 
-        if element.type == ElementType.SCENE_HEADING:
-            scene_html = f'<div class="fountain-scene-heading">{text}'
-            if element.metadata and "scene_number" in element.metadata:
-                scene_number = self._escape_html(str(element.metadata["scene_number"]))
-                scene_html += f' <span class="fountain-scene-number">#{scene_number}#</span>'
-            scene_html += "</div>"
-            return scene_html
-        elif element.type == ElementType.ACTION:
-            # Convert tabs to spaces and preserve leading whitespace
-            text_with_spacing = text.replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
-            text_with_br = text_with_spacing.replace("\n", "<br>")
-            return f'<div class="fountain-action">{text_with_br}</div>'
-        elif element.type == ElementType.CHARACTER:
-            char_html = f'<div class="fountain-character">{text}'
-            if element.metadata and "extension" in element.metadata:
-                extension = self._escape_html(str(element.metadata["extension"]))
-                char_html += f' <span class="fountain-character-extension">({extension})</span>'
-            elif element.metadata and element.metadata.get("continuation"):
-                char_html += ' <span class="fountain-character-continuation">(CONT\'D)</span>'
-            char_html += "</div>"
-            return char_html
-        elif element.type == ElementType.DIALOGUE:
-            return f'<div class="fountain-dialogue">{text}</div>'
-        elif element.type == ElementType.PARENTHETICAL:
-            return f'<div class="fountain-parenthetical">{text}</div>'
-        elif element.type == ElementType.TRANSITION:
-            return f'<div class="fountain-transition">{text}</div>'
-        elif element.type == ElementType.NOTE:
-            # Notes are a writer-only tool omitted from formatted output entirely,
-            # so they never ship in either the fragment or the standalone page (E5).
-            return ""
-        elif element.type == ElementType.BONEYARD:
-            # Boneyard is a writer-only tool; its content is omitted from formatted
-            # output entirely so it never ships in the CSS-free HTML fragment (E11).
-            # This keeps single-line boneyards consistent with multi-line ones, whose
-            # interior lines the parser already drops.
-            return ""
-        elif element.type == ElementType.SECTION:
-            # Sections are a writer-only structural tool omitted from formatted output (E5).
-            return ""
-        elif element.type == ElementType.SYNOPSIS:
-            # Synopses are a writer-only tool omitted from formatted output (E5).
-            return ""
-        elif element.type == ElementType.DUAL_DIALOGUE:
-            return self._render_dual_dialogue(element)
-        elif element.type == ElementType.PAGE_BREAK:
-            return '<div class="fountain-page-break"></div>'
-        elif element.type == ElementType.CENTERED:
-            return f'<div class="fountain-centered">{text}</div>'
-        elif element.type == ElementType.LYRICS:
-            return f'<div class="fountain-lyrics">{text}</div>'
-        else:
-            return f'<div class="fountain-{css_class}">{text}</div>'
+        match element.type:
+            case ElementType.SCENE_HEADING:
+                scene_html = f'<div class="fountain-scene-heading">{text}'
+                if "scene_number" in element.metadata:
+                    scene_number = self._escape_html(str(element.metadata["scene_number"]))
+                    scene_html += f' <span class="fountain-scene-number">#{scene_number}#</span>'
+                return f"{scene_html}</div>"
+            case ElementType.ACTION:
+                # Convert tabs to spaces and preserve leading whitespace
+                text_with_spacing = text.replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
+                text_with_br = text_with_spacing.replace("\n", "<br>")
+                return f'<div class="fountain-action">{text_with_br}</div>'
+            case ElementType.CHARACTER:
+                char_html = f'<div class="fountain-character">{text}'
+                if "extension" in element.metadata:
+                    extension = self._escape_html(str(element.metadata["extension"]))
+                    char_html += f' <span class="fountain-character-extension">({extension})</span>'
+                elif element.metadata.get("continuation"):
+                    char_html += ' <span class="fountain-character-continuation">(CONT\'D)</span>'
+                return f"{char_html}</div>"
+            case ElementType.NOTE | ElementType.BONEYARD | ElementType.SECTION | ElementType.SYNOPSIS:
+                # Notes, boneyard, sections, and synopses are writer-only tools omitted from
+                # formatted output entirely, so they never ship in either the fragment or the
+                # standalone page (E5, E11). Single-line boneyards stay consistent with
+                # multi-line ones, whose interior lines the parser already drops.
+                return ""
+            case ElementType.DUAL_DIALOGUE:
+                return self._render_dual_dialogue(element)
+            case ElementType.PAGE_BREAK:
+                return '<div class="fountain-page-break"></div>'
+            case _:
+                # Dialogue, parenthetical, transition, centered, and lyrics are a styled
+                # div whose class is the element type.
+                css_class = element.type.value.replace("_", "-")
+                return f'<div class="fountain-{css_class}">{text}</div>'
 
     def _apply_formatting(self, text: str, formatting: list[FormatSpan]) -> str:
         """Apply formatting spans to text and escape HTML.
@@ -512,61 +565,19 @@ class HTMLRenderer:
             >>> result == 'This is <strong>bold</strong> text'
             True
         """
-        if not formatting:
-            return self._escape_html(text)
-
-        # Spans may overlap or nest (e.g. an underlined phrase containing an italic
-        # span), so a single-pass segment builder that assumes non-overlapping spans
-        # would duplicate the shared content. Instead, sweep character by character,
-        # tracking which format types cover each position, and open/close tags with a
-        # stack so the output is always well-formed and properly nested (D6). Where two
-        # spans only partially overlap, the outer-starting span stays outermost and the
-        # inner is split at the boundary, so no character is duplicated or dropped.
-        text_length = len(text)
-        open_tags = {
+        open_tags: dict[FormatType, str] = {
             "bold": "<strong>",
             "italic": "<em>",
             "underline": "<u>",
             "bold_italic": "<strong><em>",
         }
-        close_tags = {
+        close_tags: dict[FormatType, str] = {
             "bold": "</strong>",
             "italic": "</em>",
             "underline": "</u>",
             "bold_italic": "</em></strong>",
         }
-
-        def active_formats(position: int) -> list[str]:
-            # Sort covering spans outermost-first: earlier start wins, then wider span,
-            # then a stable format order so nesting is deterministic across positions.
-            covering = [span for span in formatting if span.start <= position < span.end]
-            covering.sort(key=lambda span: (span.start, -(span.end - span.start), span.format_type))
-            return [span.format_type for span in covering]
-
-        result_parts: list[str] = []
-        open_stack: list[str] = []
-
-        for position in range(text_length):
-            desired = active_formats(position)
-
-            # Keep the longest prefix of already-open tags that still matches the
-            # desired nesting; close everything opened above it.
-            common = 0
-            while common < len(open_stack) and common < len(desired) and open_stack[common] == desired[common]:
-                common += 1
-            while len(open_stack) > common:
-                result_parts.append(close_tags[open_stack.pop()])
-
-            for format_type in desired[common:]:
-                result_parts.append(open_tags[format_type])
-                open_stack.append(format_type)
-
-            result_parts.append(self._escape_html(text[position]))
-
-        while open_stack:
-            result_parts.append(close_tags[open_stack.pop()])
-
-        return "".join(result_parts)
+        return _wrap_spans(text, formatting, open_tags, close_tags, self._escape_html)
 
     def _render_dual_dialogue(self, element: FountainElement) -> str:
         """Render dual dialogue as side-by-side columns.
@@ -590,31 +601,14 @@ class HTMLRenderer:
             - right_character: FountainElement for right character
             - right_dialogue: List of dialogue elements for right side
         """
-        metadata = element.metadata
-        if not metadata:
+        if not element.metadata:
             return ""
 
-        left_char = cast(FountainElement, metadata["left_character"])
-        left_dialogue = cast("list[FountainElement]", metadata["left_dialogue"])
-        right_char = cast(FountainElement, metadata["right_character"])
-        right_dialogue = cast("list[FountainElement]", metadata["right_dialogue"])
-
         html_parts = ['<div class="fountain-dual-dialogue">']
-
-        # Left column
-        html_parts.append('<div class="fountain-dual-dialogue-left">')
-        html_parts.append(self._render_element(left_char))
-        for dialogue_element in left_dialogue:
-            html_parts.append(self._render_element(dialogue_element))
-        html_parts.append("</div>")
-
-        # Right column
-        html_parts.append('<div class="fountain-dual-dialogue-right">')
-        html_parts.append(self._render_element(right_char))
-        for dialogue_element in right_dialogue:
-            html_parts.append(self._render_element(dialogue_element))
-        html_parts.append("</div>")
-
+        for side, column in zip(("left", "right"), element.dual_dialogue_columns(), strict=True):
+            html_parts.append(f'<div class="fountain-dual-dialogue-{side}">')
+            html_parts.extend(self._render_element(column_element) for column_element in column)
+            html_parts.append("</div>")
         html_parts.append("</div>")
 
         return "\n".join(html_parts)
@@ -663,13 +657,10 @@ class FountainRenderer:
         - Handles forced elements (scenes, action, transitions)
         - Preserves scene numbers and character extensions
 
+        - Re-emits inline emphasis markers (``**``, ``*``, ``_``, ``***``) from the
+          formatting spans, escaping literal ``*``, ``_``, and ``\\`` characters
+
     Round-Trip Limitations:
-        - Inline emphasis markers are not re-emitted: the parser strips the
-          bold (``**``), italic (``*``), and underline (``_``) delimiters from
-          element text and records their positions as formatting spans, but the
-          renderer does not restore those delimiters (see
-          ``_apply_formatting_removal``), so a ``**bold**`` word round-trips to
-          plain ``bold`` with the emphasis lost
         - Exact whitespace formatting may differ from original
         - Comments in boneyard sections are maintained but may be reformatted
         - Line breaks within elements are preserved but spacing may normalize
@@ -885,90 +876,50 @@ class FountainRenderer:
         if element.type in (ElementType.BONEYARD, ElementType.NOTE, ElementType.PAGE_BREAK):
             text = element.text
         else:
-            text = self._apply_formatting_removal(element.text, element.formatting)
+            text = self._restore_emphasis(element.text, element.formatting)
 
-        if element.type == ElementType.SCENE_HEADING:
-            # Check if this was a forced scene heading
-            if element.metadata and element.metadata.get("forced"):
-                scene_text = f".{text}"
-            else:
-                scene_text = text
+        forced = bool(element.metadata.get("forced"))
 
-            # Add scene number if present
-            if element.metadata and "scene_number" in element.metadata:
-                scene_text += f" #{element.metadata['scene_number']}#"
-
-            return scene_text
-
-        elif element.type == ElementType.ACTION:
-            # Check if this was forced action
-            if element.metadata and element.metadata.get("forced"):
-                return f"!{text}"
-            return text
-
-        elif element.type == ElementType.CHARACTER:
-            char_text = text
-
-            # Add extension if present
-            if element.metadata and "extension" in element.metadata:
-                char_text += f" ({element.metadata['extension']})"
-            elif element.metadata and element.metadata.get("continuation"):
-                char_text += " (CONT'D)"
-
-            # Check if forced character
-            if element.metadata and element.metadata.get("forced"):
-                char_text = f"@{char_text}"
-
-            # Check if dual dialogue
-            if element.metadata and element.metadata.get("dual_dialogue"):
-                char_text += "^"
-
-            return char_text
-
-        elif element.type == ElementType.DIALOGUE:
-            return text
-
-        elif element.type == ElementType.PARENTHETICAL:
-            return text
-
-        elif element.type == ElementType.TRANSITION:
-            # Check if this was a forced transition
-            if element.metadata and element.metadata.get("forced"):
-                return f">{text}"
-            return text
-
-        elif element.type == ElementType.NOTE:
-            return text
-
-        elif element.type == ElementType.BONEYARD:
-            return text
-
-        elif element.type == ElementType.SECTION:
-            # Count the level based on metadata or default to single #
-            level = cast(int, element.metadata.get("level", 1)) if element.metadata else 1
-            return f"{'#' * level} {text}"
-
-        elif element.type == ElementType.SYNOPSIS:
-            return f"= {text}"
-
-        elif element.type == ElementType.DUAL_DIALOGUE:
-            return self._render_dual_dialogue(element)
-
-        elif element.type == ElementType.PAGE_BREAK:
-            return "==="
-
-        elif element.type == ElementType.CENTERED:
-            return f">{text}<"
-
-        elif element.type == ElementType.LYRICS:
-            # The Fountain lyric marker is a leading ``~`` only; the parser strips
-            # just that leading tilde. Emitting a trailing ``~`` would accrete a
-            # literal tilde into the text on every round trip (requirement A4c).
-            return f"~{text}"
-
-        else:
-            # Fallback for unknown element types
-            return text
+        match element.type:
+            case ElementType.SCENE_HEADING:
+                scene_text = f".{text}" if forced else text
+                if "scene_number" in element.metadata:
+                    scene_text += f" #{element.metadata['scene_number']}#"
+                return scene_text
+            case ElementType.ACTION:
+                return f"!{text}" if forced else text
+            case ElementType.CHARACTER:
+                char_text = text
+                if "extension" in element.metadata:
+                    char_text += f" ({element.metadata['extension']})"
+                elif element.metadata.get("continuation"):
+                    char_text += " (CONT'D)"
+                if forced:
+                    char_text = f"@{char_text}"
+                if element.metadata.get("dual_dialogue"):
+                    char_text += "^"
+                return char_text
+            case ElementType.TRANSITION:
+                return f">{text}" if forced else text
+            case ElementType.SECTION:
+                level = element.metadata.get("level", 1)
+                return f"{'#' * (level if isinstance(level, int) else 1)} {text}"
+            case ElementType.SYNOPSIS:
+                return f"= {text}"
+            case ElementType.DUAL_DIALOGUE:
+                return self._render_dual_dialogue(element)
+            case ElementType.PAGE_BREAK:
+                return "==="
+            case ElementType.CENTERED:
+                return f">{text}<"
+            case ElementType.LYRICS:
+                # The Fountain lyric marker is a leading ``~`` only; the parser strips
+                # just that leading tilde. Emitting a trailing ``~`` would accrete a
+                # literal tilde into the text on every round trip (requirement A4c).
+                return f"~{text}"
+            case _:
+                # Dialogue, parenthetical, note, and boneyard need no markers.
+                return text
 
     def _render_dual_dialogue(self, element: FountainElement) -> str:
         """Render a DUAL_DIALOGUE element back to Fountain markup.
@@ -994,29 +945,21 @@ class FountainRenderer:
             Fountain markup for the paired dual dialogue block, or an empty
             string when the dual dialogue metadata is missing.
         """
-        metadata = element.metadata
-        if not metadata:
+        if not element.metadata:
             return ""
 
-        left_character = cast(FountainElement, metadata["left_character"])
-        left_dialogue = cast("list[FountainElement]", metadata["left_dialogue"])
-        right_character = cast(FountainElement, metadata["right_character"])
-        right_dialogue = cast("list[FountainElement]", metadata["right_dialogue"])
+        left_column, right_column = element.dual_dialogue_columns()
+        return f"{self._render_body(left_column)}\n\n{self._render_body(right_column)}"
 
-        left_block = self._render_body([left_character, *left_dialogue])
-        right_block = self._render_body([right_character, *right_dialogue])
-
-        return f"{left_block}\n\n{right_block}"
-
-    def _apply_formatting_removal(self, text: str, formatting: list[FormatSpan]) -> str:
+    def _restore_emphasis(self, text: str, formatting: list[FormatSpan]) -> str:
         """Re-emit Fountain emphasis markers around the formatted spans.
 
         The parser strips emphasis delimiters and records content-only spans, so this
         reinserts the matching markers (``**``, ``*``, ``_``, ``***``) at each span's
-        boundaries. Overlapping and nested spans are opened and closed with a stack, the
-        same sweep the HTML renderer uses, so the result is well-formed. Literal ``*``,
-        ``_`` and ``\\`` characters in the clean text are backslash-escaped so they are
-        not re-read as emphasis, keeping ``parse -> render -> parse`` stable.
+        boundaries with the same nesting sweep the HTML renderer uses, so the result is
+        well-formed. Literal ``*``, ``_`` and ``\\`` characters in the clean text are
+        backslash-escaped so they are not re-read as emphasis, keeping
+        ``parse -> render -> parse`` stable.
 
         Args:
             text: The element's clean text (emphasis delimiters already stripped).
@@ -1025,32 +968,11 @@ class FountainRenderer:
         Returns:
             Fountain markup with the emphasis delimiters restored.
         """
-        markers = {"bold": "**", "italic": "*", "underline": "_", "bold_italic": "***"}
-
-        def escape_literal(char: str) -> str:
-            return "\\" + char if char in ("*", "_", "\\") else char
-
-        if not formatting:
-            return "".join(escape_literal(char) for char in text)
-
-        def active_formats(position: int) -> list[str]:
-            covering = [span for span in formatting if span.start <= position < span.end]
-            covering.sort(key=lambda span: (span.start, -(span.end - span.start), span.format_type))
-            return [span.format_type for span in covering]
-
-        result_parts: list[str] = []
-        open_stack: list[str] = []
-        for position in range(len(text)):
-            desired = active_formats(position)
-            common = 0
-            while common < len(open_stack) and common < len(desired) and open_stack[common] == desired[common]:
-                common += 1
-            while len(open_stack) > common:
-                result_parts.append(markers[open_stack.pop()])
-            for format_type in desired[common:]:
-                result_parts.append(markers[format_type])
-                open_stack.append(format_type)
-            result_parts.append(escape_literal(text[position]))
-        while open_stack:
-            result_parts.append(markers[open_stack.pop()])
-        return "".join(result_parts)
+        markers: dict[FormatType, str] = {"bold": "**", "italic": "*", "underline": "_", "bold_italic": "***"}
+        return _wrap_spans(
+            text,
+            formatting,
+            markers,
+            markers,
+            lambda char: f"\\{char}" if char in ("*", "_", "\\") else char,
+        )

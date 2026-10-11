@@ -6,6 +6,26 @@ This file documents all notable changes to fountain-py.
 This changelog follows `Keep a Changelog <https://keepachangelog.com/en/1.0.0/>`_,
 and the project uses `Semantic Versioning <https://semver.org/spec/v2.0.0.html>`_.
 
+Unreleased
+----------
+
+Added
+~~~~~
+
+* Python 3.15 support, tested in CI
+* ``FountainElement.dual_dialogue_columns()`` returns the left and right columns of a dual-dialogue element (each a character cue followed by its dialogue), raising ``ValueError`` when the metadata is malformed
+* ``FountainParser.parse_file()`` accepts any path-like object, not only a string
+* Hypothesis property tests for parsing and the JSON round trip
+
+Changed
+~~~~~~~
+
+* **Breaking:** the minimum Python version is now 3.11; Python 3.10 reached end of life in October 2026
+* **Breaking:** ``FountainElement.metadata`` is always a dict (defaulting to ``{}``) and is no longer typed ``dict | None``; pass ``{}`` instead of ``None``
+* ``FountainDocument.from_dict()`` and ``from_json()`` validate their input and raise ``ValueError`` naming the bad field, instead of raising ``KeyError`` or accepting wrong types
+* The ``fountain`` CLI reports an unreadable input file on stderr and exits 1 instead of printing a traceback
+* The parser resolves inline emphasis once per element instead of twice
+
 Version 0.2.0: Unreleased
 ----------------------------
 
