@@ -25,7 +25,7 @@ Example:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Literal, NamedTuple, Union
 
@@ -147,26 +147,26 @@ class FountainElement:
         type: The ElementType classification for this element
         text: The textual content of the element. For most element types the
             emphasis and forcing markers are removed. BONEYARD elements keep
-            their /* ... */ delimiters and NOTE elements keep their [[ ... ]]
+            their ``/* ... */`` delimiters and NOTE elements keep their ``[[ ... ]]``
             delimiters, so their text is verbatim including the delimiters.
         formatting: List of FormatSpan objects describing inline formatting
         line_number: Source line number where this element was found (1-based)
-        metadata: Optional dictionary for element-specific metadata
+        metadata: Element-specific metadata; defaults to an empty dict
 
     Attributes:
         type: ElementType enum value indicating the element's role
         text: Text content with Fountain emphasis and forcing markers removed
             for most element types. Two exceptions carry their markup verbatim:
-            BONEYARD elements retain their /* ... */ delimiters and NOTE
-            elements retain their [[ ... ]] delimiters.
+            BONEYARD elements retain their ``/* ... */`` delimiters and NOTE
+            elements retain their ``[[ ... ]]`` delimiters.
         formatting: Zero or more FormatSpan objects for inline styles
         line_number: Original line number from source document
         metadata: Dictionary containing element-specific data and attributes
 
     Note:
-        The metadata dictionary is automatically initialized to an empty dict
-        if None is provided. Different element types may store different
-        metadata (e.g., scene numbers, character extensions, etc.).
+        The metadata dictionary defaults to an empty dict. Different element
+        types store different metadata (e.g., scene numbers, character
+        extensions, etc.).
 
     Example:
         Creating a basic action element::
@@ -214,31 +214,40 @@ class FountainElement:
     text: str
     formatting: list[FormatSpan]
     line_number: int
-    metadata: dict[str, MetadataValue] | None = None
+    metadata: dict[str, MetadataValue] = field(default_factory=dict)
 
-    def __post_init__(self) -> None:
-        """Initialize metadata dictionary if None was provided.
+    def dual_dialogue_columns(self) -> tuple[list[FountainElement], list[FountainElement]]:
+        """Return the left and right columns of a DUAL_DIALOGUE element.
 
-        This ensures that metadata is always available as a dictionary,
-        preventing AttributeError when accessing metadata attributes.
+        Each column is the character cue followed by its dialogue and parenthetical
+        elements, in order, which is the shape every renderer walks.
+
+        Returns:
+            A ``(left_column, right_column)`` tuple of element lists.
+
+        Raises:
+            ValueError: If the element's metadata does not hold a character element
+                and a list of dialogue elements for both sides.
 
         Example:
-            Automatic metadata initialization::
+            Reading the columns of a parsed dual-dialogue block::
 
-                >>> element = FountainElement(
-                ...     type=ElementType.ACTION,
-                ...     text="Test",
-                ...     formatting=[],
-                ...     line_number=1,
-                ...     metadata=None
-                ... )
-                >>> isinstance(element.metadata, dict)
-                True
-                >>> element.metadata
-                {}
+                >>> from fountain.parser import FountainParser
+                >>> document = FountainParser().parse("BRICK\\nHi.\\n\\nSTEEL^\\nHello.")
+                >>> left_column, right_column = document.elements[0].dual_dialogue_columns()
+                >>> [element.text for element in left_column]
+                ['BRICK', 'Hi.']
+                >>> [element.text for element in right_column]
+                ['STEEL', 'Hello.']
         """
-        if self.metadata is None:
-            self.metadata = {}
+        columns: list[list[FountainElement]] = []
+        for side in ("left", "right"):
+            character = self.metadata.get(f"{side}_character")
+            dialogue = self.metadata.get(f"{side}_dialogue")
+            if not isinstance(character, FountainElement) or not isinstance(dialogue, list):
+                raise ValueError(f"Dual dialogue element at line {self.line_number} is missing its {side} column")
+            columns.append([character, *dialogue])
+        return columns[0], columns[1]
 
 
 @dataclass(frozen=True)

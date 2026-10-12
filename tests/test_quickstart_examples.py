@@ -11,17 +11,18 @@ user guide. Keeping these executable is what keeps the docs from drifting.
 import json
 import os
 import textwrap
+from pathlib import Path
 
 import pytest
 
-from fountain import ElementType, FountainParser
+from fountain import ElementType, FountainDocument, FountainParser
 
 
 class TestQuickstartExamples:
     """Test suite for all quickstart documentation examples."""
 
     @pytest.fixture
-    def sample_screenplay_text(self):
+    def sample_screenplay_text(self) -> str:
         """The sample screenplay used in quickstart docs."""
         return textwrap.dedent("""\
     Title: The Coffee Shop Connection
@@ -106,12 +107,12 @@ class TestQuickstartExamples:
     """)
 
     @pytest.fixture
-    def parsed_document(self, sample_screenplay_text):
+    def parsed_document(self, sample_screenplay_text: str) -> FountainDocument:
         """Parse the sample screenplay."""
         parser = FountainParser()
         return parser.parse(sample_screenplay_text)
 
-    def test_basic_parsing(self, sample_screenplay_text):
+    def test_basic_parsing(self, sample_screenplay_text: str) -> None:
         """Test the basic parsing example from quickstart."""
         # Parse the screenplay
         parser = FountainParser()
@@ -119,9 +120,8 @@ class TestQuickstartExamples:
 
         # Verify successful parsing
         assert len(document.elements) > 0
-        assert document is not None
 
-    def test_script_metadata(self, parsed_document):
+    def test_script_metadata(self, parsed_document: FountainDocument) -> None:
         """Test accessing script metadata."""
         # Access title page metadata
         metadata = parsed_document.metadata
@@ -130,7 +130,7 @@ class TestQuickstartExamples:
         assert metadata.get("author") == "Jane Doe"
         assert metadata.get("draft date") == "2024-01-15"
 
-    def test_character_extraction(self, parsed_document):
+    def test_character_extraction(self, parsed_document: FountainDocument) -> None:
         """Test extracting characters from the script."""
         # Extract and display all characters
         characters = parsed_document.get_characters()
@@ -139,7 +139,7 @@ class TestQuickstartExamples:
         assert "BOB" in characters
         assert len(characters) == 2
 
-    def test_scene_extraction(self, parsed_document):
+    def test_scene_extraction(self, parsed_document: FountainDocument) -> None:
         """Test extracting scenes from the script."""
         # Get all scene headings
         scenes = parsed_document.get_scenes()
@@ -148,7 +148,7 @@ class TestQuickstartExamples:
         assert "INT. COFFEE SHOP - DAY" in scenes
         assert "INT. COFFEE SHOP - LATER" in scenes
 
-    def test_statistics(self, parsed_document):
+    def test_statistics(self, parsed_document: FountainDocument) -> None:
         """Test getting script statistics."""
         # Get comprehensive statistics
         stats = parsed_document.get_statistics()
@@ -158,7 +158,7 @@ class TestQuickstartExamples:
         assert stats.get("scene_heading_count", 0) == 2
         assert stats.get("character_count", 0) > 0
 
-    def test_element_iteration(self, parsed_document):
+    def test_element_iteration(self, parsed_document: FountainDocument) -> None:
         """Test iterating through elements and accessing properties."""
         # Find all dialogue from ALICE
         alice_dialogue = []
@@ -173,24 +173,27 @@ class TestQuickstartExamples:
                 alice_speaking = False
 
         assert len(alice_dialogue) > 0
-        assert any("inspiration" in d for d in alice_dialogue)
-        assert any("poison" in d for d in alice_dialogue)
+        assert any("inspiration" in dialogue_line for dialogue_line in alice_dialogue)
+        assert any("poison" in dialogue_line for dialogue_line in alice_dialogue)
 
-    def test_character_introductions(self, parsed_document):
+    def test_character_introductions(self, parsed_document: FountainDocument) -> None:
         """Test finding character introductions in action lines."""
         characters = parsed_document.get_characters()
         introductions = []
 
         for element in parsed_document.elements:
-            if element.type == ElementType.ACTION:
-                if "(" in element.text and any(char in element.text for char in characters):
-                    introductions.append(element.text)
+            if (
+                element.type == ElementType.ACTION
+                and "(" in element.text
+                and any(character_name in element.text for character_name in characters)
+            ):
+                introductions.append(element.text)
 
         assert len(introductions) > 0
         assert any("ALICE (28)" in intro for intro in introductions)
         assert any("BOB (30s)" in intro for intro in introductions)
 
-    def test_parentheticals(self, parsed_document):
+    def test_parentheticals(self, parsed_document: FountainDocument) -> None:
         """Test extracting parentheticals (stage directions)."""
         parentheticals = []
 
@@ -199,10 +202,10 @@ class TestQuickstartExamples:
                 parentheticals.append(element.text)
 
         assert len(parentheticals) > 0
-        assert any("muttering to herself" in p for p in parentheticals)
-        assert any("extends hand" in p for p in parentheticals)
+        assert any("muttering to herself" in parenthetical for parenthetical in parentheticals)
+        assert any("extends hand" in parenthetical for parenthetical in parentheticals)
 
-    def test_html_rendering(self, parsed_document):
+    def test_html_rendering(self, parsed_document: FountainDocument) -> None:
         """Test HTML rendering functionality."""
         # Generate HTML with screenplay formatting
         html_output = parsed_document.to_html()
@@ -213,7 +216,7 @@ class TestQuickstartExamples:
         assert "ALICE" in html_output
         assert "BOB" in html_output
 
-    def test_file_parsing(self, tmp_path):
+    def test_file_parsing(self, tmp_path: Path) -> None:
         """Test parsing from files."""
         # Create a temporary fountain file
         fountain_file = tmp_path / "test.fountain"
@@ -238,10 +241,10 @@ FADE OUT.
         assert document.metadata.get("title") == "Test Script"
         assert document.metadata.get("author") == "Test Author"
 
-    def test_safe_parse_file_error_handling(self, tmp_path):
+    def test_safe_parse_file_error_handling(self, tmp_path: Path) -> None:
         """Test error handling in file parsing."""
 
-        def safe_parse_file(filepath):
+        def safe_parse_file(filepath: str) -> FountainDocument | None:
             """Safely parse a Fountain file with error handling."""
             parser = FountainParser()
 
@@ -264,8 +267,8 @@ FADE OUT.
             except UnicodeDecodeError:
                 print(f"Error: File encoding issue. Ensure '{filepath}' is UTF-8 encoded")
                 return None
-            except Exception as e:
-                print(f"Error parsing file: {e}")
+            except Exception as error:
+                print(f"Error parsing file: {error}")
                 return None
 
         # Test with non-existent file
@@ -280,7 +283,7 @@ FADE OUT.
         assert doc is not None
         assert len(doc.elements) > 0
 
-    def test_output_formats(self, parsed_document):
+    def test_output_formats(self, parsed_document: FountainDocument) -> None:
         """Test different output formats."""
         # HTML for web display
         html = parsed_document.to_html()
@@ -299,12 +302,13 @@ FADE OUT.
         dict_data = parsed_document.to_dict()
         assert "elements" in dict_data
         assert "metadata" in dict_data
+        assert isinstance(dict_data["elements"], list)
         assert len(dict_data["elements"]) > 0
 
-    def test_complete_analyzer(self, tmp_path):
+    def test_complete_analyzer(self, tmp_path: Path) -> None:
         """Test the complete script analyzer example."""
 
-        def analyze_screenplay(filepath):
+        def analyze_screenplay(filepath: str) -> dict[str, object] | None:
             """Analyze a screenplay and generate a report."""
             parser = FountainParser()
 
@@ -325,18 +329,18 @@ FADE OUT.
 
                 # Generate HTML version
                 html_path = filepath.replace(".fountain", ".html")
-                with open(html_path, "w", encoding="utf-8") as f:
-                    f.write(document.to_html())
+                with open(html_path, "w", encoding="utf-8") as html_file:
+                    html_file.write(document.to_html())
 
                 # Save analysis report
                 report_path = filepath.replace(".fountain", "_analysis.json")
-                with open(report_path, "w", encoding="utf-8") as f:
-                    json.dump(report, f, indent=2)
+                with open(report_path, "w", encoding="utf-8") as report_file:
+                    json.dump(report, report_file, indent=2)
 
                 return report
 
-            except Exception as e:
-                print(f"Error analyzing screenplay: {e}")
+            except Exception as error:
+                print(f"Error analyzing screenplay: {error}")
                 return None
 
         # Create test screenplay
@@ -368,6 +372,7 @@ FADE OUT.
         assert report["title"] == "Test Analysis Script"
         assert report["author"] == "Test Analyzer"
         assert report["scene_count"] == 2
+        assert isinstance(report["characters"], list)
         assert "MANAGER" in report["characters"]
         assert "DEVELOPER" in report["characters"]
 

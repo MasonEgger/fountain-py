@@ -1,5 +1,5 @@
 # ABOUTME: Fountain markup parser for converting Fountain screenwriting format to structured elements.
-# Implements a two-pass parsing strategy with comprehensive regex-based element classification.
+# Implements a two-pass parsing strategy with regex-based element classification.
 """
 Fountain markup parser for converting Fountain screenwriting format to structured elements.
 
@@ -27,18 +27,24 @@ Fountain's unique title page format followed by screenplay body content:
 6. Default fallback to action text
 
 **Key Design Principles:**
-- Immutable element creation - elements are created once and never modified
-- Minimal memory footprint - streaming line-by-line processing
-- Robust error handling - invalid patterns fall back to action text
-- Extensible pattern system - regex patterns are class constants for easy customization
+- Lenient parsing: unmatched lines fall back to action; problems become diagnostics
+- Regex patterns are class constants, each documented next to its definition
 """
+
+from __future__ import annotations
 
 import re
 import string
 from dataclasses import dataclass
+from itertools import takewhile
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 from fountain.document import FountainDocument
 from fountain.elements import ElementType, FormatSpan, FormatType, FountainElement, MetadataValue, ValidationIssue
+
+if TYPE_CHECKING:
+    from os import PathLike
 
 # Diagnostic codes emitted by FountainParser.validate(). Each string is a stable
 # machine-readable contract; keep them here as the single source of truth so the
@@ -259,7 +265,7 @@ class FountainParser:
 
     # Cue patterns are ambiguous: an all-caps line matching one of these is only a
     # rival structural element (disqualifying a preceding cue) if it is ITSELF a real
-    # cue — that is, its own next non-empty line is dialogue. Otherwise it is dialogue
+    # cue, that is, its own next non-empty line is dialogue. Otherwise it is dialogue
     # for the preceding cue. This keeps punctuated shouts like ``NO. NEVER.`` and
     # all-caps dialogue like ``I SAID NO`` from demoting the cue above them to action.
     CUE_PATTERNS: tuple[re.Pattern[str], ...] = (
@@ -567,22 +573,22 @@ class FountainParser:
 
         return FountainDocument(self.elements, metadata, issues=list(self.diagnostics))
 
-    def parse_file(self, filepath: str) -> FountainDocument:
+    def parse_file(self, filepath: str | PathLike[str]) -> FountainDocument:
         """Parse a Fountain file and return a FountainDocument.
 
         Convenience method that reads a Fountain file from disk and parses it into
-        a structured FountainDocument. Handles file encoding as UTF-8 and properly
-        closes file handles.
+        a structured FountainDocument, decoding it as UTF-8.
 
         Args:
-            filepath: Path to the Fountain file to parse. Can be absolute or relative.
+            filepath: Path to the Fountain file to parse, as a string or path object.
+                Can be absolute or relative.
 
         Returns:
             FountainDocument containing the parsed screenplay elements and metadata
 
         Raises:
             FileNotFoundError: If the specified file does not exist
-            IOError: If the file cannot be read
+            OSError: If the file cannot be read
             UnicodeDecodeError: If the file is not valid UTF-8
 
         Examples:
@@ -598,9 +604,7 @@ class FountainParser:
             If you need to handle other encodings, read the file manually and use
             the parse() method instead.
         """
-        with open(filepath, encoding="utf-8") as f:
-            text = f.read()
-        return self.parse(text)
+        return self.parse(Path(filepath).read_text(encoding="utf-8"))
 
     def validate(self, text: str) -> list[ValidationIssue]:
         """Validate Fountain text and return a list of diagnostics.
@@ -849,7 +853,7 @@ class FountainParser:
             element = FountainElement(
                 type=ElementType.ACTION,
                 text=buffered_line,
-                formatting=self._extract_formatting(buffered_line),
+                formatting=[],
                 line_number=note_start + line_offset,
             )
             self._finalize_inline(element)
@@ -945,10 +949,7 @@ class FountainParser:
                 pretext = self._boneyard_pretext
                 blank_before = self._boneyard_pretext_blank
                 self._boneyard_pretext = ""
-                if pretext and remainder:
-                    combined = f"{pretext} {remainder}"
-                else:
-                    combined = pretext or remainder
+                combined = f"{pretext} {remainder}" if pretext and remainder else pretext or remainder
                 if combined:
                     return self._parse_line(combined, blank_before)
             return None  # Skip all lines inside boneyard
@@ -1094,7 +1095,7 @@ class FountainParser:
             return FountainElement(
                 type=ElementType.ACTION,
                 text=text,
-                formatting=self._extract_formatting(text),
+                formatting=[],
                 line_number=self.current_line + 1,
                 metadata=forced_action_metadata,
             )
@@ -1106,7 +1107,7 @@ class FountainParser:
             return FountainElement(
                 type=ElementType.SECTION,
                 text=text,
-                formatting=self._extract_formatting(text),
+                formatting=[],
                 metadata={"level": level},
                 line_number=self.current_line + 1,
             )
@@ -1117,7 +1118,7 @@ class FountainParser:
             return FountainElement(
                 type=ElementType.SYNOPSIS,
                 text=text,
-                formatting=self._extract_formatting(text),
+                formatting=[],
                 line_number=self.current_line + 1,
             )
 
@@ -1128,7 +1129,7 @@ class FountainParser:
             return FountainElement(
                 type=ElementType.LYRICS,
                 text=text,
-                formatting=self._extract_formatting(text),
+                formatting=[],
                 line_number=self.current_line + 1,
             )
 
@@ -1144,7 +1145,7 @@ class FountainParser:
             return FountainElement(
                 type=ElementType.SCENE_HEADING,
                 text=text,
-                formatting=self._extract_formatting(text),
+                formatting=[],
                 line_number=self.current_line + 1,
                 metadata=metadata,
             )
@@ -1155,7 +1156,7 @@ class FountainParser:
             return FountainElement(
                 type=ElementType.CENTERED,
                 text=text,
-                formatting=self._extract_formatting(text),
+                formatting=[],
                 line_number=self.current_line + 1,
             )
 
@@ -1168,7 +1169,7 @@ class FountainParser:
             return FountainElement(
                 type=ElementType.TRANSITION,
                 text=text,
-                formatting=self._extract_formatting(text),
+                formatting=[],
                 line_number=self.current_line + 1,
                 metadata=forced_transition_metadata,
             )
@@ -1193,7 +1194,7 @@ class FountainParser:
             return FountainElement(
                 type=ElementType.SCENE_HEADING,
                 text=text,
-                formatting=self._extract_formatting(text),
+                formatting=[],
                 line_number=self.current_line + 1,
                 metadata=scene_metadata,
             )
@@ -1209,7 +1210,7 @@ class FountainParser:
             return FountainElement(
                 type=ElementType.TRANSITION,
                 text=line,
-                formatting=self._extract_formatting(line),
+                formatting=[],
                 line_number=self.current_line + 1,
             )
 
@@ -1233,7 +1234,7 @@ class FountainParser:
             # C6: the '@' is an explicit author override, so it forces a CHARACTER cue
             # unconditionally. Unlike natural cues (which stay gated on the dialogue
             # lookahead below), a forced cue is a cue whether dialogue, a blank line,
-            # action, or EOF follows — never demote it back to ACTION with the '@' kept.
+            # action, or EOF follows; never demote it back to ACTION with the '@' kept.
             # Spec: a character name must contain at least one alphabetical character, even
             # when forced. A '@' cue with no letter (e.g. "@23") is not a valid character,
             # so it falls through to normal classification (ultimately action).
@@ -1246,8 +1247,8 @@ class FountainParser:
                     metadata=forced_metadata,
                 )
 
-        # Check for dual dialogue character (CHARACTER^) — requires blank line before or first element.
-        # A scene-heading form (INT./EXT. …) that degraded to here is action, never a cue (C1 guard).
+        # Check for dual dialogue character (CHARACTER^); requires blank line before or first element.
+        # A scene-heading form (INT./EXT. ...) that degraded to here is action, never a cue (C1 guard).
         if (
             self.DUAL_CHARACTER_PATTERN.match(line)
             and (had_blank_line_before or not self._has_visible_content())
@@ -1263,7 +1264,7 @@ class FountainParser:
                     metadata={"dual_dialogue": True},
                 )
 
-        # Check for character with extensions (CHARACTER (V.O.)) — requires blank line before or first element
+        # Check for character with extensions (CHARACTER (V.O.)); requires blank line before or first element
         char_ext_match = self.CHARACTER_EXTENSION_PATTERN.match(line)
         if (
             char_ext_match
@@ -1285,8 +1286,8 @@ class FountainParser:
                     metadata=char_metadata,
                 )
 
-        # Check for regular character (must be all caps) — requires blank line before or first element.
-        # A scene-heading form (INT./EXT. …) that degraded to here is action, never a cue (C1 guard).
+        # Check for regular character (must be all caps); requires blank line before or first element.
+        # A scene-heading form (INT./EXT. ...) that degraded to here is action, never a cue (C1 guard).
         if (
             self.CHARACTER_PATTERN.match(line)
             and (had_blank_line_before or not self._has_visible_content())
@@ -1294,18 +1295,18 @@ class FountainParser:
         ):
             # Look ahead to see if next line is dialogue or parenthetical
             if self._is_dialogue_following():
-                metadata = {}
+                cue_metadata: dict[str, MetadataValue] = {}
 
                 # Check if this character is continuing from a previous appearance
                 if self._is_character_continuation(line):
-                    metadata["continuation"] = True
+                    cue_metadata["continuation"] = True
 
                 return FountainElement(
                     type=ElementType.CHARACTER,
                     text=line,
                     formatting=[],
                     line_number=self.current_line + 1,
-                    metadata=metadata if metadata else None,
+                    metadata=cue_metadata,
                 )
             # An uppercase line that looks like a character cue but has no dialogue
             # following is demoted to action below. Flag it as a diagnostic: a writer who
@@ -1328,14 +1329,14 @@ class FountainParser:
                 return FountainElement(
                     type=ElementType.PARENTHETICAL,
                     text=line,
-                    formatting=self._extract_formatting(line),
+                    formatting=[],
                     line_number=self.current_line + 1,
                 )
             # Otherwise it's regular dialogue
             return FountainElement(
                 type=ElementType.DIALOGUE,
                 text=line,
-                formatting=self._extract_formatting(line),
+                formatting=[],
                 line_number=self.current_line + 1,
             )
 
@@ -1347,7 +1348,7 @@ class FountainParser:
             # for display; spans index into this stored text, so a retained tab counts as
             # one character.
             text=original_line.rstrip(),
-            formatting=self._extract_formatting(line),
+            formatting=[],
             line_number=self.current_line + 1,
         )
 
@@ -1398,17 +1399,15 @@ class FountainParser:
             if next_line:
                 # A hard-structural line (scene heading, transition, section, etc.)
                 # or standalone note is never this cue's dialogue.
-                is_hard_structural = any(p.match(next_line) for p in self.HARD_STRUCTURAL_PATTERNS)
+                is_hard_structural = any(pattern.match(next_line) for pattern in self.HARD_STRUCTURAL_PATTERNS)
                 is_standalone_note = next_line.startswith("[[") and next_line.endswith("]]")
                 if is_hard_structural or is_standalone_note:
                     return False
                 # An all-caps line that merely looks like a cue is only a rival cue
                 # (and thus not dialogue) if it is itself followed by its own dialogue.
                 # Otherwise it is dialogue for the preceding cue.
-                matches_cue = any(p.match(next_line) for p in self.CUE_PATTERNS)
-                if matches_cue and self._line_is_cue(next_line_idx):
-                    return False
-                return True
+                matches_cue = any(pattern.match(next_line) for pattern in self.CUE_PATTERNS)
+                return not (matches_cue and self._line_is_cue(next_line_idx))
             next_line_idx += 1
         return False
 
@@ -1441,9 +1440,9 @@ class FountainParser:
         while scan_idx < len(self.lines):
             candidate = self.lines[scan_idx].strip()
             if candidate:
-                is_hard_structural = any(p.match(candidate) for p in self.HARD_STRUCTURAL_PATTERNS)
+                is_hard_structural = any(pattern.match(candidate) for pattern in self.HARD_STRUCTURAL_PATTERNS)
                 is_standalone_note = candidate.startswith("[[") and candidate.endswith("]]")
-                matches_cue = any(p.match(candidate) for p in self.CUE_PATTERNS)
+                matches_cue = any(pattern.match(candidate) for pattern in self.CUE_PATTERNS)
                 return not (is_hard_structural or is_standalone_note or matches_cue)
             scan_idx += 1
         return False
@@ -1604,44 +1603,19 @@ class FountainParser:
             add (CONT'D) extensions to character names, though fountain-py doesn't
             automatically add these extensions.
         """
-        if not self.elements or len(self.elements) < 2:
-            return False
-
-        # Look backwards for the last character appearance
-        last_character_idx = None
-        for i in range(len(self.elements) - 1, -1, -1):
-            if self.elements[i].type == ElementType.CHARACTER:
-                last_character_idx = i
-                break
-
-        if last_character_idx is None:
-            return False
-
-        last_character = self.elements[last_character_idx]
-
-        # Check if it's the same character
-        if last_character.text.strip() != character_name.strip():
-            return False
-
-        # Check if there's been action between the last character appearance and now
-        # AND no scene headings between them (which would indicate a scene break)
-        has_action = False
-        has_scene_break = False
-
-        for i in range(last_character_idx + 1, len(self.elements)):
-            element = self.elements[i]
-            # If we find another character, stop looking
+        # Walk back to the most recent character cue, collecting the element types emitted
+        # since it. Continuation needs the same speaker, intervening action, and no scene
+        # heading in between (a heading is a scene break).
+        types_since_cue: set[ElementType] = set()
+        for element in reversed(self.elements):
             if element.type == ElementType.CHARACTER:
-                break
-            # If we find a scene heading, it's a scene break
-            elif element.type == ElementType.SCENE_HEADING:
-                has_scene_break = True
-            # If we find action (and it's not just dialogue/parentheticals), mark it
-            elif element.type == ElementType.ACTION:
-                has_action = True
-
-        # Only return True if there's action AND no scene break
-        return has_action and not has_scene_break
+                return (
+                    element.text.strip() == character_name.strip()
+                    and ElementType.ACTION in types_since_cue
+                    and ElementType.SCENE_HEADING not in types_since_cue
+                )
+            types_since_cue.add(element.type)
+        return False
 
     @staticmethod
     def _strip_escapes(text: str) -> str:
@@ -1653,8 +1627,10 @@ class FountainParser:
     def _finalize_inline(self, element: FountainElement) -> None:
         """Resolve inline markup on an element in place before it is stored (D4).
 
-        Emphasis-bearing elements have their emphasis delimiters stripped and their
-        formatting re-derived as content-only spans over the clean text. Verbatim
+        Elements leave :meth:`_parse_line` with raw text and empty formatting; this is
+        the single place emphasis is resolved. Emphasis-bearing elements have their
+        emphasis delimiters stripped and their formatting derived as content-only spans
+        over the clean text. Verbatim
         elements (BONEYARD, NOTE, PAGE_BREAK) and structural cues keep their text and
         only get backslash escapes resolved to literal characters.
 
@@ -1665,21 +1641,6 @@ class FountainParser:
             element.text, element.formatting = self._extract_inline(element.text)
         else:
             element.text = self._strip_escapes(element.text)
-
-    def _process_escapes(self, text: str) -> tuple[str, str]:
-        """Process backslash escapes for emphasis markers.
-
-        Returns:
-            Tuple of (display_text, formatting_text) where:
-            - display_text: text with escapes resolved to literal characters
-            - formatting_text: text with escapes replaced by placeholders that won't trigger formatting
-        """
-        if "\\" not in text:
-            return text, text
-
-        display_text = text.replace("\\*", "*").replace("\\_", "_").replace("\\\\", "\\")
-        formatting_text = text.replace("\\*", "\x00").replace("\\_", "\x01").replace("\\\\", "\x02")
-        return display_text, formatting_text
 
     # Characters treated as punctuation for CommonMark-style flanking decisions.
     _PUNCTUATION: frozenset[str] = frozenset(string.punctuation)
@@ -1807,12 +1768,14 @@ class FountainParser:
             spans: Accumulator that receives each full-match span produced here.
         """
         while closer.available > 0:
-            match_index = None
-            for index in range(len(openers) - 1, -1, -1):
-                candidate = openers[index]
-                if candidate.char == closer.char and candidate.available > 0:
-                    match_index = index
-                    break
+            match_index = next(
+                (
+                    index
+                    for index in reversed(range(len(openers)))
+                    if openers[index].char == closer.char and openers[index].available > 0
+                ),
+                None,
+            )
             if match_index is None:
                 return
             opener = openers[match_index]
@@ -1868,7 +1831,7 @@ class FountainParser:
         """
         # Replace escapes with single-char placeholders so they neither match emphasis
         # patterns nor shift positions relative to the resolved literals (each is one char).
-        _, formatting_text = self._process_escapes(text)
+        formatting_text = text.replace("\\*", "\x00").replace("\\_", "\x01").replace("\\\\", "\x02")
 
         full_spans = self._find_emphasis_spans(formatting_text)
 
@@ -1898,36 +1861,10 @@ class FountainParser:
 
         return clean_text, content_spans
 
-    def _extract_formatting(self, text: str) -> list[FormatSpan]:
-        """Extract content-only formatting spans from text (D4).
-
-        Thin wrapper over :meth:`_extract_inline` for call sites that only need the
-        spans. The returned spans index into the clean (delimiter-stripped, escape-
-        resolved) text, so consumers must store that clean text alongside them. Use
-        :meth:`_extract_inline` when both the clean text and the spans are needed.
-
-        Args:
-            text: Text string to scan for formatting markers
-
-        Returns:
-            List of FormatSpan objects covering the emphasized content, indexed into
-            the clean text produced by :meth:`_extract_inline`.
-
-        Examples:
-            >>> parser = FountainParser()
-            >>> spans = parser._extract_formatting("This is **bold** and *italic* text")
-            >>> len(spans)
-            2
-            >>> spans[0].format_type
-            'bold'
-            >>> spans[1].format_type
-            'italic'
-
-            >>> spans = parser._extract_formatting("***bold and italic***")
-            >>> spans[0].format_type
-            'bold_italic'
-        """
-        return self._extract_inline(text)[1]
+    @staticmethod
+    def _is_dialogue_block(element: FountainElement) -> bool:
+        """Whether an element belongs to the dialogue that follows a character cue."""
+        return element.type in (ElementType.DIALOGUE, ElementType.PARENTHETICAL)
 
     def _process_dual_dialogue(self) -> None:
         """Post-process elements to pair dual dialogue characters and their dialogue.
@@ -1960,57 +1897,34 @@ class FountainParser:
             or action lines between them). Characters separated by structural elements
             are not paired as dual dialogue.
         """
-        i = 0
-        while i < len(self.elements):
-            element = self.elements[i]
+        index = 0
+        while index < len(self.elements):
+            element = self.elements[index]
 
             # Look for characters marked as dual dialogue
-            if element.type == ElementType.CHARACTER and element.metadata and element.metadata.get("dual_dialogue"):
-                # Find the previous character and its dialogue block
+            if element.type == ElementType.CHARACTER and element.metadata.get("dual_dialogue"):
+                # Find the previous character; a scene heading or action in between means
+                # there is no adjacent cue to pair with.
                 prev_char_idx = None
-                for j in range(i - 1, -1, -1):
-                    if self.elements[j].type == ElementType.CHARACTER:
-                        # Check if this character is immediately adjacent (no other characters in between)
-                        if prev_char_idx is None:
-                            prev_char_idx = j
+                for earlier_index in range(index - 1, -1, -1):
+                    earlier_type = self.elements[earlier_index].type
+                    if earlier_type == ElementType.CHARACTER:
+                        prev_char_idx = earlier_index
                         break
-                    elif self.elements[j].type in (
-                        ElementType.SCENE_HEADING,
-                        ElementType.ACTION,
-                    ):
-                        # Too far back, no valid pairing
+                    if earlier_type in (ElementType.SCENE_HEADING, ElementType.ACTION):
                         break
 
                 if prev_char_idx is not None:
-                    # Collect dialogue for both characters
-                    prev_dialogue = []
-                    curr_dialogue = []
-
-                    # Get previous character's dialogue
-                    k = prev_char_idx + 1
-                    while k < i and self.elements[k].type in (
-                        ElementType.DIALOGUE,
-                        ElementType.PARENTHETICAL,
-                    ):
-                        prev_dialogue.append(self.elements[k])
-                        k += 1
-
-                    # Get current character's dialogue
-                    k = i + 1
-                    while k < len(self.elements) and self.elements[k].type in (
-                        ElementType.DIALOGUE,
-                        ElementType.PARENTHETICAL,
-                    ):
-                        curr_dialogue.append(self.elements[k])
-                        k += 1
+                    # Collect the dialogue and parentheticals that follow each cue
+                    prev_dialogue = list(takewhile(self._is_dialogue_block, self.elements[prev_char_idx + 1 : index]))
+                    curr_dialogue = list(takewhile(self._is_dialogue_block, self.elements[index + 1 :]))
 
                     # Create dual dialogue element
                     if prev_dialogue and curr_dialogue:
                         # The left character anchors the pair; clear any caret flag it
                         # carries (a both-caret pair) so it is not left latently dual.
                         left_character = self.elements[prev_char_idx]
-                        if left_character.metadata:
-                            left_character.metadata.pop("dual_dialogue", None)
+                        left_character.metadata.pop("dual_dialogue", None)
                         dual_element = FountainElement(
                             type=ElementType.DUAL_DIALOGUE,
                             text="",  # Dual dialogue doesn't have direct text
@@ -2024,19 +1938,14 @@ class FountainParser:
                             },
                         )
 
-                        # Replace the range with the dual dialogue element
-                        start_idx = prev_char_idx
-                        end_idx = i + len(curr_dialogue) + 1
-                        self.elements[start_idx:end_idx] = [dual_element]
-
-                        # Adjust index
-                        i = start_idx + 1
+                        # Replace the range with the dual dialogue element and resume after it
+                        self.elements[prev_char_idx : index + len(curr_dialogue) + 1] = [dual_element]
+                        index = prev_char_idx + 1
                         continue
 
                 # A dual-flagged cue that never paired (a lone '^', or no dialogue on both
                 # sides) is not dual: clear the latent flag so a non-dual character is not
                 # left marked as dual dialogue.
-                if element.metadata:
-                    element.metadata.pop("dual_dialogue", None)
+                element.metadata.pop("dual_dialogue", None)
 
-            i += 1
+            index += 1

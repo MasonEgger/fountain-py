@@ -1,10 +1,15 @@
 # ABOUTME: Final Draft (FDX) XML renderer built on the stdlib xml.etree.ElementTree only.
 # Maps element types to <Paragraph Type="..."> blocks and title-page metadata to FDX TitlePage; writer tools omitted.
-import xml.etree.ElementTree as ET
-from typing import cast
+from __future__ import annotations
 
-from fountain.document import FountainDocument
-from fountain.elements import ElementType, FountainElement
+import xml.etree.ElementTree as ET
+from typing import TYPE_CHECKING
+
+from fountain.elements import ElementType
+
+if TYPE_CHECKING:
+    from fountain.document import FountainDocument
+    from fountain.elements import FountainElement
 
 _OMITTED_TYPES = frozenset(
     {
@@ -139,23 +144,16 @@ class FDXRenderer:
             element: A DUAL_DIALOGUE element carrying left/right character and
                 dialogue metadata.
         """
-        metadata = element.metadata
-        if not metadata:
+        if not element.metadata:
             return
-
-        left_character = cast(FountainElement, metadata["left_character"])
-        left_dialogue = cast("list[FountainElement]", metadata["left_dialogue"])
-        right_character = cast(FountainElement, metadata["right_character"])
-        right_dialogue = cast("list[FountainElement]", metadata["right_dialogue"])
 
         wrapper = ET.SubElement(parent, "Paragraph")
         dual_dialogue = ET.SubElement(wrapper, "DualDialogue")
-        for character, dialogue in ((left_character, left_dialogue), (right_character, right_dialogue)):
-            self._append_paragraph(dual_dialogue, "Character", character.text)
-            for dialogue_element in dialogue:
-                # _process_dual_dialogue only ever collects DIALOGUE and PARENTHETICAL
-                # elements here, both present in _PARAGRAPH_TYPES.
-                self._append_paragraph(dual_dialogue, _PARAGRAPH_TYPES[dialogue_element.type], dialogue_element.text)
+        for column in element.dual_dialogue_columns():
+            for column_element in column:
+                # A column is a CHARACTER cue followed by the DIALOGUE and PARENTHETICAL
+                # elements _process_dual_dialogue collected, all present in _PARAGRAPH_TYPES.
+                self._append_paragraph(dual_dialogue, _PARAGRAPH_TYPES[column_element.type], column_element.text)
 
     def _render_title_page(self, root: ET.Element, metadata: dict[str, str]) -> None:
         """Append the FDX ``<TitlePage>`` structure built from title page metadata.

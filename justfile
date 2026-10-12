@@ -1,76 +1,59 @@
-# List available commands
+# ABOUTME: Task runner recipes; `just check` is the local gate, and CI runs the same steps.
+# `just test-all` runs the supported Python version matrix locally; the docs recipes build and serve Sphinx.
+
 default:
     @just --list
 
-# Install the package
-install:
-    uv pip install -e .
-
-# Install the package in development mode with dev dependencies
+# Sync dev and docs dependencies (mypy reads docs/source/conf.py, which imports sphinx)
 dev:
-    uv sync --dev
+    uv sync --group docs
 
-# Run tests
-unit-test:
+# The gate: lint, format check, strict type check, tests (doctests included)
+check:
+    uv run ruff check .
+    uv run ruff format --check .
+    uv run mypy .
     uv run pytest
 
-# Run tests with coverage report
-unit-test-cov:
+# Format and auto-fix lint issues
+fmt:
+    uv run ruff format .
+    uv run ruff check --fix .
+
+test:
+    uv run pytest
+
+# Tests with a coverage report (informational, never a gate)
+test-cov:
     uv run pytest --cov=fountain --cov-report=html --cov-report=term
 
-# Run linting checks
-lint:
-    uv run ruff check src/ tests/
+test-all:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for python_version in 3.11 3.12 3.13 3.14 3.15; do
+        uv run --python "$python_version" -m pytest
+    done
 
-# Fix linting issues automatically
-fix:
-    uv run ruff check src/ tests/ --fix
-
-# Format code
-format:
-    uv run ruff format src/ tests/
-
-# Run type checking
-type-check:
-    uv run mypy src/
-
-# Serve documentation locally
+# Serve documentation locally with live reload
 docs:
     uv run sphinx-autobuild docs/source docs/build/html
 
-# Build documentation
 docs-build:
     uv run sphinx-build -b html docs/source docs/build/html
 
-# Run doctests (both pytest doctest modules and Sphinx doctests)
+# Run the Sphinx doctests in the .rst pages (module doctests run under `just test`)
 doctest:
-    uv run pytest --doctest-modules src/
     uv run sphinx-build -b doctest docs/source docs/build/doctest
 
-# Run doctests with coverage 
-doctest-cov:
-    uv run pytest --doctest-modules src/ --cov=fountain --cov-report=html --cov-report=term
-    uv run sphinx-build -b doctest docs/source docs/build/doctest
-
-# Check documentation links
 docs-linkcheck:
     uv run sphinx-build -b linkcheck docs/source docs/build/linkcheck
 
-# Clean documentation build artifacts
 docs-clean:
     rm -rf docs/build/
 
-# Clean up temporary files
+# Clean up caches and build artifacts
 clean:
     find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-    find . -type f -name "*.pyc" -delete
     rm -rf .coverage htmlcov/ .pytest_cache/ .mypy_cache/ .ruff_cache/
     rm -rf build/ dist/ *.egg-info/
     rm -rf docs/build/
-
-# Run ruff format check only
-check:
-    uv run ruff format --check src/ tests/
-
-# Run all quality checks (tests, coverage, lint, type check, fix, format check, doctests)
-test: unit-test-cov doctest lint type-check fix check

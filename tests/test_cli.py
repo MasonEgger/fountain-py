@@ -163,3 +163,18 @@ def test_render_fdx_to_stdout(tmp_path: Path) -> None:
 
     assert "FinalDraft" in result.stdout
     assert result.returncode == 0
+
+
+@pytest.mark.parametrize("command", [["validate"], ["render", "--format", "html"]])
+def test_missing_file_reports_error_without_traceback(
+    command: list[str], tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    missing_file = tmp_path / "missing.fountain"
+
+    exit_code = main([*command, str(missing_file)])
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert captured.out == ""
+    assert captured.err.startswith("fountain: cannot read ")
+    assert str(missing_file) in captured.err

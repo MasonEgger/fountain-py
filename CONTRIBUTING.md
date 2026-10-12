@@ -17,8 +17,8 @@ We love your input! We want to make contributing to this project as easy and tra
 git clone https://github.com/your-username/fountain-py.git
 cd fountain-py
 
-# Install development dependencies
-uv sync --dev
+# Install development and docs dependencies
+uv sync --group docs
 ```
 
 ## Running Tests
@@ -44,14 +44,11 @@ We use:
 
 Run these checks locally:
 ```bash
-# Format code
-uv run ruff format src/ tests/
+# Format code and auto-fix lint issues
+just fmt
 
-# Check linting
-uv run ruff check src/ tests/
-
-# Type checking
-uv run mypy src/
+# The gate CI runs: lint, format check, mypy strict, and tests
+just check
 ```
 
 ## Pull Request Process

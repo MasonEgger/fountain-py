@@ -6,15 +6,15 @@ Tests for the Fountain parser.
 
 from pathlib import Path
 
-from fountain.elements import ElementType
+from fountain.elements import ElementType, FountainElement
 from fountain.parser import FountainParser
 
 
 class TestFountainParser:
-    def setup_method(self):
+    def setup_method(self) -> None:
         self.parser = FountainParser()
 
-    def test_parse_simple_text(self):
+    def test_parse_simple_text(self) -> None:
         text = """Title: Test Script
 Author: Test Author
 
@@ -57,7 +57,7 @@ FADE OUT."""
         assert transitions[0].text == "FADE IN:"
         assert transitions[1].text == "FADE OUT."
 
-    def test_parse_file(self):
+    def test_parse_file(self) -> None:
         fixture_path = Path(__file__).parent / "fixtures" / "simple_script.fountain"
         document = self.parser.parse_file(str(fixture_path))
 
@@ -74,7 +74,7 @@ FADE OUT."""
         assert ElementType.PARENTHETICAL in element_types
         assert ElementType.TRANSITION in element_types
 
-    def test_character_detection(self):
+    def test_character_detection(self) -> None:
         text = """JOHN
 Hello there.
 
@@ -89,7 +89,7 @@ Hi back."""
         assert "SARAH" in characters
         assert len(characters) == 2
 
-    def test_formatting_detection(self):
+    def test_formatting_detection(self) -> None:
         text = """JOHN
 This is **bold** and *italic* and _underlined_ text."""
 
@@ -108,7 +108,7 @@ This is **bold** and *italic* and _underlined_ text."""
         assert "italic" in format_types
         assert "underline" in format_types
 
-    def test_forced_elements(self):
+    def test_forced_elements(self) -> None:
         text = """.FORCED SCENE HEADING
 
 >FORCED TRANSITION"""
@@ -124,7 +124,7 @@ This is **bold** and *italic* and _underlined_ text."""
         assert len(transitions) == 1
         assert transitions[0].text == "FORCED TRANSITION"
 
-    def test_document_statistics(self):
+    def test_document_statistics(self) -> None:
         text = """Title: Test
 
 INT. HOUSE - DAY
@@ -149,7 +149,7 @@ Goodbye."""
         assert stats["character_count"] == 3  # JOHN appears twice
         assert stats["dialogue_count"] == 3
 
-    def test_action_after_dialogue(self):
+    def test_action_after_dialogue(self) -> None:
         """Test that action elements following dialogue are correctly classified."""
         text = """JOHN
 Hello, Sarah!
@@ -197,7 +197,7 @@ She smiles and sits down."""
         assert elements[7].type == ElementType.ACTION
         assert elements[7].text == "She smiles and sits down."
 
-    def test_multiline_action_after_dialogue(self):
+    def test_multiline_action_after_dialogue(self) -> None:
         """Adjacent action lines after dialogue merge into one paragraph with line breaks kept."""
         text = """JOHN
 I have great news!
@@ -218,7 +218,7 @@ The liquid splashes everywhere."""
             "He stands up excitedly.\nHis coffee cup falls to the floor.\nThe liquid splashes everywhere."
         )
 
-    def test_multiline_dialogue_without_breaks(self):
+    def test_multiline_dialogue_without_breaks(self) -> None:
         """Test that multi-line dialogue without line breaks is correctly classified."""
         text = """JOHN
 Hello there, Sarah. How are you
@@ -245,7 +245,7 @@ is going well for you."""
         assert elements[3].type == ElementType.DIALOGUE
         assert elements[3].text == "is going well for you."
 
-    def test_dialogue_with_blank_line_separation(self):
+    def test_dialogue_with_blank_line_separation(self) -> None:
         """Test that action after dialogue with blank line separation is correctly classified."""
         text = """JOHN
 Hello there!
@@ -277,7 +277,7 @@ Wait up!"""
         assert elements[4].type == ElementType.DIALOGUE
         assert elements[4].text == "Wait up!"
 
-    def test_forced_action_syntax(self):
+    def test_forced_action_syntax(self) -> None:
         """Test that forced action syntax with ! prefix works correctly."""
         text = """JOHN
 Hello!
@@ -309,7 +309,7 @@ Hi there!
         assert elements[5].type == ElementType.ACTION
         assert elements[5].text == "Even after dialogue, this is forced action."
 
-    def test_action_tabs_retained(self):
+    def test_action_tabs_retained(self) -> None:
         """Leading tabs in action text are retained verbatim; adjacent lines merge."""
         text = """JOHN
 Hello!
@@ -335,7 +335,7 @@ Regular action without tabs."""
             "Regular action without tabs."
         )
 
-    def test_dual_dialogue(self):
+    def test_dual_dialogue(self) -> None:
         """Test dual dialogue parsing with ^ syntax."""
         text = """JOHN
 I can't believe it!
@@ -350,14 +350,23 @@ Neither can I!"""
         assert len(dual_elements) == 1
 
         dual_element = dual_elements[0]
-        assert dual_element.metadata["left_character"].text == "JOHN"
-        assert dual_element.metadata["right_character"].text == "SARAH"
-        assert len(dual_element.metadata["left_dialogue"]) == 1
-        assert len(dual_element.metadata["right_dialogue"]) == 1
-        assert dual_element.metadata["left_dialogue"][0].text == "I can't believe it!"
-        assert dual_element.metadata["right_dialogue"][0].text == "Neither can I!"
+        left_character = dual_element.metadata["left_character"]
+        right_character = dual_element.metadata["right_character"]
+        left_dialogue = dual_element.metadata["left_dialogue"]
+        right_dialogue = dual_element.metadata["right_dialogue"]
+        assert isinstance(left_character, FountainElement)
+        assert isinstance(right_character, FountainElement)
+        assert isinstance(left_dialogue, list)
+        assert isinstance(right_dialogue, list)
 
-    def test_forced_character_names(self):
+        assert left_character.text == "JOHN"
+        assert right_character.text == "SARAH"
+        assert len(left_dialogue) == 1
+        assert len(right_dialogue) == 1
+        assert left_dialogue[0].text == "I can't believe it!"
+        assert right_dialogue[0].text == "Neither can I!"
+
+    def test_forced_character_names(self) -> None:
         """Test forced character names with @ syntax."""
         text = """@McCULLY
 Hello there."""
@@ -369,7 +378,7 @@ Hello there."""
         assert character_elements[0].text == "McCULLY"
         assert character_elements[0].metadata.get("forced") is True
 
-    def test_character_extensions(self):
+    def test_character_extensions(self) -> None:
         """Test character extensions like (V.O.) and (O.S.)."""
         text = """JOHN (V.O.)
 You can hear my voice.
@@ -387,6 +396,8 @@ I'm off screen too!"""
         dual = dual_elements[0]
         left_char = dual.metadata["left_character"]
         right_char = dual.metadata["right_character"]
+        assert isinstance(left_char, FountainElement)
+        assert isinstance(right_char, FountainElement)
 
         assert left_char.text == "JOHN"
         assert left_char.metadata.get("extension") == "V.O."
@@ -395,7 +406,7 @@ I'm off screen too!"""
         assert right_char.metadata.get("extension") == "O.S."
         assert right_char.metadata.get("dual_dialogue") is True
 
-    def test_scene_numbers(self):
+    def test_scene_numbers(self) -> None:
         """Test scene number parsing with #1# syntax."""
         text = """INT. HOUSE - DAY #1#
 
@@ -416,7 +427,7 @@ More action."""
         assert scene_elements[1].text == "EXT. GARDEN - NIGHT"
         assert scene_elements[1].metadata.get("scene_number") == "2A"
 
-    def test_multi_line_boneyard(self):
+    def test_multi_line_boneyard(self) -> None:
         """Test multi-line boneyard comments."""
         text = """JOHN
 Hello there.
@@ -440,7 +451,7 @@ Hi back."""
         assert characters[0].text == "JOHN"
         assert characters[1].text == "SARAH"
 
-    def test_notes_parsing(self):
+    def test_notes_parsing(self) -> None:
         """Test parsing of [[note]] syntax."""
         text = """[[This is a standalone note]]
 
@@ -453,7 +464,7 @@ Hello there!"""
         assert len(note_elements) == 1
         assert note_elements[0].text == "[[This is a standalone note]]"
 
-    def test_bold_italic_combination(self):
+    def test_bold_italic_combination(self) -> None:
         """Test ***bold italic*** formatting."""
         text = """JOHN
 This is ***bold and italic*** text."""
@@ -467,7 +478,7 @@ This is ***bold and italic*** text."""
         assert len(dialogue.formatting) == 1
         assert dialogue.formatting[0].format_type == "bold_italic"
 
-    def test_page_breaks(self):
+    def test_page_breaks(self) -> None:
         """Test page break parsing with === syntax."""
         text = """JOHN
 Hello.
@@ -483,7 +494,7 @@ Hi there."""
         assert len(page_break_elements) == 1
         assert page_break_elements[0].text == "==="
 
-    def test_forced_scene_heading_with_number(self):
+    def test_forced_scene_heading_with_number(self) -> None:
         """Test forced scene heading with scene number."""
         text = """.my scene heading #5#"""
 
@@ -494,7 +505,7 @@ Hi there."""
         assert scene_elements[0].text == "my scene heading"
         assert scene_elements[0].metadata.get("scene_number") == "5"
 
-    def test_centered_text(self):
+    def test_centered_text(self) -> None:
         """Test centered text parsing with >text< syntax."""
         text = """>This text should be centered<
 
@@ -507,7 +518,7 @@ Hello."""
         assert len(centered_elements) == 1
         assert centered_elements[0].text == "This text should be centered"
 
-    def test_enhanced_title_page(self):
+    def test_enhanced_title_page(self) -> None:
         """Test enhanced title page with more fields and multi-line support."""
         text = """Title: My Great Script
 Author: John Doe
@@ -541,7 +552,7 @@ Some action."""
         assert "multiple lines" in document.metadata.get("notes", "")
         assert "Hollywood, CA" in document.metadata.get("contact", "")
 
-    def test_element_precedence(self):
+    def test_element_precedence(self) -> None:
         """Test that element precedence works correctly for ambiguous cases."""
         text = """>FADE OUT<
 
@@ -563,7 +574,7 @@ Some action."""
         assert ElementType.SCENE_HEADING in element_types
         assert ElementType.PAGE_BREAK in element_types
 
-    def test_complex_formatting_combinations(self):
+    def test_complex_formatting_combinations(self) -> None:
         """Test complex formatting combinations."""
         text = """JOHN
 This has ***bold italic***, **bold**, *italic*, and _underlined_ text all together."""
@@ -582,7 +593,7 @@ This has ***bold italic***, **bold**, *italic*, and _underlined_ text all togeth
         assert "italic" in format_types
         assert "underline" in format_types
 
-    def test_dialogue_continuation_edge_cases(self):
+    def test_dialogue_continuation_edge_cases(self) -> None:
         """Test dialogue continuation with edge cases."""
         text = """JOHN
 First line of dialogue
@@ -613,7 +624,7 @@ Continued dialogue
         actual_types = [el.type for el in document.elements]
         assert actual_types == expected_types
 
-    def test_section_parsing(self):
+    def test_section_parsing(self) -> None:
         """Test section headers with # syntax (lines 252-253)."""
         text = """# ACT ONE
 
@@ -631,7 +642,7 @@ Hello there."""
         assert section_elements[0].text == "ACT ONE"
         assert section_elements[1].text == "Scene 1"
 
-    def test_synopsis_parsing(self):
+    def test_synopsis_parsing(self) -> None:
         """Test synopsis with = syntax (lines 262-263)."""
         text = """= This is what happens in this scene
 
@@ -645,7 +656,7 @@ Some action."""
         assert len(synopsis_elements) == 1
         assert synopsis_elements[0].text == "This is what happens in this scene"
 
-    def test_single_line_boneyard(self):
+    def test_single_line_boneyard(self) -> None:
         """Test single-line boneyard comments (line 209)."""
         text = """/* This is a comment */
 
@@ -658,14 +669,14 @@ Hello there."""
         assert len(boneyard_elements) == 1
         assert boneyard_elements[0].text == "/* This is a comment */"
 
-    def test_empty_elements_list(self):
+    def test_empty_elements_list(self) -> None:
         """Test dialogue detection with no prior elements (line 441)."""
         parser = FountainParser()
         parser.elements = []  # Explicitly empty
         result = parser._is_dialogue_line()
         assert result is False
 
-    def test_title_page_empty_lines(self):
+    def test_title_page_empty_lines(self) -> None:
         """Test title page multi-line values with indented continuation lines."""
         text = """Title: My Script
 Notes:
@@ -688,13 +699,13 @@ INT. HOUSE - DAY"""
         assert "sub-note" not in document.metadata
         assert document.metadata.get("contact") == "John Doe"
 
-    def test_empty_line_parsing(self):
+    def test_empty_line_parsing(self) -> None:
         """Test parsing empty lines (line 194)."""
         parser = FountainParser()
         result = parser._parse_line("   ")  # whitespace-only line
         assert result is None
 
-    def test_dual_dialogue_break(self):
+    def test_dual_dialogue_break(self) -> None:
         """Test dual dialogue processing break condition (line 516)."""
         text = """JOHN^
 Hello there!"""
@@ -710,7 +721,7 @@ Hello there!"""
         assert len(characters) == 1
         assert characters[0].text == "JOHN"
 
-    def test_title_page_empty_line_no_current_key(self):
+    def test_title_page_empty_line_no_current_key(self) -> None:
         """Test title page empty line handling when no current key (lines 117-118)."""
         # Test with empty line at the beginning of the document
         text = """
@@ -723,7 +734,7 @@ INT. HOUSE - DAY"""
         # Should parse title despite empty line at beginning
         assert document.metadata.get("title") == "My Script"
 
-    def test_title_page_multiple_empty_lines(self):
+    def test_title_page_multiple_empty_lines(self) -> None:
         """Test title page ends at first blank line per spec. Author after blank lines becomes body."""
         text = """Title: My Script
 
@@ -740,7 +751,7 @@ INT. HOUSE - DAY"""
         assert document.metadata.get("title") == "My Script"
         assert document.metadata.get("author") is None
 
-    def test_dual_dialogue_too_far_back(self):
+    def test_dual_dialogue_too_far_back(self) -> None:
         """Test dual dialogue break when searching too far back (line 495)."""
         text = """JOHN
 Hello.
@@ -762,7 +773,7 @@ Hi there!"""
         assert characters[0].text == "JOHN"
         assert characters[1].text == "SARAH"
 
-    def test_lyrics_parsing(self):
+    def test_lyrics_parsing(self) -> None:
         """Test lyrics parsing with ~lyrics syntax according to Fountain spec."""
         text = """JOHN
 (singing)
@@ -792,7 +803,7 @@ That was lovely!"""
         assert parentheticals[0].text == "(singing)"
         assert dialogue[0].text == "That was lovely!"
 
-    def test_lyrics_with_formatting(self):
+    def test_lyrics_with_formatting(self) -> None:
         """Test that lyrics support formatting marks."""
         text = """~This is **bold** and *italic* lyrics"""
 
@@ -809,7 +820,7 @@ That was lovely!"""
         assert "bold" in format_types
         assert "italic" in format_types
 
-    def test_lyrics_empty_content(self):
+    def test_lyrics_empty_content(self) -> None:
         """Test that empty lyrics (~) are not parsed as lyrics."""
         text = """~"""
 
@@ -824,7 +835,7 @@ That was lovely!"""
         assert len(action_elements) == 1
         assert action_elements[0].text == "~"
 
-    def test_lyrics_whitespace_handling(self):
+    def test_lyrics_whitespace_handling(self) -> None:
         """Test lyrics with whitespace."""
         text = """~  Lyrics with spaces  """
 
@@ -834,7 +845,7 @@ That was lovely!"""
         assert len(lyrics_elements) == 1
         assert lyrics_elements[0].text.strip() == "Lyrics with spaces"
 
-    def test_lyrics_not_matching_incomplete(self):
+    def test_lyrics_not_matching_incomplete(self) -> None:
         """Test lyrics parsing according to Fountain spec - any line starting with ~ is lyrics."""
         text = """~This is lyrics according to spec
 ~This is also lyrics with extra text"""
@@ -847,7 +858,7 @@ That was lovely!"""
         assert lyrics_elements[0].text == "This is lyrics according to spec"
         assert lyrics_elements[1].text == "This is also lyrics with extra text"
 
-    def test_lyrics_in_context(self):
+    def test_lyrics_in_context(self) -> None:
         """Test lyrics in a realistic script context."""
         text = """Title: Musical Test
 
@@ -885,7 +896,7 @@ Beautiful performance!"""
         assert len(characters) == 2
         assert len(dialogue) == 1
 
-    def test_character_continuation_detection(self):
+    def test_character_continuation_detection(self) -> None:
         """Test automatic character continuation detection."""
         text = """JOHN
 Hello there.
@@ -906,7 +917,7 @@ Now I'm back to talking."""
         assert characters[1].text == "JOHN"
         assert characters[1].metadata and characters[1].metadata.get("continuation") is True
 
-    def test_character_continuation_different_characters(self):
+    def test_character_continuation_different_characters(self) -> None:
         """Test that different characters don't trigger continuation."""
         text = """JOHN
 Hello.
@@ -927,7 +938,7 @@ Hi back."""
         assert characters[0].metadata is None or not characters[0].metadata.get("continuation", False)
         assert characters[1].metadata is None or not characters[1].metadata.get("continuation", False)
 
-    def test_character_continuation_no_action_between(self):
+    def test_character_continuation_no_action_between(self) -> None:
         """Test that continuation is not detected without action between."""
         text = """JOHN
 First dialogue.
@@ -942,7 +953,7 @@ Second dialogue right after."""
         # Without action between, second should not be marked as continuation
         assert characters[1].metadata is None or not characters[1].metadata.get("continuation", False)
 
-    def test_character_continuation_with_scene_break(self):
+    def test_character_continuation_with_scene_break(self) -> None:
         """Test that scene breaks prevent continuation detection."""
         text = """JOHN
 Hello there.
@@ -961,7 +972,7 @@ In a new scene."""
         # Scene break should prevent continuation detection
         assert characters[1].metadata is None or not characters[1].metadata.get("continuation", False)
 
-    def test_character_continuation_complex_scenario(self):
+    def test_character_continuation_complex_scenario(self) -> None:
         """Test character continuation in a realistic scenario."""
         text = """SARAH
 I have news to share.
@@ -1002,7 +1013,7 @@ But I have to move to New York."""
         # Third SARAH - should be continuation (action happened after previous SARAH)
         assert characters[3].metadata and characters[3].metadata.get("continuation") is True
 
-    def test_character_continuation_end_to_end(self):
+    def test_character_continuation_end_to_end(self) -> None:
         """Test character continuation from parsing through rendering."""
         text = """JOHN
 Hello there.
@@ -1033,7 +1044,7 @@ Now I'm back to talking."""
         fountain = fountain_renderer.render(document)
         assert "JOHN (CONT'D)" in fountain
 
-    def test_scene_numbers_comprehensive(self):
+    def test_scene_numbers_comprehensive(self) -> None:
         """Test comprehensive scene number parsing and rendering."""
         text = """INT. HOUSE - DAY #1#
 
@@ -1085,7 +1096,7 @@ Even more action."""
         assert "EXT. GARDEN - NIGHT #2A#" in fountain
         assert ".forced scene #3#" in fountain
 
-    def test_character_continuation_with_intervening_character(self):
+    def test_character_continuation_with_intervening_character(self) -> None:
         """Test that intervening characters prevent continuation detection."""
         text = """JOHN
 Hello.
@@ -1115,7 +1126,7 @@ Back to John."""
         # Second JOHN - should not be continuation due to intervening character
         assert characters[2].metadata is None or not characters[2].metadata.get("continuation", False)
 
-    def test_character_continuation_break_on_character(self):
+    def test_character_continuation_break_on_character(self) -> None:
         """Test the break statement when finding another character during continuation check."""
         # This test specifically targets line 489: the break statement when we encounter
         # another character while checking for continuation between two instances of the same character
@@ -1148,7 +1159,7 @@ Now John speaks again."""
         action_elements = [el for el in document.elements if el.type == ElementType.ACTION]
         assert len(action_elements) >= 1  # Confirm there IS action that would trigger continuation logic
 
-    def test_character_continuation_precise_break_coverage(self):
+    def test_character_continuation_precise_break_coverage(self) -> None:
         """Test designed specifically to hit the break statement at line 489."""
         # Create a scenario where we iterate through multiple elements between
         # two instances of the same character, encountering another character mid-iteration
@@ -1174,7 +1185,9 @@ Alice continues after Bob interrupted."""
         elements = document.elements
 
         # Find all ALICE characters
-        alice_chars = [i for i, el in enumerate(elements) if el.type == ElementType.CHARACTER and el.text == "ALICE"]
+        alice_chars = [
+            index for index, el in enumerate(elements) if el.type == ElementType.CHARACTER and el.text == "ALICE"
+        ]
         assert len(alice_chars) == 2  # Two ALICE appearances
 
         # The second ALICE should NOT be continuation because BOB appears between them
@@ -1186,7 +1199,7 @@ Alice continues after Bob interrupted."""
         second_alice = elements[alice_chars[1]]
         assert second_alice.metadata is None or not second_alice.metadata.get("continuation", False)
 
-    def test_line_489_coverage_verification(self):
+    def test_line_489_coverage_verification(self) -> None:
         """Verify that line 489 break statement is executed by creating a test that would fail without it."""
         # This test creates a very specific scenario to hit the break statement
         text = """ALICE

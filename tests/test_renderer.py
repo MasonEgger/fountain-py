@@ -5,16 +5,16 @@ Tests for the HTML renderer.
 """
 
 from fountain.document import FountainDocument
-from fountain.elements import ElementType, FormatSpan, FountainElement
+from fountain.elements import ElementType, FormatSpan, FountainElement, MetadataValue
 from fountain.parser import FountainParser
 from fountain.renderer import FountainRenderer, HTMLRenderer
 
 
 class TestHTMLRenderer:
-    def setup_method(self):
+    def setup_method(self) -> None:
         self.renderer = HTMLRenderer()
 
-    def test_render_simple_document(self):
+    def test_render_simple_document(self) -> None:
         elements = [
             FountainElement(ElementType.SCENE_HEADING, "INT. HOUSE - DAY", [], 1),
             FountainElement(ElementType.CHARACTER, "JOHN", [], 2),
@@ -35,7 +35,7 @@ class TestHTMLRenderer:
         assert '<div class="fountain-dialogue">Hello, world!</div>' in html
         assert "<style>" not in html  # render() returns fragment only
 
-    def test_render_with_formatting(self):
+    def test_render_with_formatting(self) -> None:
         formatting = [
             FormatSpan(5, 9, "bold"),
             FormatSpan(10, 16, "italic"),
@@ -50,7 +50,7 @@ class TestHTMLRenderer:
         # Note: The renderer escapes HTML, so we need to check for escaped content
         assert '<div class="fountain-dialogue">' in html
 
-    def test_render_all_element_types(self):
+    def test_render_all_element_types(self) -> None:
         elements = [
             FountainElement(ElementType.SCENE_HEADING, "INT. HOUSE - DAY", [], 1),
             FountainElement(ElementType.ACTION, "John enters the room.", [], 2),
@@ -75,7 +75,7 @@ class TestHTMLRenderer:
         assert '<div class="fountain-note">' not in html
         assert "This is a note" not in html
 
-    def test_html_escaping(self):
+    def test_html_escaping(self) -> None:
         elements = [
             FountainElement(ElementType.DIALOGUE, "Text with <tags> & \"quotes\" and 'apostrophe'", [], 1),
         ]
@@ -89,14 +89,14 @@ class TestHTMLRenderer:
         assert "&quot;quotes&quot;" in html
         assert "&#x27;apostrophe&#x27;" in html
 
-    def test_character_extension_is_html_escaped(self):
+    def test_character_extension_is_html_escaped(self) -> None:
         """A character extension is HTML-escaped, not injected raw into the page (XSS guard)."""
         document = FountainParser().parse("INT. HOUSE - DAY\n\nBOB (<script>)\nHi.")
         html = self.renderer.render(document)
         assert "<script>" not in html
         assert "&lt;script&gt;" in html
 
-    def test_scene_number_is_html_escaped(self):
+    def test_scene_number_is_html_escaped(self) -> None:
         """A scene number is HTML-escaped in the rendered heading (defensive escaping)."""
         element = FountainElement(
             ElementType.SCENE_HEADING, "INT. HOUSE - DAY", [], 1, metadata={"scene_number": "<b>"}
@@ -106,7 +106,7 @@ class TestHTMLRenderer:
         assert "<b>" not in html
         assert "&lt;b&gt;" in html
 
-    def test_custom_title_page_key_is_html_escaped(self):
+    def test_custom_title_page_key_is_html_escaped(self) -> None:
         """A custom title-page key is HTML-escaped in both the class attribute and the label.
 
         The key is interpolated into ``class="..."`` and the label text, so an unescaped
@@ -124,7 +124,7 @@ class TestHTMLRenderer:
         assert "<script>alert(1)" not in page
         assert "&lt;script&gt;" in page
 
-    def test_metadata_rendering(self):
+    def test_metadata_rendering(self) -> None:
         metadata = {
             "title": "My Great Script",
             "author": "Famous Writer",
@@ -144,7 +144,7 @@ class TestHTMLRenderer:
         assert '<p class="fountain-draft-date">June 2025</p>' in html
         assert '<p class="fountain-contact">writer@example.com</p>' in html
 
-    def test_action_line_breaks_rendering(self):
+    def test_action_line_breaks_rendering(self) -> None:
         """Test that line breaks in action elements are converted to <br> tags."""
         # Create an action element with embedded newlines
         action_text = "He stands up.\nHis coffee spills.\nEveryone stares."
@@ -160,7 +160,7 @@ class TestHTMLRenderer:
         assert expected_html in html
         assert '<div class="fountain-action">He stands up.<br>His coffee spills.<br>Everyone stares.</div>' in html
 
-    def test_action_single_line_rendering(self):
+    def test_action_single_line_rendering(self) -> None:
         """Test that single-line action elements render normally."""
         elements = [
             FountainElement(ElementType.ACTION, "She sits down.", [], 1),
@@ -173,7 +173,7 @@ class TestHTMLRenderer:
         assert '<div class="fountain-action">She sits down.</div>' in html
         assert "<br>" not in html
 
-    def test_action_tab_rendering(self):
+    def test_action_tab_rendering(self) -> None:
         """Test that tabs in action elements are converted to HTML spaces."""
         # Create action elements with tabs
         action_text_single_tab = "\tIndented with one tab."
@@ -193,7 +193,7 @@ class TestHTMLRenderer:
         expected += "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Indented with two tabs.</div>"
         assert expected in html
 
-    def test_action_css_preserves_leading_whitespace(self):
+    def test_action_css_preserves_leading_whitespace(self) -> None:
         """The .fountain-action CSS carries white-space: pre-wrap so leading spaces render (D10).
 
         Without a white-space rule a browser collapses leading spaces even though they
@@ -203,23 +203,23 @@ class TestHTMLRenderer:
         action_rule = css.split(".fountain-action", 1)[1].split("}", 1)[0]
         assert "white-space: pre-wrap" in action_rule
 
-    def test_space_indented_action_preserves_indentation(self):
+    def test_space_indented_action_preserves_indentation(self) -> None:
         """A ten-space-indented action line renders with its leading spaces intact (D10)."""
         parser = FountainParser()
         document = parser.parse("INT. HOUSE - DAY\n\n          Deep indent card.")
         html = self.renderer.render(document)
         assert '<div class="fountain-action">          Deep indent card.</div>' in html
 
-    def test_tab_indented_action_renders_four_space_indentation(self):
+    def test_tab_indented_action_renders_four_space_indentation(self) -> None:
         """A tab-indented action retains the tab in text and renders four nbsp per tab (D10)."""
         parser = FountainParser()
         document = parser.parse("INT. HOUSE - DAY\n\n\tTabbed card.")
         html = self.renderer.render(document)
         assert '<div class="fountain-action">&nbsp;&nbsp;&nbsp;&nbsp;Tabbed card.</div>' in html
 
-    def test_scene_number_rendering(self):
+    def test_scene_number_rendering(self) -> None:
         """Test that scene numbers are rendered correctly."""
-        metadata = {"scene_number": "1"}
+        metadata: dict[str, MetadataValue] = {"scene_number": "1"}
         scene_element = FountainElement(ElementType.SCENE_HEADING, "INT. HOUSE - DAY", [], 1, metadata=metadata)
 
         document = FountainDocument([scene_element], {})
@@ -229,9 +229,9 @@ class TestHTMLRenderer:
         expected += '<span class="fountain-scene-number">#1#</span></div>'
         assert expected in html
 
-    def test_character_extension_rendering(self):
+    def test_character_extension_rendering(self) -> None:
         """Test that character extensions are rendered correctly."""
-        metadata = {"extension": "V.O."}
+        metadata: dict[str, MetadataValue] = {"extension": "V.O."}
         char_element = FountainElement(ElementType.CHARACTER, "JOHN", [], 1, metadata=metadata)
 
         document = FountainDocument([char_element], {})
@@ -241,7 +241,7 @@ class TestHTMLRenderer:
         expected += '<span class="fountain-character-extension">(V.O.)</span></div>'
         assert expected in html
 
-    def test_bold_italic_rendering(self):
+    def test_bold_italic_rendering(self) -> None:
         """Test that bold italic formatting is rendered correctly."""
         formatting = [FormatSpan(8, 22, "bold_italic")]
         dialogue_element = FountainElement(ElementType.DIALOGUE, "This is ***bold italic*** text", formatting, 1)
@@ -252,7 +252,7 @@ class TestHTMLRenderer:
         assert "<strong><em>" in html
         assert "</em></strong>" in html
 
-    def test_page_break_rendering(self):
+    def test_page_break_rendering(self) -> None:
         """Test that page breaks are rendered correctly."""
         page_break_element = FountainElement(ElementType.PAGE_BREAK, "===", [], 1)
 
@@ -261,7 +261,7 @@ class TestHTMLRenderer:
 
         assert '<div class="fountain-page-break"></div>' in html
 
-    def test_dual_dialogue_rendering(self):
+    def test_dual_dialogue_rendering(self) -> None:
         """Test that dual dialogue is rendered correctly."""
         left_char = FountainElement(ElementType.CHARACTER, "JOHN", [], 1)
         left_dialogue = [FountainElement(ElementType.DIALOGUE, "Hello!", [], 2)]
@@ -292,7 +292,7 @@ class TestHTMLRenderer:
         assert '<div class="fountain-dialogue">Hello!</div>' in html
         assert '<div class="fountain-dialogue">Hi there!</div>' in html
 
-    def test_centered_text_rendering(self):
+    def test_centered_text_rendering(self) -> None:
         """Test that centered text is rendered correctly."""
         centered_element = FountainElement(ElementType.CENTERED, "This is centered", [], 1)
 
@@ -301,7 +301,7 @@ class TestHTMLRenderer:
 
         assert '<div class="fountain-centered">This is centered</div>' in html
 
-    def test_enhanced_title_page_rendering(self):
+    def test_enhanced_title_page_rendering(self) -> None:
         """Test that enhanced title page fields are rendered correctly."""
         metadata = {
             "title": "My Script",
@@ -320,7 +320,7 @@ class TestHTMLRenderer:
         assert '<p class="fountain-copyright">© 2024</p>' in html
         assert "<br>" in html  # Multi-line content should have <br> tags
 
-    def test_complex_formatting_rendering(self):
+    def test_complex_formatting_rendering(self) -> None:
         """Test that complex formatting combinations render correctly."""
         formatting = [
             FormatSpan(0, 15, "bold_italic"),
@@ -341,7 +341,7 @@ class TestHTMLRenderer:
         assert "<em>" in html  # italic
         assert "<u>" in html  # underline
 
-    def test_extended_title_page_fields(self):
+    def test_extended_title_page_fields(self) -> None:
         """Test all extended title page fields (lines 58, 85, 96, 101, 106, 111, 116)."""
         metadata = {
             "title": "Test Script",
@@ -365,7 +365,7 @@ class TestHTMLRenderer:
         assert '<p class="fountain-format">Format: Screenplay</p>' in html
         assert '<p class="fountain-created">Created: 2023-12-01</p>' in html
 
-    def test_both_author_and_authors_render_in_html(self):
+    def test_both_author_and_authors_render_in_html(self) -> None:
         """Both `author` and `authors` render, each as its own author paragraph (Q10)."""
         metadata = {
             "title": "Two Bylines",
@@ -382,7 +382,7 @@ class TestHTMLRenderer:
         # Ordering: author paragraph precedes authors paragraph.
         assert html.index("by Alice") < html.index("by Bob and Carol")
 
-    def test_renderers_agree_on_author_keys(self):
+    def test_renderers_agree_on_author_keys(self) -> None:
         """HTML and Fountain renderers both represent every author key (Q10)."""
         metadata = {
             "title": "Two Bylines",
@@ -400,7 +400,7 @@ class TestHTMLRenderer:
         assert "Alice" in fountain
         assert "Bob and Carol" in fountain
 
-    def test_only_author_renders_single_paragraph(self):
+    def test_only_author_renders_single_paragraph(self) -> None:
         """A title page with only `author` renders exactly one author paragraph (Q10 guard)."""
         metadata = {"title": "Solo", "author": "Alice"}
 
@@ -410,7 +410,7 @@ class TestHTMLRenderer:
         assert html.count('<p class="fountain-author">') == 1
         assert '<p class="fountain-author">by Alice</p>' in html
 
-    def test_only_authors_renders_single_paragraph(self):
+    def test_only_authors_renders_single_paragraph(self) -> None:
         """A title page with only `authors` renders exactly one author paragraph (Q10 guard)."""
         metadata = {"title": "Solo", "authors": "Bob and Carol"}
 
@@ -420,7 +420,7 @@ class TestHTMLRenderer:
         assert html.count('<p class="fountain-author">') == 1
         assert '<p class="fountain-author">by Bob and Carol</p>' in html
 
-    def test_special_elements_rendering(self):
+    def test_special_elements_rendering(self) -> None:
         """Special writer-only elements are omitted from formatted output (E5, E11, Q3)."""
         elements = [
             FountainElement(ElementType.BONEYARD, "/* comment */", [], 1),
@@ -439,7 +439,7 @@ class TestHTMLRenderer:
         assert '<div class="fountain-synopsis">' not in html
         assert "What happens" not in html
 
-    def test_boneyard_single_line_omitted_from_fragment(self):
+    def test_boneyard_single_line_omitted_from_fragment(self) -> None:
         """A single-line boneyard's text must not appear in the HTML fragment (E11)."""
         parser = FountainParser()
         doc = parser.parse("INT. ROOM - DAY\n\n/* hidden scene */\n\nReal action here.")
@@ -451,7 +451,7 @@ class TestHTMLRenderer:
         assert '<div class="fountain-scene-heading">INT. ROOM - DAY</div>' in html
         assert "Real action here." in html
 
-    def test_boneyard_multi_line_omitted_from_fragment(self):
+    def test_boneyard_multi_line_omitted_from_fragment(self) -> None:
         """A multi-line boneyard's interior text must not appear in the fragment (E11)."""
         parser = FountainParser()
         doc = parser.parse(
@@ -466,7 +466,7 @@ class TestHTMLRenderer:
         assert '<div class="fountain-scene-heading">INT. ROOM - DAY</div>' in html
         assert "Real action here." in html
 
-    def test_boneyard_single_and_multi_line_identical_omission(self):
+    def test_boneyard_single_and_multi_line_identical_omission(self) -> None:
         """Single-line and multi-line boneyards behave identically: no boneyard text ships (E11)."""
         parser = FountainParser()
         single = self.renderer.render(parser.parse("/* hidden scene */\n\nAction."))
@@ -480,7 +480,7 @@ class TestHTMLRenderer:
         assert "Action." in single
         assert "Action." in multi
 
-    def test_sections_synopses_notes_hidden_by_default(self):
+    def test_sections_synopses_notes_hidden_by_default(self) -> None:
         """Sections, synopses, and notes are writer tools omitted from formatted output (E5, Q3).
 
         Under the Open Question 3 ruling, notes, sections, synopses, and boneyard are
@@ -507,7 +507,7 @@ class TestHTMLRenderer:
             # A real action element still renders.
             assert "She walks into the room." in html
 
-    def test_unknown_element_type(self):
+    def test_unknown_element_type(self) -> None:
         """Test fallback rendering for unknown types (line 182)."""
         # Create an element with an unknown type by modifying after creation
         element = FountainElement(ElementType.ACTION, "unknown text", [], 1)
@@ -516,7 +516,8 @@ class TestHTMLRenderer:
         class MockElementType:
             value = "unknown_type"
 
-        element.type = MockElementType()
+        # The stand-in deliberately violates the ElementType annotation, so bypass static attribute checking.
+        object.__setattr__(element, "type", MockElementType())
 
         document = FountainDocument([element])
         html = self.renderer.render(document)
@@ -524,7 +525,7 @@ class TestHTMLRenderer:
         # Should use fallback rendering with the element type as CSS class
         assert '<div class="fountain-unknown-type">unknown text</div>' in html
 
-    def test_get_css_contains_all_element_selectors(self):
+    def test_get_css_contains_all_element_selectors(self) -> None:
         """Test that get_css() returns CSS covering all element types."""
         css = self.renderer.get_css()
         assert ".fountain-script" in css
@@ -535,19 +536,19 @@ class TestHTMLRenderer:
         assert ".fountain-transition" in css
         assert ".fountain-lyrics" in css
 
-    def test_dual_dialogue_metadata_none(self):
-        """Test dual dialogue with None metadata (line 234)."""
-        # Create a dual dialogue element with no metadata
-        dual_element = FountainElement(ElementType.DUAL_DIALOGUE, "", [], 1, metadata=None)
+    def test_dual_dialogue_empty_metadata(self) -> None:
+        """Test dual dialogue with empty metadata."""
+        # Create a dual dialogue element with empty metadata
+        dual_element = FountainElement(ElementType.DUAL_DIALOGUE, "", [], 1, metadata={})
 
         document = FountainDocument([dual_element])
         html = self.renderer.render(document)
 
-        # Should handle None metadata gracefully and return empty string for dual dialogue content
-        # The dual dialogue div should not appear since metadata is None
+        # Should handle empty metadata gracefully and return empty string for dual dialogue content
+        # The dual dialogue div should not appear since metadata is empty
         assert '<div class="fountain-dual-dialogue">' not in html
 
-    def test_lyrics_rendering(self):
+    def test_lyrics_rendering(self) -> None:
         """Test that lyrics are rendered correctly with proper styling."""
         lyrics_element = FountainElement(ElementType.LYRICS, "Oh what a beautiful morning", [], 1)
 
@@ -561,7 +562,7 @@ class TestHTMLRenderer:
         assert "text-align: center;" in page_html
         assert "font-style: italic;" in page_html
 
-    def test_lyrics_with_formatting_rendering(self):
+    def test_lyrics_with_formatting_rendering(self) -> None:
         """Test that lyrics with formatting render correctly."""
         formatting = [FormatSpan(8, 12, "bold"), FormatSpan(17, 23, "italic")]
         lyrics_element = FountainElement(ElementType.LYRICS, "This is **bold** *italic* lyrics", formatting, 1)
@@ -573,7 +574,7 @@ class TestHTMLRenderer:
         assert "<strong>" in html
         assert "<em>" in html
 
-    def test_lyrics_empty_rendering(self):
+    def test_lyrics_empty_rendering(self) -> None:
         """Test that lyrics with minimal content render correctly."""
         lyrics_element = FountainElement(ElementType.LYRICS, "a", [], 1)
 
@@ -582,7 +583,7 @@ class TestHTMLRenderer:
 
         assert '<div class="fountain-lyrics">a</div>' in html
 
-    def test_lyrics_multiple_rendering(self):
+    def test_lyrics_multiple_rendering(self) -> None:
         """Test rendering multiple lyrics elements."""
         lyrics1 = FountainElement(ElementType.LYRICS, "First line of song", [], 1)
         lyrics2 = FountainElement(ElementType.LYRICS, "Second line of song", [], 2)
@@ -593,7 +594,7 @@ class TestHTMLRenderer:
         assert '<div class="fountain-lyrics">First line of song</div>' in html
         assert '<div class="fountain-lyrics">Second line of song</div>' in html
 
-    def test_lyrics_in_complete_scene_rendering(self):
+    def test_lyrics_in_complete_scene_rendering(self) -> None:
         """Test lyrics rendering in a complete scene context."""
         elements = [
             FountainElement(ElementType.SCENE_HEADING, "INT. THEATER - NIGHT", [], 1),
@@ -615,7 +616,7 @@ class TestHTMLRenderer:
         assert '<div class="fountain-lyrics">Oh what a beautiful day</div>' in html
         assert '<div class="fountain-action">The audience applauds.</div>' in html
 
-    def test_character_continuation_html_rendering(self):
+    def test_character_continuation_html_rendering(self) -> None:
         """Test that character continuation is rendered correctly in HTML."""
         char_element = FountainElement(ElementType.CHARACTER, "JOHN", [], 1, metadata={"continuation": True})
 
@@ -626,7 +627,7 @@ class TestHTMLRenderer:
         expected += '<span class="fountain-character-continuation">(CONT\'D)</span></div>'
         assert expected in html
 
-    def test_character_continuation_vs_extension_html(self):
+    def test_character_continuation_vs_extension_html(self) -> None:
         """Test that explicit extensions take precedence over auto-continuation."""
         char_with_extension = FountainElement(
             ElementType.CHARACTER, "JOHN", [], 1, metadata={"extension": "V.O.", "continuation": True}
@@ -639,7 +640,7 @@ class TestHTMLRenderer:
         assert '<span class="fountain-character-extension">(V.O.)</span>' in html
         assert '<span class="fountain-character-continuation">' not in html
 
-    def test_custom_metadata_fields_in_html(self):
+    def test_custom_metadata_fields_in_html(self) -> None:
         """Custom metadata fields should appear in HTML output."""
         metadata = {
             "title": "My Script",
@@ -653,7 +654,7 @@ class TestHTMLRenderer:
         assert "HBO" in html
         assert "Draft 3" in html
 
-    def test_css_classes_are_namespaced(self):
+    def test_css_classes_are_namespaced(self) -> None:
         """All CSS classes in rendered HTML must have fountain- prefix to avoid collisions."""
         elements = [
             FountainElement(ElementType.SCENE_HEADING, "INT. HOUSE - DAY", [], 1),
@@ -685,7 +686,7 @@ class TestHTMLRenderer:
         assert 'class="transition"' not in html
         assert 'class="title-page"' not in html
 
-    def test_css_selectors_are_namespaced(self):
+    def test_css_selectors_are_namespaced(self) -> None:
         """CSS selectors must use fountain- prefix to avoid collisions."""
         css = self.renderer.get_css()
 
@@ -699,7 +700,7 @@ class TestHTMLRenderer:
         assert "\n.character " not in css
         assert "\n.dialogue " not in css
 
-    def test_render_returns_fragment_without_style(self):
+    def test_render_returns_fragment_without_style(self) -> None:
         """render() should return a pure HTML fragment with no <style> block."""
         elements = [FountainElement(ElementType.ACTION, "Hello.", [], 1)]
         document = FountainDocument(elements)
@@ -709,7 +710,7 @@ class TestHTMLRenderer:
         assert "<style>" not in html
         assert "</style>" not in html
 
-    def test_render_page_returns_full_html_with_style(self):
+    def test_render_page_returns_full_html_with_style(self) -> None:
         """render_page() should return full HTML with embedded CSS."""
         elements = [FountainElement(ElementType.ACTION, "Hello.", [], 1)]
         document = FountainDocument(elements)
@@ -720,7 +721,7 @@ class TestHTMLRenderer:
         assert '<div class="fountain-script">' in html
         assert ".fountain-scene-heading" in html
 
-    def test_get_css_returns_raw_css_string(self):
+    def test_get_css_returns_raw_css_string(self) -> None:
         """get_css() should return raw CSS without <style> tags."""
         css = self.renderer.get_css()
 
@@ -730,7 +731,7 @@ class TestHTMLRenderer:
         assert ".fountain-script" in css
         assert ".fountain-scene-heading" in css
 
-    def test_render_and_render_page_same_fragment(self):
+    def test_render_and_render_page_same_fragment(self) -> None:
         """The fragment from render() should be contained within render_page() output."""
         elements = [
             FountainElement(ElementType.SCENE_HEADING, "INT. HOUSE - DAY", [], 1),
@@ -745,10 +746,10 @@ class TestHTMLRenderer:
 
 
 class TestFountainRenderer:
-    def setup_method(self):
+    def setup_method(self) -> None:
         self.renderer = FountainRenderer()
 
-    def test_render_simple_document(self):
+    def test_render_simple_document(self) -> None:
         """Test basic Fountain rendering."""
         elements = [
             FountainElement(ElementType.SCENE_HEADING, "INT. HOUSE - DAY", [], 1),
@@ -767,7 +768,7 @@ class TestFountainRenderer:
         assert "JOHN" in lines
         assert "Hello, world!" in lines
 
-    def test_render_title_page(self):
+    def test_render_title_page(self) -> None:
         """Test title page rendering."""
         metadata = {
             "title": "My Great Script",
@@ -788,7 +789,7 @@ class TestFountainRenderer:
         assert "Draft Date: June 2025" in fountain
         assert "Contact: writer@example.com" in fountain
 
-    def test_render_forced_elements(self):
+    def test_render_forced_elements(self) -> None:
         """Test forced elements render with proper syntax."""
         elements = [
             FountainElement(ElementType.SCENE_HEADING, "FORCED SCENE", [], 1, metadata={"forced": True}),
@@ -805,7 +806,7 @@ class TestFountainRenderer:
         assert "@McCULLY" in fountain
         assert ">FORCED TRANSITION" in fountain
 
-    def test_render_character_extensions(self):
+    def test_render_character_extensions(self) -> None:
         """Test character extensions render correctly."""
         char_element = FountainElement(ElementType.CHARACTER, "JOHN", [], 1, metadata={"extension": "V.O."})
 
@@ -814,7 +815,7 @@ class TestFountainRenderer:
 
         assert "JOHN (V.O.)" in fountain
 
-    def test_render_dual_dialogue_character(self):
+    def test_render_dual_dialogue_character(self) -> None:
         """Test dual dialogue character marker."""
         char_element = FountainElement(ElementType.CHARACTER, "SARAH", [], 1, metadata={"dual_dialogue": True})
 
@@ -823,7 +824,7 @@ class TestFountainRenderer:
 
         assert "SARAH^" in fountain
 
-    def test_render_scene_numbers(self):
+    def test_render_scene_numbers(self) -> None:
         """Test scene numbers render correctly."""
         scene_element = FountainElement(
             ElementType.SCENE_HEADING, "INT. HOUSE - DAY", [], 1, metadata={"scene_number": "1"}
@@ -834,7 +835,7 @@ class TestFountainRenderer:
 
         assert "INT. HOUSE - DAY #1#" in fountain
 
-    def test_render_all_element_types(self):
+    def test_render_all_element_types(self) -> None:
         """Test all element types render correctly."""
         elements = [
             FountainElement(ElementType.SCENE_HEADING, "INT. HOUSE - DAY", [], 1),
@@ -870,7 +871,7 @@ class TestFountainRenderer:
         assert ">Centered text<" in lines
         assert "~Oh what a beautiful morning" in lines
 
-    def test_render_formatting(self):
+    def test_render_formatting(self) -> None:
         """Emphasis markers are re-emitted from the parsed spans on render."""
         source = "JOHN\nThis **bold** *italic* _underline_ ***bold italic***"
         document = FountainParser().parse(source)
@@ -882,7 +883,7 @@ class TestFountainRenderer:
         assert "_underline_" in fountain
         assert "***bold italic***" in fountain
 
-    def test_render_dual_dialogue_element(self):
+    def test_render_dual_dialogue_element(self) -> None:
         """Test dual dialogue elements are skipped in rendering."""
         dual_element = FountainElement(ElementType.DUAL_DIALOGUE, "", [], 1)
 
@@ -893,7 +894,7 @@ class TestFountainRenderer:
         lines = [line for line in fountain.split("\n") if line.strip()]
         assert len(lines) == 0
 
-    def test_render_unknown_element_type(self):
+    def test_render_unknown_element_type(self) -> None:
         """Test unknown element types fall back to text rendering."""
         # Create an element with an unknown type by modifying after creation
         element = FountainElement(ElementType.ACTION, "unknown text", [], 1)
@@ -902,14 +903,15 @@ class TestFountainRenderer:
         class MockElementType:
             value = "unknown_type"
 
-        element.type = MockElementType()
+        # The stand-in deliberately violates the ElementType annotation, so bypass static attribute checking.
+        object.__setattr__(element, "type", MockElementType())
 
         document = FountainDocument([element])
         fountain = self.renderer.render(document)
 
         assert "unknown text" in fountain
 
-    def test_render_complex_character(self):
+    def test_render_complex_character(self) -> None:
         """Test character with both extension and dual dialogue."""
         char_element = FountainElement(
             ElementType.CHARACTER,
@@ -924,7 +926,7 @@ class TestFountainRenderer:
 
         assert "SARAH (O.S.)^" in fountain
 
-    def test_render_forced_character_with_extension(self):
+    def test_render_forced_character_with_extension(self) -> None:
         """Test forced character with extension."""
         char_element = FountainElement(
             ElementType.CHARACTER,
@@ -939,7 +941,7 @@ class TestFountainRenderer:
 
         assert "@McCULLY (V.O.)" in fountain
 
-    def test_section_with_level(self):
+    def test_section_with_level(self) -> None:
         """Test section rendering with level metadata."""
         section_element = FountainElement(ElementType.SECTION, "Scene 1", [], 1, metadata={"level": 2})
 
@@ -948,7 +950,7 @@ class TestFountainRenderer:
 
         assert "## Scene 1" in fountain
 
-    def test_round_trip_simple(self):
+    def test_round_trip_simple(self) -> None:
         """Test that simple round-trip parsing preserves content."""
         from fountain.parser import FountainParser
 
@@ -980,7 +982,7 @@ FADE OUT."""
         assert "Hello, world!" in rendered
         assert "FADE OUT." in rendered
 
-    def test_round_trip_with_lyrics(self):
+    def test_round_trip_with_lyrics(self) -> None:
         """Test that lyrics round-trip correctly."""
         from fountain.parser import FountainParser
 
@@ -1001,7 +1003,7 @@ That was lovely!"""
         assert "~Oh what a beautiful day" in rendered
         assert "That was lovely!" in rendered
 
-    def test_lyrics_round_trip_no_trailing_tilde(self):
+    def test_lyrics_round_trip_no_trailing_tilde(self) -> None:
         """A4c: lyrics round-trip without accreting a trailing tilde.
 
         The Fountain lyric marker is a leading ``~`` only, and the parser strips
@@ -1019,7 +1021,7 @@ That was lovely!"""
         assert len(lyric_elements) == 1
         assert lyric_elements[0].text == "La la la"
 
-    def test_blank_lines_survive_round_trip(self):
+    def test_blank_lines_survive_round_trip(self) -> None:
         """A4: structural blank lines survive parse -> render -> parse.
 
         The renderer must emit blank-line separators between structural blocks so
@@ -1045,7 +1047,7 @@ That was lovely!"""
         reparsed_types = [element.type for element in reparsed.elements]
         assert reparsed_types == original_types
 
-    def test_dual_dialogue_survives_round_trip(self):
+    def test_dual_dialogue_survives_round_trip(self) -> None:
         """A4b: a DUAL_DIALOGUE element survives the Fountain round trip.
 
         Rendering a document containing a DUAL_DIALOGUE element must emit both
@@ -1066,9 +1068,10 @@ That was lovely!"""
         dual_elements = [element for element in reparsed.elements if element.type == ElementType.DUAL_DIALOGUE]
         assert len(dual_elements) == 1
         right_character = dual_elements[0].metadata["right_character"]
+        assert isinstance(right_character, FountainElement)
         assert right_character.text == "STEEL"
 
-    def test_dual_dialogue_interleaved_roundtrip_contiguity(self):
+    def test_dual_dialogue_interleaved_roundtrip_contiguity(self) -> None:
         """A4b: a DUAL_DIALOGUE next to normal dialogue blocks round-trips cleanly.
 
         When a dual dialogue element sits between single-column dialogue blocks,
@@ -1090,7 +1093,7 @@ That was lovely!"""
         reparsed_types = [element.type for element in reparsed.elements]
         assert reparsed_types == original_types
 
-    def test_empty_document(self):
+    def test_empty_document(self) -> None:
         """Test rendering an empty document."""
         document = FountainDocument([])
         fountain = self.renderer.render(document)
@@ -1098,7 +1101,7 @@ That was lovely!"""
         # Should be empty or just newlines
         assert fountain.strip() == ""
 
-    def test_metadata_only_document(self):
+    def test_metadata_only_document(self) -> None:
         """Test rendering a document with only metadata."""
         metadata = {"title": "Just a Title"}
         document = FountainDocument([], metadata)
@@ -1106,7 +1109,7 @@ That was lovely!"""
 
         assert "Title: Just a Title" in fountain
 
-    def test_no_formatting(self):
+    def test_no_formatting(self) -> None:
         """Test element with no formatting."""
         element = FountainElement(ElementType.DIALOGUE, "Simple text", [], 1)
         document = FountainDocument([element])
@@ -1114,7 +1117,7 @@ That was lovely!"""
 
         assert "Simple text" in fountain
 
-    def test_render_character_continuation(self):
+    def test_render_character_continuation(self) -> None:
         """Test character continuation rendering."""
         char_element = FountainElement(ElementType.CHARACTER, "JOHN", [], 1, metadata={"continuation": True})
 
@@ -1123,7 +1126,7 @@ That was lovely!"""
 
         assert "JOHN (CONT'D)" in fountain
 
-    def test_custom_metadata_fields_in_fountain(self):
+    def test_custom_metadata_fields_in_fountain(self) -> None:
         """Custom metadata fields should appear in Fountain round-trip output."""
         metadata = {
             "title": "My Script",

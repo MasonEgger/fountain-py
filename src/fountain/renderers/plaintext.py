@@ -1,10 +1,14 @@
 # ABOUTME: Monospace plain-text renderer producing screenplay-formatted output.
 # Column positions (dialogue, parenthetical, cue) are constructor parameters; writer tools are omitted.
-import textwrap
-from typing import cast
+from __future__ import annotations
 
-from fountain.document import FountainDocument
+import textwrap
+from typing import TYPE_CHECKING
+
 from fountain.elements import ElementType, FountainElement
+
+if TYPE_CHECKING:
+    from fountain.document import FountainDocument
 
 _OMITTED_TYPES = frozenset(
     {
@@ -123,30 +127,14 @@ class PlainTextRenderer:
         Returns:
             Zero, one, or two blocks; empty when metadata is missing.
         """
-        metadata = element.metadata
-        if not metadata:
+        if not element.metadata:
             return []
 
-        left_character = cast(FountainElement, metadata["left_character"])
-        left_dialogue = cast("list[FountainElement]", metadata["left_dialogue"])
-        right_character = cast(FountainElement, metadata["right_character"])
-        right_dialogue = cast("list[FountainElement]", metadata["right_dialogue"])
-
-        left_lines = self._render_dual_dialogue_side(left_character, left_dialogue)
-        right_lines = self._render_dual_dialogue_side(right_character, right_dialogue)
-        return [left_lines, right_lines]
-
-    def _render_dual_dialogue_side(self, character: FountainElement, dialogue: list[FountainElement]) -> list[str]:
-        """Render one side (character cue plus dialogue lines) of a dual-dialogue pair.
-
-        Args:
-            character: The CHARACTER element for this side.
-            dialogue: The DIALOGUE (and PARENTHETICAL) elements for this side.
-
-        Returns:
-            The flattened lines for this side's single-column block.
-        """
-        return [line for sub_element in (character, *dialogue) for line in self._render_element(sub_element)[0]]
+        # Each column (cue plus its dialogue lines) flattens into one block.
+        return [
+            [line for column_element in column for line in self._render_element(column_element)[0]]
+            for column in element.dual_dialogue_columns()
+        ]
 
     def _indent_and_wrap(self, text: str, indent: int, wrap_width: int) -> list[str]:
         """Wrap text to a column width and indent every resulting line.
