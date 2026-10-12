@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-11
+
 ### Added
 - Python 3.15 support, tested in CI
 - `FountainElement.dual_dialogue_columns()` returns the left and right columns of a dual-dialogue element (each a character cue followed by its dialogue), raising `ValueError` when the metadata is malformed
@@ -20,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `fountain` CLI reports an unreadable input file on stderr and exits 1 instead of printing a traceback
 - The parser resolves inline emphasis once per element instead of twice
 
-## [0.2.0] - Unreleased
+## [0.2.0] - 2026-09-18
 
 ### Added
 
