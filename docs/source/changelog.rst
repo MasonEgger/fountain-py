@@ -6,8 +6,8 @@ This file documents all notable changes to fountain-py.
 This changelog follows `Keep a Changelog <https://keepachangelog.com/en/1.0.0/>`_,
 and the project uses `Semantic Versioning <https://semver.org/spec/v2.0.0.html>`_.
 
-Unreleased
-----------
+Version 0.3.0: 2026-10-11
+-------------------------
 
 Added
 ~~~~~
@@ -26,8 +26,8 @@ Changed
 * The ``fountain`` CLI reports an unreadable input file on stderr and exits 1 instead of printing a traceback
 * The parser resolves inline emphasis once per element instead of twice
 
-Version 0.2.0: Unreleased
-----------------------------
+Version 0.2.0: 2026-09-18
+-------------------------
 
 JSON Interchange
 ~~~~~~~~~~~~~~~~~
