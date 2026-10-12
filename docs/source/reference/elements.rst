@@ -238,6 +238,16 @@ Dialogue Elements
         >>> dual.metadata['left_dialogue'][0].text
         'Did you see that?'
 
+    :meth:`~fountain.elements.FountainElement.dual_dialogue_columns` returns the same data as two typed lists, each a character cue followed by its dialogue:
+
+    .. doctest::
+
+        >>> left_column, right_column = dual.dual_dialogue_columns()
+        >>> [element.text for element in left_column]
+        ['JOHN', 'Did you see that?']
+        >>> [element.text for element in right_column]
+        ['MARY', "I can't believe it!"]
+
 Document Structure Elements
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

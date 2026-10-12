@@ -6,6 +6,7 @@ Use it to validate or render a script without writing any Python.
 
 It has two subcommands: ``validate`` and ``render``.
 Both accept a path or ``-`` to read from stdin.
+If the file cannot be read (missing, unreadable, or not UTF-8), the command prints the reason to stderr and exits with status ``1``.
 
 Validate a File
 ----------------

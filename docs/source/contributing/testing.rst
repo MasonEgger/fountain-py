@@ -74,5 +74,5 @@ Example:
 Coverage
 --------
 
-The project maintains 99%+ code coverage.
+Read coverage as a map of untested paths, not a score to hit.
 After running ``just test-cov``, open ``htmlcov/index.html`` to view the coverage report.

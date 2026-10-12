@@ -70,6 +70,20 @@ does not match the version this fountain-py release understands:
        ...
    ValueError: Unsupported schema_version 999; expected 1
 
+They also check every field of every element, since the data may come from another process or a file.
+A missing or wrongly typed field raises ``ValueError`` naming the field:
+
+.. doctest::
+
+   >>> FountainDocument.from_dict({
+   ...     "schema_version": 1,
+   ...     "metadata": {},
+   ...     "elements": [{"type": "action", "formatting": [], "line_number": 1, "metadata": {}}],
+   ... })
+   Traceback (most recent call last):
+       ...
+   ValueError: Malformed document data: 'text' must be str, got NoneType
+
 ``from_json()`` and ``from_dict()`` rebuild the same
 :class:`~fountain.elements.FountainElement` objects ``parse()`` produces.
 Every renderer and analysis method works on the restored document the same way
